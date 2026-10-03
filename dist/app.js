@@ -1,4 +1,4 @@
-import {auth,api} from './account.js';
+import {auth,api} from './account.js?v=2';
 import {localDay,read,write,validateRecords,mergeRecords} from './store.mjs';
 import {attachExercisePicker} from './exercise-picker.mjs';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs';
