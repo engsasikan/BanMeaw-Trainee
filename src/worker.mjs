@@ -48,14 +48,83 @@ export async function handleApi(request, env) {
   const sql = neon(env.DATABASE_URL);
   await initialize(sql);
   const role = user.emailVerified === true && env.ADMIN_EMAIL?.toLowerCase() === user.email?.toLowerCase() ? 'admin' : 'trainee';
-  await sql`INSERT INTO app_users (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
-  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role FROM app_users WHERE id=${user.sub}`;return json(me);}
+  await sql`INSERT INTO members (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
+  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role FROM members WHERE id=${user.sub}`;return json(me);}
+  if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   return handleEntries(request,sql,user);
+}
+const teamId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function readJson(request) {
+  const text=await request.text();
+  if(text.length>16000) throw Object.assign(new Error('ข้อมูลใหญ่เกินไป'),{status:413});
+  try {const value=JSON.parse(text);if(value&&typeof value==='object') return value;} catch {}
+  throw Object.assign(new Error('ข้อมูลไม่ถูกต้อง'),{status:400});
+}
+// Teams: the owner acts as trainer; members are invited by member_code and must accept
+// before the trainer can read their diary (read-only).
+export async function handleTeams(request,sql,user) {
+  const [id,action,memberId,extra]=new URL(request.url).pathname.split('/').slice(3).map(decodeURIComponent);
+  const method=request.method, me=user.sub;
+  if (!id && method==='GET') {
+    const owned=await sql`SELECT id,name FROM trainer_teams WHERE owner_id=${me} ORDER BY created_at`;
+    const members=await sql`SELECT m.team_id,m.status,u.id,u.member_code,u.display_name FROM team_members m JOIN trainer_teams t ON t.id=m.team_id JOIN members u ON u.id=m.user_id WHERE t.owner_id=${me} ORDER BY m.status,u.display_name`;
+    const memberships=await sql`SELECT t.id AS team_id,t.name AS team_name,m.status,o.display_name AS trainer_name,o.member_code AS trainer_code FROM team_members m JOIN trainer_teams t ON t.id=m.team_id JOIN members o ON o.id=t.owner_id WHERE m.user_id=${me} ORDER BY m.invited_at DESC`;
+    return json({teams:owned.map(t=>({...t,members:members.filter(m=>m.team_id===t.id).map(({team_id,...m})=>m)})),memberships});
+  }
+  if (!id && method==='POST') {
+    const name=String((await readJson(request)).name??'').trim();
+    if(!name||name.length>80) return json({error:'กรุณาตั้งชื่อทีม (ไม่เกิน 80 ตัวอักษร)'},400);
+    const [{count}]=await sql`SELECT count(*)::int AS count FROM trainer_teams WHERE owner_id=${me}`;
+    if(count>=10) return json({error:'สร้างทีมได้สูงสุด 10 ทีม'},409);
+    const [team]=await sql`INSERT INTO trainer_teams (owner_id,name) VALUES (${me},${name}) RETURNING id,name`;
+    await sql`UPDATE members SET role='trainer' WHERE id=${me} AND role='trainee'`;
+    return json({team:{...team,members:[]}});
+  }
+  if (!id || !teamId.test(id) || extra!==undefined) return json({error:'ไม่พบ API'},404);
+  const [team]=await sql`SELECT id,owner_id FROM trainer_teams WHERE id=${id}`;
+  if (!team) return json({error:'ไม่พบทีมนี้'},404);
+  const owner=team.owner_id===me;
+  if (!action && method==='DELETE') {
+    if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
+    await sql`DELETE FROM trainer_teams WHERE id=${id}`;
+    return json({ok:true});
+  }
+  if (action==='invites' && !memberId && method==='POST') {
+    if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
+    const code=String((await readJson(request)).member_code??'').trim().toUpperCase();
+    const [invitee]=code.length<=20?await sql`SELECT id,member_code,display_name FROM members WHERE member_code=${code}`:[];
+    if(!invitee) return json({error:'ไม่พบสมาชิก ID นี้ กรุณาตรวจอีกครั้ง'},404);
+    if(invitee.id===me) return json({error:'เพิ่มตัวเองเข้าทีมไม่ได้'},400);
+    const [{count}]=await sql`SELECT count(*)::int AS count FROM team_members WHERE team_id=${id}`;
+    if(count>=50) return json({error:'ทีมนี้มีสมาชิกครบ 50 คนแล้ว'},409);
+    const rows=await sql`INSERT INTO team_members (team_id,user_id,status) VALUES (${id},${invitee.id},'invited') ON CONFLICT DO NOTHING RETURNING status`;
+    if(!rows.length) return json({error:'สมาชิกคนนี้อยู่ในทีมหรือได้รับคำเชิญแล้ว'},409);
+    return json({member:{...invitee,status:'invited'}});
+  }
+  if (action==='accept' && !memberId && method==='POST') {
+    const rows=await sql`UPDATE team_members SET status='active',joined_at=now() WHERE team_id=${id} AND user_id=${me} AND status='invited' RETURNING status`;
+    return rows.length?json({ok:true}):json({error:'ไม่พบคำเชิญนี้'},404);
+  }
+  if (action==='members' && memberId && memberId.length<=200) {
+    if (method==='DELETE') {
+      if(!owner && memberId!==me) return json({error:'ไม่มีสิทธิ์นำสมาชิกคนนี้ออก'},403);
+      const rows=await sql`DELETE FROM team_members WHERE team_id=${id} AND user_id=${memberId} RETURNING user_id`;
+      return rows.length?json({ok:true}):json({error:'ไม่พบสมาชิกในทีมนี้'},404);
+    }
+    if (method==='GET') {
+      if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
+      const [member]=await sql`SELECT u.id,u.member_code,u.display_name FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} AND m.user_id=${memberId} AND m.status='active'`;
+      if(!member) return json({error:'สมาชิกยังไม่ได้ตอบรับเข้าทีม'},403);
+      const rows=await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`;
+      return json({member,records:rows.map(r=>r.payload)});
+    }
+  }
+  return json({error:'ไม่พบ API'},404);
 }
 export async function handleEntries(request,sql,user) {
   const url=new URL(request.url);
   if (url.pathname === '/api/entries' && request.method === 'GET') {
-    const rows = await sql`SELECT payload,revision FROM diary_entries WHERE user_id=${user.sub} ORDER BY day,id LIMIT 50001`;
+    const rows = await sql`SELECT payload,revision FROM daily_logs WHERE user_id=${user.sub} ORDER BY day,id LIMIT 50001`;
     if(rows.length>50000) return json({error:'ข้อมูลเกินขอบเขต กรุณาติดต่อผู้ดูแล'},409);
     return json({records:rows.map(r=>({...r.payload,_revision:r.revision}))});
   }
@@ -66,7 +135,7 @@ export async function handleEntries(request,sql,user) {
     const revision=Number(request.headers.get('If-Match') || 0);
     if(!Number.isInteger(revision)||revision<0) return json({error:'รุ่นข้อมูลไม่ถูกต้อง'},400);
     if(request.method==='DELETE') {
-      const rows=await sql`DELETE FROM diary_entries WHERE user_id=${user.sub} AND id=${id} AND revision=${revision} RETURNING id`;
+      const rows=await sql`DELETE FROM daily_logs WHERE user_id=${user.sub} AND id=${id} AND revision=${revision} RETURNING id`;
       return rows.length?json({ok:true}):json({error:'รายการเปลี่ยนจากอุปกรณ์อื่น กรุณาโหลดข้อมูลใหม่'},409);
     }
     let row;
@@ -74,8 +143,8 @@ export async function handleEntries(request,sql,user) {
     catch {return json({error:'ข้อมูลบันทึกไม่ถูกต้อง'},400);}
     const kind=row.kind==='workout'?'workout':'meal';
     const rows=revision===0
-      ? await sql`INSERT INTO diary_entries (user_id,id,day,kind,payload) VALUES (${user.sub},${id},${row.day},${kind},${JSON.stringify(row)}::jsonb) ON CONFLICT DO NOTHING RETURNING revision`
-      : await sql`UPDATE diary_entries SET day=${row.day},kind=${kind},payload=${JSON.stringify(row)}::jsonb,revision=revision+1,updated_at=now() WHERE user_id=${user.sub} AND id=${id} AND revision=${revision} RETURNING revision`;
+      ? await sql`INSERT INTO daily_logs (user_id,id,day,kind,payload) VALUES (${user.sub},${id},${row.day},${kind},${JSON.stringify(row)}::jsonb) ON CONFLICT DO NOTHING RETURNING revision`
+      : await sql`UPDATE daily_logs SET day=${row.day},kind=${kind},payload=${JSON.stringify(row)}::jsonb,revision=revision+1,updated_at=now() WHERE user_id=${user.sub} AND id=${id} AND revision=${revision} RETURNING revision`;
     return rows.length?json({record:{...row,_revision:rows[0].revision}}):json({error:'รายการเปลี่ยนจากอุปกรณ์อื่น กรุณาโหลดข้อมูลใหม่'},409);
   }
   return json({error:'ไม่พบ API'},404);

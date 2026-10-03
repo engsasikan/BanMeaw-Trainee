@@ -10,9 +10,9 @@ function database(){
  return async function sql(strings,...v){
   const q=strings.join('?');
   if(q.includes('SELECT payload'))return [...rows.values()].filter(r=>r.user===v[0]).map(r=>({payload:r.payload,revision:r.revision}));
-  if(q.includes('INSERT INTO diary_entries')){const [user,id,day,kind,payload]=v,key=user+':'+id;if(rows.has(key))return [];rows.set(key,{user,payload:JSON.parse(payload),revision:1});return [{revision:1}];}
-  if(q.includes('UPDATE diary_entries')){const [day,kind,payload,user,id,revision]=v,key=user+':'+id,r=rows.get(key);if(!r||r.revision!==revision)return [];r.payload=JSON.parse(payload);r.revision++;return [{revision:r.revision}];}
-  if(q.includes('DELETE FROM diary_entries')){const [user,id,revision]=v,key=user+':'+id,r=rows.get(key);if(!r||r.revision!==revision)return [];rows.delete(key);return [{id}];}
+  if(q.includes('INSERT INTO daily_logs')){const [user,id,day,kind,payload]=v,key=user+':'+id;if(rows.has(key))return [];rows.set(key,{user,payload:JSON.parse(payload),revision:1});return [{revision:1}];}
+  if(q.includes('UPDATE daily_logs')){const [day,kind,payload,user,id,revision]=v,key=user+':'+id,r=rows.get(key);if(!r||r.revision!==revision)return [];r.payload=JSON.parse(payload);r.revision++;return [{revision:r.revision}];}
+  if(q.includes('DELETE FROM daily_logs')){const [user,id,revision]=v,key=user+':'+id,r=rows.get(key);if(!r||r.revision!==revision)return [];rows.delete(key);return [{id}];}
   throw Error('Unexpected query');
  };
 }
