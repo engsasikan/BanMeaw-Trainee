@@ -7,7 +7,7 @@
 .team-actions{display:flex;gap:8px;flex-shrink:0}.team-actions button{width:auto;margin:0;min-height:40px;padding:0 14px;font-size:.85rem}
 .team-badge{color:#ffb487;font-size:.8rem}
 .team-day h3{font-size:.95rem;color:#ff9b61;margin:18px 0 8px}.team-log{display:grid;gap:2px;padding:10px 14px;border-left:3px solid #ff7028;background:#232425;border-radius:0 12px 12px 0;margin-bottom:8px}.team-log.workout{border-left-color:#6aa6ff}.team-log span{color:#c3c5c7;white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:800px){@media(max-width:520px){.team-row{flex-direction:column;align-items:stretch}.team-actions button{flex:1}.team-invite{flex-direction:column}.team-invite .primary{min-height:48px}}
+@media(max-width:520px){.team-row{flex-direction:column;align-items:stretch}.team-actions button{flex:1}.team-invite{flex-direction:column}.team-invite .primary{min-height:48px}}
 .top-nav.switcher{scrollbar-width:none}.top-nav.switcher::-webkit-scrollbar{display:none}
 #account-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.id-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:20px;background:#ff70281a;border:1px solid #ff702855;color:#ffb487;font-size:.85rem;font-weight:700;letter-spacing:.3px;cursor:pointer}.id-chip:hover{background:#ff70282e}.id-chip.copied{background:#ff7028;color:#1d1714}.id-chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
 @media(max-width:700px){#account-label{font-size:.85rem;gap:6px}.id-chip{min-height:30px;padding:0 10px;font-size:.78rem}}
