@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+' '+FIELDS[key].unit;
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=2');
+const loadThree=()=>threeModule??=import('./body3d.js?v=3');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -31,7 +31,7 @@ export function createBodyViewer(root){
   try{
    const three=await loadThree();
    if(!figure){figure=three.mountBody(stage);}
-   const shape=figure.update(current||{},mode);
+   const shape=await figure.update(current||{},mode);
    if(!current)return;
    legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันเกินมาตรฐาน · สีอ่อน = ไขมันน้อย (ตามค่าแต่ละส่วน)':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อมาก · สีเทา = น้อย (เทียบค่าเฉลี่ย)':'รูปร่างจากส่วนสูง น้ำหนัก และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
