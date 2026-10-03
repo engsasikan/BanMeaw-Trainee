@@ -12,3 +12,6 @@
 @media(max-width:800px){.team-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.team-row{flex-direction:column;align-items:stretch}.team-actions button{flex:1}.team-invite{flex-direction:column}.team-invite .primary{min-height:48px}}
 .top-nav.switcher{scrollbar-width:none}.top-nav.switcher::-webkit-scrollbar{display:none}
+#account-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.id-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:20px;background:#ff70281a;border:1px solid #ff702855;color:#ffb487;font-size:.85rem;font-weight:700;letter-spacing:.3px;cursor:pointer}.id-chip:hover{background:#ff70282e}.id-chip.copied{background:#ff7028;color:#1d1714}.id-chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
+@media(max-width:700px){#account-label{font-size:.85rem;gap:6px}.id-chip{min-height:30px;padding:0 10px;font-size:.78rem}}
+.id-chip{white-space:nowrap}header .quiet{white-space:nowrap}@media(max-width:700px){header{flex-wrap:wrap;row-gap:10px}header #account-label{order:3;width:100%;margin:0;justify-content:space-between}header #account-label:empty{display:none}}
