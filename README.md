@@ -35,3 +35,12 @@ The root `wrangler.jsonc` serves the existing `dist` folder as static assets. In
 - Deploy command: `npx wrangler deploy`
 
 For local preview use `npx wrangler dev`. Validate packaging without publishing using `npx wrangler deploy --dry-run`.
+
+## Neon connection setup (pending)
+
+1. In Cloudflare select the Worker > Settings > Variables and Secrets.
+2. Add a Secret named `DATABASE_URL` using the pooled Neon connection string.
+3. Keep this value out of Git and browser JavaScript.
+4. Authenticate the local Neon CLI with `neon login` to enable controlled schema setup.
+
+`db/001_initial.sql` is the proposed initial schema. It has not been applied. Database-backed APIs and identity enforcement must be implemented before records are shared. Do not expose an unauthenticated diary endpoint or treat a browser-supplied user ID as identity.
