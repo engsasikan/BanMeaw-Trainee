@@ -94,8 +94,9 @@ function segmentDeviation(r, prefix, scale) {
   return Object.fromEntries(segs.map((s, i) => [s, vals[i] == null ? 0 : clamp((vals[i] - mean) / scale, -1, 1)]));
 }
 
-function shapeBody(model, r) {
-  const {n, base, segments, targets, locals} = model, {sex, weight, muscle} = macros(r), ref = REF[sex];
+function shapeBody(model, r, lean = false) {
+  const {n, base, segments, targets, locals} = model, {sex, muscle} = macros(r), ref = REF[sex];
+  const weight = lean ? Math.min(macros(r).weight, 0.15) : macros(r).weight;
   const pos = Float32Array.from(base), wm = split(muscle), ww = split(weight);
   for (const t of targets) {
     const k = wm[t.m] * ww[t.w] / 1000; if (!k) continue;
@@ -118,7 +119,7 @@ function shapeBody(model, r) {
       apply(pos, `${side}-upperarm-shoulder-muscle`, mus[arm]);
       for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-muscle`, mus[leg]);
     }
-    if (fat) {
+    if (fat && !lean) {
       for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-fat`, fat[arm]);
       for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-fat`, fat[leg]);
     }
@@ -127,7 +128,7 @@ function shapeBody(model, r) {
   // Belly from visceral fat level (1-9 normal) and trunk fat; abdominal tone from body fat.
   // The 'pregnant' target is strong, so keep it subtle: level 16 -> ~0.35.
   const belly = (r.visceral != null ? clamp((r.visceral - 9) / 20, -0.2, 0.5) : 0) + (fat ? fat.trunk * 0.25 : 0);
-  apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
+  if (!lean) apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
   if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
 
   // Scale to the person's height (metres), feet on the ground.
@@ -159,7 +160,7 @@ function shapeBody(model, r) {
     ['calf', 'measure-calf-circ', [3, 4], 12, 26, Math.max],
   ];
   // Two passes: neighbouring measures (waist/hip/bust) affect each other.
-  for (let pass = 0; pass < 2; pass++) for (const [key, name, segs, from, to, pick] of fits) {
+  for (let pass = 0; pass < (lean ? 0 : 2); pass++) for (const [key, name, segs, from, to, pick] of fits) {
     const target = r[key]; if (!target) continue;
     const depthOnly = key === 'arm', g0 = girth(pos, segs, from, to, pick, depthOnly); if (!g0 || Math.abs(target - g0) < 0.5) continue;
     const dir = target > g0 ? 1 : -1, probe = Float32Array.from(pos);
@@ -169,6 +170,49 @@ function shapeBody(model, r) {
     apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 4), s);
   }
   return {pos, H};
+}
+
+const ANATOMY_NOISE = `
+varying float vFat;
+varying vec3 vObjPos;
+float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+vec3 hash3(vec3 p) { return vec3(hash(p), hash(p + 17.13), hash(p + 31.71)); }
+float noise(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+vec2 voronoi(vec3 x) {
+  vec3 p = floor(x), f = fract(x); float d1 = 8.0, d2 = 8.0;
+  for (int k = -1; k <= 1; k++) for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec3 b = vec3(float(i), float(j), float(k)), r = b - f + hash3(p + b); float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+  }
+  return vec2(sqrt(d1), sqrt(d2));
+}
+`;
+function anatomyMaterial() {
+  const material = new THREE.MeshStandardMaterial({roughness: 0.5, metalness: 0});
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float fatAmt;\nvarying float vFat;\nvarying vec3 vObjPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFat = fatAmt;\nvObjPos = position;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\n' + ANATOMY_NOISE)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float n = noise(vObjPos * vec3(30.0, 5.0, 30.0));
+        float phase = (vObjPos.x + vObjPos.z * 0.7) * 1100.0 + n * 10.0;
+        float aa = clamp(1.0 - fwidth(phase) / 2.5, 0.0, 1.0); // fade fibres when too fine for the pixel
+        float shade = 0.6 + 0.22 * sin(phase) * aa + 0.18 * (noise(vObjPos * 70.0) - 0.5);
+        vec3 muscleCol = mix(vec3(0.34, 0.03, 0.04), vec3(0.82, 0.13, 0.12), shade);
+        vec2 v = voronoi(vObjPos * 95.0);
+        vec3 fatCol = mix(vec3(1.0, 0.88, 0.48), vec3(0.78, 0.55, 0.16), smoothstep(0.15, 0.8, v.x));
+        fatCol *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.09, v.y - v.x));
+        float fatMask = smoothstep(0.46, 0.54, vFat + (noise(vObjPos * 16.0) - 0.5) * 0.4);
+        diffuseColor.rgb = mix(muscleCol, fatCol, fatMask);`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.42, 0.7, smoothstep(0.46, 0.54, vFat));');
+  };
+  return material;
 }
 
 export function mountBody(container) {
@@ -186,7 +230,7 @@ export function mountBody(container) {
   const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
-  const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0});
+  const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0}), anatomy = anatomyMaterial();
   let mesh = null, frame = 0, request = 0;
 
   async function update(record = {}, mode = 'shape') {
@@ -194,6 +238,15 @@ export function mountBody(container) {
     const model = await loadModel(sex);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
+    if (mode === 'anatomy') {
+      // Fat thickness per vertex = distance from the lean body; ~0.6 cm shows no fat, ~3.5 cm full fat.
+      const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n);
+      for (let i = 0; i < model.n; i++) {
+        const t = Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
+        fatAmt[i] = model.segments[i] === 5 ? 0 : clamp((t - 0.006) / 0.03, 0, 1);
+      }
+      geometry.setAttribute('fatAmt', new THREE.BufferAttribute(fatAmt, 1));
+    }
     geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geometry.setIndex(new THREE.BufferAttribute(model.indices, 1));
     const colors = new Float32Array(model.n * 3), levels = SEG.map(seg => seg ? segmentLevel(r, seg, mode) : null);
@@ -202,7 +255,7 @@ export function mountBody(container) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
-    mesh = new THREE.Mesh(geometry, material); scene.add(mesh);
+    mesh = new THREE.Mesh(geometry, mode === 'anatomy' ? anatomy : material); scene.add(mesh);
     controls.target.set(0, H * 0.53, 0);
     if (!camera.userData.placed) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
     controls.update();
@@ -215,6 +268,6 @@ export function mountBody(container) {
   loop();
   return {
     update,
-    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); },
+    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); renderer.dispose(); renderer.domElement.remove(); },
   };
 }
