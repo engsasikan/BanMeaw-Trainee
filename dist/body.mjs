@@ -56,6 +56,8 @@ export function createBodyViewer(root){
    draw();
   },
   setTitle(text){head.querySelector('h2').textContent=text;},
+  // Show an unsaved record from the form (live preview while typing).
+  preview(record){current=record;picker.value='';draw().then(()=>{if(current===record)legend.textContent='ตัวอย่างจากค่าที่กำลังกรอก (ยังไม่บันทึก)';});},
   dispose(){figure?.dispose();figure=null;},
  };
 }
@@ -100,7 +102,15 @@ async function loadBody(selectedId){
 }
 export function initBody(){
  viewer=createBodyViewer($('body-viewer'));buildForm();fillForm(null);
- $('body-cancel').onclick=()=>fillForm(null);
+ $('body-cancel').onclick=()=>{fillForm(null);viewer.show(records);};
+ // Re-shape the figure as the form changes, before saving.
+ let previewTimer;
+ const preview=()=>{clearTimeout(previewTimer);previewTimer=setTimeout(()=>{
+  const row={id:'preview',day:$('body-day').value,sex:$('body-sex').value};
+  for(const key of Object.keys(FIELDS)){const v=Number(input(key).value);const f=FIELDS[key];row[key]=input(key).value.trim()!==''&&v>=f.min&&v<=f.max?v:null;}
+  viewer.preview(row);
+ },250);};
+ $('body-form').addEventListener('input',preview);$('body-form').addEventListener('change',preview);
  $('body-form').onsubmit=async e=>{
   e.preventDefault();const button=$('body-save');button.disabled=true;
   try{
