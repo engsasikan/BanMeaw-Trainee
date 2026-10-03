@@ -4,7 +4,7 @@ import {attachExercisePicker} from './exercise-picker.mjs?v=5';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
 import {initTeams} from './team.mjs?v=11';
 import {initBody,quickWeigh} from './body.mjs?v=22';
-import {initToday} from './today.mjs?v=2';
+import {initToday} from './today.mjs?v=3';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();
