@@ -43,3 +43,4 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 @media(max-width:900px){.profile-grid{grid-template-columns:1fr}.body-stage{height:360px}}
 .body-hint{font-size:.8rem;margin:0 0 4px}
 .profile-settings{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:14px 18px;border-radius:18px;background:#232425;border:1px solid #333436}.profile-settings label{margin:0;font-weight:700}.profile-settings select{width:auto;margin:0;min-height:42px}.profile-settings .muted{font-size:.85rem}
+.body-fields.pairs{grid-template-columns:1fr 1fr}

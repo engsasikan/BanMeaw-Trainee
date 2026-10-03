@@ -1,13 +1,13 @@
 import {api} from './account.js?v=2';
-import {FIELDS,SEGMENTS,BASIC,GIRTHS,validateBody} from './body-data.mjs';
+import {FIELDS,SEGMENTS,GROUPS,validateBody} from './body-data.mjs';
 import {localDay} from './store.mjs';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button';b.onclick=onclick;return b;};
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
-const fmt=(key,v)=>v==null?'–':v+' '+FIELDS[key].unit;
+const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=3');
+const loadThree=()=>threeModule??=import('./body3d.js?v=4');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -33,19 +33,25 @@ export function createBodyViewer(root){
    if(!figure){figure=three.mountBody(stage);}
    const shape=await figure.update(current||{sex:fallbackSex},mode);
    if(!current)return;
-   legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันเกินมาตรฐาน · สีอ่อน = ไขมันน้อย (ตามค่าแต่ละส่วน)':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อมาก · สีเทา = น้อย (เทียบค่าเฉลี่ย)':'รูปร่างจากส่วนสูง น้ำหนัก และสัดส่วนที่กรอก';
+   legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อเกินมาตรฐาน · สีเทา = ต่ำกว่ามาตรฐาน (100%)':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
-   if(mode!=='shape'&&SEGMENTS.every(([s])=>current[(mode==='fat'?'fat_':'mus_')+s]==null))note.textContent=(mode==='fat'?'ยังไม่ได้กรอกไขมันแต่ละส่วน ใช้ % ไขมันรวมแทน':'ยังไม่ได้กรอกกล้ามเนื้อแต่ละส่วน');
+   if(mode==='fat'&&SEGMENTS.every(([s])=>current['fat_'+s]==null))note.textContent='ไม่มีค่าไขมันแต่ละส่วน (InBody 380 ไม่วัดค่านี้) จึงใช้ % ไขมันรวมทั้งตัว';
+   if(mode==='muscle'&&SEGMENTS.every(([s])=>current['mus_'+s]==null&&current['musp_'+s]==null))note.textContent='ยังไม่ได้กรอกความสมดุลกล้ามเนื้อแต่ละส่วน';
   }catch{stage.classList.add('empty-stage');legend.textContent='อุปกรณ์นี้แสดง 3D ไม่ได้ แต่ยังดูตัวเลขได้';}
   if(!current)return;
   const bmi=current.height&&current.weight?Math.round(current.weight/(current.height/100)**2*10)/10:null;
-  const items=[['น้ำหนัก',fmt('weight',current.weight)],['BMI',bmi??'–'],['ไขมัน',fmt('body_fat',current.body_fat)],['กล้ามเนื้อ',fmt('muscle',current.muscle)]];
-  if(current.visceral!=null)items.push(['ไขมันช่องท้อง',fmt('visceral',current.visceral)]);
-  if(current.waist&&current.hip)items.push(['เอว/สะโพก',(current.waist/current.hip).toFixed(2)]);
+  const items=[['น้ำหนัก',fmt('weight',current.weight)],['BMI',bmi??'–'],['ไขมัน (PBF)',fmt('body_fat',current.body_fat)],['กล้ามเนื้อโครงร่าง',fmt('muscle',current.muscle)]];
+  const whr=current.whr??(current.waist&&current.hip?Math.round(current.waist/current.hip*100)/100:null);
+  for(const [label,key,value] of [['มวลไขมัน','body_fat_mass'],['ไขมันช่องท้อง','visceral'],['คะแนน InBody','score'],['เผาผลาญพื้นฐาน','bmr'],['เอว/สะโพก','whr',whr],['อัตราส่วน ECW','ecw_ratio'],['น้ำหนักเป้าหมาย','target_weight']]){
+   const v=value!==undefined?value:current[key];if(v!=null)items.push([label,fmt(key,v)]);
+  }
   const grid=node('div',undefined,'body-stat-grid');for(const [k,v] of items){const cell=node('div');cell.append(node('span',k),node('strong',String(v)));grid.append(cell);}stats.append(grid);
   if(mode!=='shape'){
-   const prefix=mode==='fat'?'fat_':'mus_',table=node('div',undefined,'body-seg-grid');
-   for(const [s,label] of SEGMENTS){const cell=node('div');cell.append(node('span',label),node('strong',fmt(prefix+s,current[prefix+s])));table.append(cell);}
+   const table=node('div',undefined,'body-seg-grid');
+   for(const [s,label] of SEGMENTS){
+    const value=mode==='fat'?fmt('fat_'+s,current['fat_'+s]):[current['mus_'+s]!=null?fmt('mus_'+s,current['mus_'+s]):'',current['musp_'+s]!=null?current['musp_'+s]+'%':''].filter(Boolean).join(' · ')||'–';
+    const cell=node('div');cell.append(node('span',label),node('strong',value));table.append(cell);
+   }
    stats.append(table);
   }
  }
@@ -66,17 +72,25 @@ export function createBodyViewer(root){
 let records=[],editing=null,viewer,profileSex=null;
 const input=key=>$('bf-'+key);
 function buildForm(){
- const groups={'body-basic':BASIC,'body-girths':GIRTHS,'body-fat':SEGMENTS.map(([s])=>'fat_'+s),'body-muscle':SEGMENTS.map(([s])=>'mus_'+s)};
- for(const [id,keys] of Object.entries(groups)){
-  const box=$(id);box.replaceChildren();
-  for(const key of keys){const f=FIELDS[key],wrap=node('div'),label=node('label',f.label+' ('+f.unit+')'),field=node('input');
-   label.htmlFor='bf-'+key;Object.assign(field,{id:'bf-'+key,type:'number',min:f.min,max:f.max,step:'0.1',inputMode:'decimal',placeholder:'–'});
-   wrap.append(label,field);box.append(wrap);}
+ const root=$('body-groups');root.replaceChildren();
+ for(const group of GROUPS){
+  const section=node('details'),grid=node('div',undefined,'body-fields'+(group.segments?' pairs':''));section.open=!!group.open;
+  section.append(node('summary',group.title));
+  if(group.segments)section.append(node('p','กรอกได้ทั้งกิโลกรัมและ % ตามแถวในใบผล (100% = มาตรฐาน)','muted body-hint'));
+  for(const key of group.keys){
+   const f=FIELDS[key],wrap=node('div'),label=node('label',f.label+(f.unit?' ('+f.unit+')':'')),field=node('input');
+   label.htmlFor='bf-'+key;
+   Object.assign(field,{id:'bf-'+key,type:'number',min:f.min,max:f.max,step:String(10**-f.dp),inputMode:f.min<0?'text':'decimal',placeholder:'–'});
+   wrap.append(label,field);grid.append(wrap);
+  }
+  section.append(grid);root.append(section);
  }
 }
+// With a sex set on the profile, every measurement uses it and the per-record picker is hidden.
+function applySexSetting(){$('body-sex').closest('div').hidden=!!profileSex;}
 function fillForm(r){
  editing=r?.id??null;$('body-day').value=r?.day??localDay();
- const last=records[0];$('body-sex').value=r?.sex??profileSex??last?.sex??'male';
+ const last=records[0];$('body-sex').value=profileSex??r?.sex??last?.sex??'male';
  for(const key of Object.keys(FIELDS))input(key).value=r?.[key]??(!r&&key==='height'&&last?.height?last.height:'');
  $('body-note').value=r?.note??'';
  $('body-form-title').textContent=r?'แก้ไขค่าวันที่ '+thaiDate(r.day):'บันทึกค่าร่างกาย';
@@ -87,7 +101,7 @@ function renderHistory(selectedId){
  if(!records.length){box.append(node('p','ยังไม่มีประวัติ กรอกค่าครั้งแรกด้านบนได้เลย','muted'));return;}
  for(const r of records){
   const row=node('div',undefined,'team-row'),info=node('div');
-  info.append(node('strong',thaiDate(r.day)),node('span',[r.weight!=null?r.weight+' กก.':'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
+  info.append(node('strong',thaiDate(r.day)),node('span',[r.weight!=null?r.weight+' กก.':'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':'',r.score!=null?'คะแนน '+r.score:''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
   const actions=node('div',undefined,'team-actions');
   actions.append(button('ดูหุ่น','primary',()=>{viewer.show(records,r.id);$('body-viewer').scrollIntoView({behavior:'smooth',block:'start'});}),
    button('แก้ไข','quiet',()=>{fillForm(r);$('body-form').scrollIntoView({behavior:'smooth',block:'start'});}),
@@ -98,17 +112,22 @@ function renderHistory(selectedId){
 const say=text=>{$('body-message').textContent=text;};
 async function loadBody(selectedId){
  ({records}=await api('/api/body'));
+ if(profileSex&&records.some(r=>r.sex!==profileSex)){
+  // Older measurements saved before the sex setting: show and store them with it.
+  records=records.map(r=>({...r,sex:profileSex}));
+  api('/api/me',{method:'PATCH',body:JSON.stringify({sex:profileSex})}).catch(()=>{});
+ }
  viewer.show(records,selectedId,profileSex);renderHistory();if(!editing)fillForm(null);
 }
 export function initBody(me={}){
  profileSex=me.sex??null;
- viewer=createBodyViewer($('body-viewer'));buildForm();fillForm(null);
+ viewer=createBodyViewer($('body-viewer'));buildForm();applySexSetting();fillForm(null);
  const sexSetting=$('profile-sex');sexSetting.value=profileSex??'';
  sexSetting.onchange=async()=>{
   const sex=sexSetting.value||null;sexSetting.disabled=true;
   try{
    await api('/api/me',{method:'PATCH',body:JSON.stringify({sex})});profileSex=sex;
-   if(!editing){fillForm(null);viewer.show(records,undefined,sex||'male');}
+   applySexSetting();editing=null;await loadBody();
    say(sex?'ตั้งค่าเพศเป็น'+(sex==='female'?'ผู้หญิง':'ผู้ชาย')+'แล้ว ค่าใหม่ที่บันทึกจะใช้หุ่น'+(sex==='female'?'ผู้หญิง':'ผู้ชาย'):'ยกเลิกการระบุเพศแล้ว');
   }catch(error){sexSetting.value=profileSex??'';say(error.message);}
   finally{sexSetting.disabled=false;}

@@ -54,6 +54,8 @@ export async function handleApi(request, env) {
     const {sex}=await readJson(request);
     if(sex!==null && sex!=='male' && sex!=='female') return json({error:'ข้อมูลเพศไม่ถูกต้อง'},400);
     await sql`UPDATE members SET sex=${sex} WHERE id=${user.sub}`;
+    // The member's sex applies to every saved measurement's 3D figure.
+    if(sex) await sql`UPDATE body_measurements SET payload=jsonb_set(payload,'{sex}',to_jsonb(${sex}::text)),updated_at=now() WHERE user_id=${user.sub} AND payload->>'sex' IS DISTINCT FROM ${sex}`;
     return json({ok:true});
   }
   if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex FROM members WHERE id=${user.sub}`;return json(me);}
