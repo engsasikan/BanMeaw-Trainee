@@ -50,7 +50,13 @@ export async function handleApi(request, env) {
   await initialize(sql);
   const role = user.emailVerified === true && env.ADMIN_EMAIL?.toLowerCase() === user.email?.toLowerCase() ? 'admin' : 'trainee';
   await sql`INSERT INTO members (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
-  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role FROM members WHERE id=${user.sub}`;return json(me);}
+  if (url.pathname === '/api/me' && request.method === 'PATCH') {
+    const {sex}=await readJson(request);
+    if(sex!==null && sex!=='male' && sex!=='female') return json({error:'ข้อมูลเพศไม่ถูกต้อง'},400);
+    await sql`UPDATE members SET sex=${sex} WHERE id=${user.sub}`;
+    return json({ok:true});
+  }
+  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex FROM members WHERE id=${user.sub}`;return json(me);}
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);
   return handleEntries(request,sql,user);

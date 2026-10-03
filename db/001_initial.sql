@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS members (
   role text NOT NULL CHECK (role IN ('admin', 'trainer', 'trainee')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
+-- The member's sex, used as the default 3D figure (null = not set).
+ALTER TABLE members ADD COLUMN IF NOT EXISTS sex text CHECK (sex IN ('male', 'female'));
 ALTER TABLE members ADD COLUMN IF NOT EXISTS member_code text NOT NULL UNIQUE DEFAULT ('BM-' || upper(substr(md5(gen_random_uuid()::text), 1, 6)));
 
 -- daily_logs: meal and workout entries per member and day (kind = meal | workout).

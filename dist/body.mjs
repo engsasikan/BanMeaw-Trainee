@@ -18,7 +18,7 @@ export function createBodyViewer(root){
  const modes=node('div',undefined,'body-modes');modes.setAttribute('role','group');modes.setAttribute('aria-label','รูปแบบการแสดงผล');
  const stage=node('div',undefined,'body-stage'),legend=node('p',undefined,'body-legend'),stats=node('div',undefined,'body-stats'),note=node('p',undefined,'muted body-estimate');
  root.replaceChildren(head,modes,stage,legend,stats,note);
- let records=[],current=null,mode='shape',figure=null;
+ let records=[],current=null,mode='shape',figure=null,fallbackSex='male';
  for(const [key,label] of [['shape','รูปร่าง'],['fat','ไขมัน'],['muscle','กล้ามเนื้อ']]){
   const b=button(label,'quiet',()=>{mode=key;draw();});b.dataset.mode=key;modes.append(b);
  }
@@ -31,7 +31,7 @@ export function createBodyViewer(root){
   try{
    const three=await loadThree();
    if(!figure){figure=three.mountBody(stage);}
-   const shape=await figure.update(current||{},mode);
+   const shape=await figure.update(current||{sex:fallbackSex},mode);
    if(!current)return;
    legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันเกินมาตรฐาน · สีอ่อน = ไขมันน้อย (ตามค่าแต่ละส่วน)':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อมาก · สีเทา = น้อย (เทียบค่าเฉลี่ย)':'รูปร่างจากส่วนสูง น้ำหนัก และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
@@ -50,8 +50,8 @@ export function createBodyViewer(root){
   }
  }
  return {
-  show(list,selectedId){
-   records=list;current=list.find(r=>r.id===selectedId)||list[0]||null;
+  show(list,selectedId,sex){
+   if(sex)fallbackSex=sex;records=list;current=list.find(r=>r.id===selectedId)||list[0]||null;
    picker.replaceChildren(...list.map(r=>{const o=node('option',thaiDate(r.day));o.value=r.id;o.selected=r===current;return o;}));picker.hidden=!list.length;
    draw();
   },
@@ -63,7 +63,7 @@ export function createBodyViewer(root){
 }
 
 // ---- Profile page (own measurements) ----
-let records=[],editing=null,viewer;
+let records=[],editing=null,viewer,profileSex=null;
 const input=key=>$('bf-'+key);
 function buildForm(){
  const groups={'body-basic':BASIC,'body-girths':GIRTHS,'body-fat':SEGMENTS.map(([s])=>'fat_'+s),'body-muscle':SEGMENTS.map(([s])=>'mus_'+s)};
@@ -76,7 +76,7 @@ function buildForm(){
 }
 function fillForm(r){
  editing=r?.id??null;$('body-day').value=r?.day??localDay();
- const last=records[0];$('body-sex').value=r?.sex??last?.sex??'male';
+ const last=records[0];$('body-sex').value=r?.sex??profileSex??last?.sex??'male';
  for(const key of Object.keys(FIELDS))input(key).value=r?.[key]??(!r&&key==='height'&&last?.height?last.height:'');
  $('body-note').value=r?.note??'';
  $('body-form-title').textContent=r?'แก้ไขค่าวันที่ '+thaiDate(r.day):'บันทึกค่าร่างกาย';
@@ -98,10 +98,21 @@ function renderHistory(selectedId){
 const say=text=>{$('body-message').textContent=text;};
 async function loadBody(selectedId){
  ({records}=await api('/api/body'));
- viewer.show(records,selectedId);renderHistory();if(!editing)fillForm(null);
+ viewer.show(records,selectedId,profileSex);renderHistory();if(!editing)fillForm(null);
 }
-export function initBody(){
+export function initBody(me={}){
+ profileSex=me.sex??null;
  viewer=createBodyViewer($('body-viewer'));buildForm();fillForm(null);
+ const sexSetting=$('profile-sex');sexSetting.value=profileSex??'';
+ sexSetting.onchange=async()=>{
+  const sex=sexSetting.value||null;sexSetting.disabled=true;
+  try{
+   await api('/api/me',{method:'PATCH',body:JSON.stringify({sex})});profileSex=sex;
+   if(!editing){fillForm(null);viewer.show(records,undefined,sex||'male');}
+   say(sex?'ตั้งค่าเพศเป็น'+(sex==='female'?'ผู้หญิง':'ผู้ชาย')+'แล้ว ค่าใหม่ที่บันทึกจะใช้หุ่น'+(sex==='female'?'ผู้หญิง':'ผู้ชาย'):'ยกเลิกการระบุเพศแล้ว');
+  }catch(error){sexSetting.value=profileSex??'';say(error.message);}
+  finally{sexSetting.disabled=false;}
+ };
  $('body-cancel').onclick=()=>{fillForm(null);viewer.show(records);};
  // Re-shape the figure as the form changes, before saving.
  let previewTimer;
