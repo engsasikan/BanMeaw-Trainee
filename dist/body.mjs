@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=12');
+const loadThree=()=>threeModule??=import('./body3d.js?v=13');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -18,8 +18,8 @@ export function createBodyViewer(root,{onSelect}={}){
  const modes=node('div',undefined,'body-modes');modes.setAttribute('role','group');modes.setAttribute('aria-label','รูปแบบการแสดงผล');
  const stage=node('div',undefined,'body-stage'),legend=node('p',undefined,'body-legend'),stats=node('div',undefined,'body-stats'),note=node('p',undefined,'muted body-estimate');
  root.replaceChildren(head,modes,stage,legend,stats,note);
- let records=[],current=null,mode='shape',figure=null,fallbackSex='male';
- for(const [key,label] of [['shape','รูปร่างของฉัน'],['fat','ไขมัน'],['muscle','กล้ามเนื้อ'],['anatomy','กายวิภาคอ้างอิง']]){
+ let records=[],current=null,mode='anatomy',figure=null,fallbackSex='male';
+ for(const [key,label] of [['shape','รูปร่างของฉัน'],['fat','ไขมัน'],['muscle','กล้ามเนื้อ'],['anatomy','กล้าม/ไขมัน']]){
   const b=button(label,'quiet',()=>{mode=key;draw();});b.dataset.mode=key;modes.append(b);
  }
  picker.onchange=()=>{current=records.find(r=>r.id===picker.value);draw();onSelect?.(current);};
@@ -32,10 +32,10 @@ export function createBodyViewer(root,{onSelect}={}){
    const three=await loadThree();
    if(!figure){figure=three.mountBody(stage);}
    const shape=await figure.update({...current,sex:current?.sex||fallbackSex},mode);
-   if(!current){if(mode==='anatomy'){legend.textContent='มัดกล้ามเนื้อจริงจาก Z-Anatomy / BodyParts3D';note.textContent='โมเดลกายวิภาคอ้างอิง ไม่ใช่รูปร่างเฉพาะบุคคล';const credit=node('a','Z-Anatomy / BodyParts3D · CC BY-SA','muted');credit.href='/models/ANATOMY-LICENSE.txt';note.append(' · ',credit);}return;}
-   legend.textContent=mode==='anatomy'?'แดง = กล้ามเนื้อ · สีครีม = เอ็นและเนื้อเยื่อเกี่ยวพัน':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อเกินมาตรฐาน · สีเทา = ต่ำกว่ามาตรฐาน (100%)':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
+   if(!current){legend.textContent='กรอกค่าร่างกายเพื่อดูหุ่น 3D';return;}
+   legend.textContent=mode==='anatomy'?'สีแดง = กล้ามเนื้อ · สีเหลือง = ภาพประมาณไขมันสะสม':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อเกินมาตรฐาน · สีเทา = ต่ำกว่ามาตรฐาน (100%)':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
-   if(mode==='anatomy'){note.textContent='โมเดลกายวิภาคอ้างอิงจาก Z-Anatomy / BodyParts3D (CC BY-SA) ไม่ใช่รูปร่างหรือชั้นไขมันเฉพาะบุคคล';const credit=node('a','เครดิตและใบอนุญาตโมเดล','muted');credit.href='/models/ANATOMY-LICENSE.txt';credit.target='_blank';credit.rel='noopener';note.append(' · ',credit);}
+   if(mode==='anatomy')note.textContent='ภาพจำลองตามเพศและค่าร่างกายที่กรอก ไม่ใช่ภาพตรวจวัดตำแหน่งกล้ามเนื้อหรือไขมันจริง';
    if(mode==='fat'&&SEGMENTS.every(([s])=>current['fat_'+s]==null))note.textContent='ไม่มีค่าไขมันแต่ละส่วน (InBody 380 ไม่วัดค่านี้) จึงใช้ % ไขมันรวมทั้งตัว';
    if(mode==='muscle'&&SEGMENTS.every(([s])=>current['mus_'+s]==null&&current['musp_'+s]==null))note.textContent='ยังไม่ได้กรอกความสมดุลกล้ามเนื้อแต่ละส่วน';
   }catch{stage.classList.add('empty-stage');legend.textContent='อุปกรณ์นี้แสดง 3D ไม่ได้ แต่ยังดูตัวเลขได้';}

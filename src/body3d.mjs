@@ -15,15 +15,6 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
-let atlasPromise;
-function loadAnatomyAtlas(){
- return atlasPromise??=fetch(new URL('./models/anatomy-muscles.bin?v=1',import.meta.url)).then(response=>{if(!response.ok)throw Error('anatomy model');return response.arrayBuffer();}).then(buffer=>{
-  const header=new DataView(buffer);if(header.getUint32(0,true)!==0x314d4e41)throw Error('invalid anatomy model');
-  const vertices=header.getUint32(4,true),count=header.getUint32(8,true),muscleCount=header.getUint32(12,true);
-  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(buffer,16,vertices*3),3));geometry.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(buffer,16+vertices*12,vertices*3),3));geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(buffer,16+vertices*24,count),1));
-  geometry.addGroup(0,muscleCount,0);geometry.addGroup(muscleCount,count-muscleCount,1);return geometry;
- }).catch(error=>{atlasPromise=undefined;throw error;});
-}
 function loadModel(sex) {
   return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=4`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
@@ -285,24 +276,10 @@ export function mountBody(container) {
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
   const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0}), anatomy = anatomyMaterial();
-  const atlasMaterials=[new THREE.MeshStandardMaterial({color:'#b9534e',roughness:0.55,metalness:0}),new THREE.MeshStandardMaterial({color:'#e4d9c6',roughness:0.66,metalness:0})];
   let mesh = null, frame = 0, request = 0;
 
   async function update(record = {}, mode = 'shape') {
     const r = record, sex = r.sex === 'female' ? 'female' : 'male', ticket = ++request;
-    if(mode==='anatomy'){
-      const atlas=await loadAnatomyAtlas();if(ticket!==request)return {estimated:[]};
-      if(mesh){scene.remove(mesh);mesh.children.forEach(c=>c.geometry?.dispose());mesh.geometry.dispose();}
-      const geometry=atlas.clone(),positions=geometry.attributes.position,source=geometry.index.array,kept=[],split=atlas.groups[0].count;
-      let muscleCount=0;
-      for(let i=0;i<source.length;i+=3){if([source[i],source[i+1],source[i+2]].some(v=>positions.getY(v)>1.57))continue;kept.push(source[i],source[i+1],source[i+2]);if(i<split)muscleCount+=3;}
-      geometry.setIndex(kept);geometry.clearGroups();geometry.addGroup(0,muscleCount,0);geometry.addGroup(muscleCount,kept.length-muscleCount,1);
-      mesh=new THREE.Mesh(geometry,atlasMaterials);
-      const head=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),atlasMaterials[1]);head.scale.set(.075,.105,.08);head.position.set(0,1.65,0);mesh.add(head);
-      scene.add(mesh);controls.target.set(0,0.93,0);
-      if(!camera.userData.placed){camera.position.set(0.8,1.0,3.7);camera.userData.placed=true;}controls.update();
-      return {estimated:[],referenceAnatomy:true};
-    }
     const model = await loadModel(sex);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
@@ -329,7 +306,7 @@ export function mountBody(container) {
     for (let i = 0; i < model.n; i++) { const c = palette[model.segments[i]]; colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b; }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
-    if (mesh) { scene.remove(mesh);mesh.children.forEach(c=>c.geometry?.dispose()); mesh.geometry.dispose(); }
+    if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
     mesh = new THREE.Mesh(geometry, mode === 'anatomy' ? anatomy : material); scene.add(mesh);
     controls.target.set(0, H * 0.53, 0);
     if (!camera.userData.placed) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
@@ -343,6 +320,6 @@ export function mountBody(container) {
   loop();
   return {
     update,
-    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.children.forEach(c=>c.geometry?.dispose());mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); atlasMaterials.forEach(m=>m.dispose()); shadow.geometry.dispose();shadow.material.dispose();shadowTex.dispose();renderer.dispose(); renderer.domElement.remove(); },
+    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); renderer.dispose(); renderer.domElement.remove(); },
   };
 }
