@@ -64,8 +64,8 @@ function loadModel(sex) {
 // MakeHuman macro values (0..1, 0.5 = average) from the measurements.
 export function macros(r) {
   const sex = r.sex === 'female' ? 'female' : 'male', ref = REF[sex], weights = [];
-  if (r.height && r.weight) { const bmi = r.weight / (r.height / 100) ** 2; weights.push(bmi <= 22 ? clamp((bmi - 16) / 12, 0, 0.5) : 0.5 + clamp((bmi - 22) / 26, 0, 0.5)); }
-  if (r.body_fat) weights.push(r.body_fat <= ref.fat ? clamp(0.5 - (ref.fat - r.body_fat) / 24, 0, 0.5) : 0.5 + clamp((r.body_fat - ref.fat) / 34, 0, 0.5));
+  if (r.height && r.weight) { const bmi = r.weight / (r.height / 100) ** 2; weights.push(bmi <= 22 ? clamp((bmi - 16) / 12, 0, 0.5) : 0.5 + clamp((bmi - 22) / 40, 0, 0.5)); }
+  if (r.body_fat) weights.push(r.body_fat <= ref.fat ? clamp(0.5 - (ref.fat - r.body_fat) / 24, 0, 0.5) : 0.5 + clamp((r.body_fat - ref.fat) / 50, 0, 0.5));
   let muscle = 0.5;
   const pcts = ['la', 'ra', 'trunk', 'll', 'rl'].map(s => r['musp_' + s]).filter(v => v != null);
   if (pcts.length) muscle = clamp(0.5 + (pcts.reduce((a, b) => a + b) / pcts.length - 100) / 60, 0, 1);
@@ -141,7 +141,7 @@ function shapeBody(model, r, lean = false) {
   if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
   // Belly from visceral fat level (1-9 normal) and trunk fat; abdominal tone from body fat.
   // The 'pregnant' target is strong, so keep it subtle: level 16 -> ~0.35.
-  const belly = (r.visceral != null ? clamp((r.visceral - 9) / 20, -0.2, 0.5) : 0) + (fat ? fat.trunk * 0.25 : 0);
+  const belly = (r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0);
   if (!lean) apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
   if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
 
@@ -157,18 +157,20 @@ function shapeBody(model, r, lean = false) {
     const BINS = 100, ext = segs.map(() => Array.from({length: BINS}, () => [Infinity, -Infinity, Infinity, -Infinity, 0]));
     for (let i = 0; i < n; i++) {
       const k = segs.indexOf(segments[i]); if (k < 0) continue;
-      const b = Math.floor(p[i * 3 + 1] / H * BINS); if (b < from || b > to) continue;
+      const b = Math.floor(p[i * 3 + 1] / H * BINS); if (b < from - 1 || b > to + 1) continue;
       const e = ext[k][b], x = p[i * 3], z = p[i * 3 + 2];
       e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); e[2] = Math.min(e[2], z); e[3] = Math.max(e[3], z); e[4]++;
     }
-    const per = ext.map(bins => { const g = bins.slice(from, to + 1).filter(e => e[4] > 3).map(e => (depthOnly ? perimeter((e[3] - e[2]) / 2, (e[3] - e[2]) / 2) : perimeter((e[1] - e[0]) / 2, (e[3] - e[2]) / 2)) * 100); return g.length ? pick(...g) : 0; });
+    // A 1% slice is thinner than the mesh spacing and misses part of the ring: merge 3 bins.
+    const merge = (bins, b) => [b - 1, b, b + 1].map(k => bins[k]).filter(Boolean).reduce((a, e) => [Math.min(a[0], e[0]), Math.max(a[1], e[1]), Math.min(a[2], e[2]), Math.max(a[3], e[3]), a[4] + e[4]], [Infinity, -Infinity, Infinity, -Infinity, 0]);
+    const per = ext.map(bins => { const g = []; for (let b = from; b <= to; b++) { const e = merge(bins, b); if (e[4] >= 12) g.push((depthOnly ? perimeter((e[3] - e[2]) / 2, (e[3] - e[2]) / 2) : perimeter((e[1] - e[0]) / 2, (e[3] - e[2]) / 2)) * 100); } return g.length ? pick(...g) : 0; });
     return per.reduce((a, b) => a + b) / per.length;
   };
   // Fit each entered tape measurement with MakeHuman's measure targets (deltas scaled to metres).
   const fits = [
     ['hip', 'measure-hips-circ', [0], 45, 55, Math.max],
-    ['waist', 'measure-waist-circ', [0], 56, 67, Math.min],
-    ['chest', 'measure-bust-circ', [0], 68, 76, Math.max],
+    ['waist', 'measure-waist-circ', [0], 57, 61, median],
+    ['chest', 'measure-bust-circ', [0], 69, 75, Math.max],
     ['arm', 'measure-upperarm-circ', [1, 2], 69, 73, median],
     ['thigh', 'measure-thigh-circ', [3, 4], 38, 47, Math.max],
     ['calf', 'measure-calf-circ', [3, 4], 12, 26, Math.max],
@@ -181,7 +183,7 @@ function shapeBody(model, r, lean = false) {
     apply(probe, name, dir, s);
     const g1 = girth(probe, segs, from, to, pick, depthOnly);
     if (Math.abs(g1 - g0) < 0.1) continue;
-    apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 4), s);
+    apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 2.5), s);
   }
   return {pos, H};
 }
@@ -266,12 +268,14 @@ export function mountBody(container) {
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
     if (mode === 'anatomy') {
-      // Fat thickness per vertex = distance from the lean body; ~0.6 cm shows no fat, ~3.5 cm full fat.
-      const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n);
-      for (let i = 0; i < model.n; i++) {
-        const t = Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
-        fatAmt[i] = model.segments[i] === 5 ? 0 : clamp((t - 0.006) / 0.03, 0, 1);
-      }
+      // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
+      // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
+      const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
+      for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
+      const sorted = Array.from(thick).filter(t => t > 0).sort((a, b) => a - b), q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))] ?? 0;
+      const fatPct = r.body_fat ?? (macros(r).weight * 40 + 5), cover = clamp((fatPct - (r.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
+      const from = Math.max(q(1 - cover), 0.006), full = Math.max(q(1 - cover * 0.35), from + 0.004);
+      for (let i = 0; i < model.n; i++) fatAmt[i] = clamp((thick[i] - from) / (full - from), 0, 1);
       geometry.setAttribute('fatAmt', new THREE.BufferAttribute(fatAmt, 1));
       const a = model.anatomy, zero3 = new THREE.BufferAttribute(new Float32Array(model.n * 3), 3);
       geometry.setAttribute('aFiber', a?.fiber ?? zero3);
