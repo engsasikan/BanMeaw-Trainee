@@ -127,8 +127,11 @@ function renderHistory(){
 const say=text=>{$('body-message').textContent=text;};
 // Overview card: latest weight, change since the previous weigh-in, key numbers and a trend line.
 function renderWeightCard(){
- const withWeight=records.filter(r=>r.weight!=null),latest=withWeight[0],previous=withWeight[1];
+ // Follows the overview's selected date: the latest weigh-in on or before that day.
+ const selected=$('day')?.value||localDay();
+ const withWeight=records.filter(r=>r.weight!=null&&r.day<=selected),latest=withWeight[0],previous=withWeight[1];
  if(!$('weight-value'))return;
+ $('weight-title').textContent=latest?.day===selected?(selected===localDay()?'น้ำหนักวันนี้':'น้ำหนักวันที่เลือก'):'น้ำหนักล่าสุด';
  $('weight-value').textContent=latest?latest.weight:'–';$('weight-date').textContent=latest?thaiDate(latest.day):'ยังไม่มีข้อมูล';
  const change=$('weight-change');change.className='weight-change';
  if(!latest)change.textContent='บันทึกค่าร่างกายครั้งแรกในหน้าโปรไฟล์';
@@ -163,8 +166,8 @@ async function loadBody(selectedId){
  if(selected)openRecord(selected);else startDay();
 }
 // Morning weigh-in from the overview: updates today's record or starts one from the latest.
-export async function quickWeigh(kg){
- const day=localDay(),existing=records.find(r=>r.day===day),base=existing||records[0];
+export async function quickWeigh(kg,day=localDay()){
+ const existing=records.find(r=>r.day===day),base=existing||records[0];
  const row=existing?{...existing,weight:kg}:{id:crypto.randomUUID(),day,sex:profileSex??base?.sex??'male',note:'',height:base?.height??null,weight:kg};
  const valid=validateBody(row);
  await api('/api/body/'+encodeURIComponent(valid.id),{method:'PUT',body:JSON.stringify(valid)});
@@ -172,6 +175,7 @@ export async function quickWeigh(kg){
 }
 export function initBody(me={}){
  profileSex=me.sex??null;
+ window.addEventListener('diary-records',renderWeightCard); // date bar / calendar changes
  viewer=createBodyViewer($('body-viewer'),{onSelect:r=>r&&openRecord(r)});buildForm();applySexSetting();startDay();
  const sexSetting=$('profile-sex');sexSetting.value=profileSex??'';
  sexSetting.onchange=async()=>{

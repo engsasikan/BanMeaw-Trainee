@@ -1,5 +1,6 @@
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
+// It follows the page's selected date (date bar / calendar), like the rest of the overview.
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=9';
@@ -10,8 +11,9 @@ const clock=iso=>new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute
 const MAIN_MEALS=[['มื้อเช้า','เช้า'],['มื้อกลางวัน','กลางวัน'],['มื้อเย็น','เย็น'],['ของว่าง','ของว่าง']];
 const TIMING={'pre-workout':' (ก่อนฝึก)','post-workout':' (หลังฝึก)'};
 
-let diary=[],body=[],me={},reportSentAt=null,quickWeigh=null;
-const today=()=>localDay();
+let diary=[],body=[],me={},reportSentAt=null,quickWeigh=null,shownDay=null,lastToday=localDay();
+const today=()=>document.getElementById('day')?.value||localDay(); // the selected day
+const isToday=()=>today()===localDay();
 const todayMeals=()=>diary.filter(r=>r.day===today()&&r.kind!=='workout').sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
 const todayWorkouts=()=>diary.filter(r=>r.day===today()&&r.kind==='workout');
 const todayWeight=()=>body.find(r=>r.day===today()&&r.weight!=null);
@@ -21,6 +23,9 @@ const say=text=>{$('today-message').textContent=text;};
 function render(){
  if(!$('today-card'))return;
  $('today-date').textContent=thaiDate(today());
+ $('today-title').textContent=isToday()?'วันนี้ของคุณ':'บันทึกของวันนั้น';
+ if(!$('dashboard-panel').hidden)$('view-heading').textContent=isToday()?'ภาพรวมของวันนี้':'ภาพรวมวันที่ '+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(today()+'T12:00:00'));
+ $('weight-label').textContent=isToday()?'ชั่งน้ำหนักเช้านี้':'น้ำหนักวันนั้น';
  // 1. Morning weigh-in
  const w=todayWeight(),prev=previousWeight(),stepW=$('step-weight');
  stepW.classList.toggle('done',!!w);$('quick-weight').hidden=!!w;$('weight-done').hidden=!w;
@@ -36,7 +41,7 @@ function render(){
  $('step-meals').classList.toggle('done',mainDone===3);$('meals-progress').textContent=mainDone+'/3 มื้อหลัก'+(meals.length?' · '+meals.length+' รายการ':'');
  // 3. Send to trainers
  $('step-send').classList.toggle('done',!!reportSentAt);
- $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว '+clock(reportSentAt)+' น. · เทรนเนอร์ในทีมเห็นแล้ว';
+ $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว'+(new Date(reportSentAt).toDateString()===new Date(today()+'T12:00:00').toDateString()?' ':' ('+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(reportSentAt))+') ')+clock(reportSentAt)+' น. · เทรนเนอร์ในทีมเห็นแล้ว';
  $('send-report').textContent=reportSentAt?'ส่งอีกครั้ง':'ส่งในแอป';
 }
 function openMeal(meal){
@@ -59,26 +64,29 @@ function summary(){
  return lines.join('\n');
 }
 async function markSent(){
- const {sent_at}=await api('/api/reports',{method:'POST',body:JSON.stringify({day:today()})});reportSentAt=sent_at;render();
+ const day=today(),{sent_at}=await api('/api/reports',{method:'POST',body:JSON.stringify({day})});if(day===today())reportSentAt=sent_at;render();
 }
 async function loadReport(){
- try{({sent_at:reportSentAt}=await api('/api/reports?day='+today()));}catch{reportSentAt=null;}
+ const day=today();shownDay=day;reportSentAt=null;
+ try{const {sent_at}=await api('/api/reports?day='+day);if(day===today())reportSentAt=sent_at;}catch{}
  render();
 }
 
 export function initToday(account,{weigh}){
  me=account;quickWeigh=weigh;
- window.addEventListener('diary-records',e=>{diary=e.detail||[];render();});
+ // diary-records fires on every render of the page, including date changes.
+ window.addEventListener('diary-records',e=>{diary=e.detail||[];if(today()!==shownDay){say('');loadReport();}else render();});
  window.addEventListener('body-records',e=>{body=e.detail||[];render();});
  $('quick-weight').onsubmit=async e=>{
   e.preventDefault();const input=$('quick-weight-input'),kg=Number(input.value),btn=e.submitter||$('quick-weight').querySelector('button');
   if(!(kg>=10&&kg<=400)){say('กรุณาใส่น้ำหนัก 10–400 กก.');return;}
-  btn.disabled=true;try{await quickWeigh(kg);input.value='';say('บันทึกน้ำหนักเช้านี้แล้ว');}catch(error){say(error.message);}finally{btn.disabled=false;}
+  btn.disabled=true;try{await quickWeigh(kg,today());input.value='';say(isToday()?'บันทึกน้ำหนักเช้านี้แล้ว':'บันทึกน้ำหนักวันนั้นแล้ว');}catch(error){say(error.message);}finally{btn.disabled=false;}
  };
  $('weight-done').onclick=()=>switchView('settings');
+ document.querySelectorAll('[data-view="dashboard"]').forEach(b=>b.addEventListener('click',render)); // keep the dated heading
  $('send-report').onclick=async()=>{
-  if(!todayMeals().length&&!confirm('วันนี้ยังไม่มีมื้อที่บันทึก ส่งสรุปเลยไหม?'))return;
-  try{await markSent();say('ส่งสรุปวันนี้ให้เทรนเนอร์ในแอปแล้ว');}catch(error){say(error.message);}
+  if(!todayMeals().length&&!confirm((isToday()?'วันนี้':'วันนั้น')+'ยังไม่มีมื้อที่บันทึก ส่งสรุปเลยไหม?'))return;
+  try{await markSent();say('ส่งสรุป'+(isToday()?'วันนี้':'วันที่เลือก')+'ให้เทรนเนอร์ในแอปแล้ว');}catch(error){say(error.message);}
  };
  $('share-report').onclick=async()=>{
   const text=summary();
@@ -88,7 +96,12 @@ export function initToday(account,{weigh}){
    await markSent();
   }catch(error){if(error?.name!=='AbortError')say('แชร์ไม่สำเร็จ ลองกด "ส่งในแอป" แทน');}
  };
- // The routine follows the calendar day: refresh when the app comes back after midnight.
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadReport();});
+ // Coming back after midnight with the page still on yesterday: move everything to the new day.
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  const now=localDay();
+  if(now!==lastToday&&$('day').value===lastToday){lastToday=now;$('day').value=now;$('day').dispatchEvent(new Event('change'));return;}
+  lastToday=now;loadReport();
+ });
  loadReport();
 }
