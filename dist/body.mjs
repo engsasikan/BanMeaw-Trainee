@@ -123,6 +123,31 @@ function renderHistory(){
  }
 }
 const say=text=>{$('body-message').textContent=text;};
+// Overview card: latest weight, change since the previous weigh-in, key numbers and a trend line.
+function renderWeightCard(){
+ const withWeight=records.filter(r=>r.weight!=null),latest=withWeight[0],previous=withWeight[1];
+ if(!$('weight-value'))return;
+ $('weight-value').textContent=latest?latest.weight:'–';$('weight-date').textContent=latest?thaiDate(latest.day):'ยังไม่มีข้อมูล';
+ const change=$('weight-change');change.className='weight-change';
+ if(!latest)change.textContent='บันทึกค่าร่างกายครั้งแรกในหน้าโปรไฟล์';
+ else if(!previous)change.textContent='ค่าแรกที่บันทึก';
+ else{
+  const diff=Math.round((latest.weight-previous.weight)*10)/10;
+  change.textContent=diff===0?'เท่าเดิม จาก '+thaiDate(previous.day):(diff<0?'▼ ':'▲ ')+Math.abs(diff)+' กก. จาก '+thaiDate(previous.day);
+  change.classList.add(diff<0?'down':diff>0?'up':'same');
+ }
+ const bmi=latest?.height?Math.round(latest.weight/(latest.height/100)**2*10)/10:null;
+ $('weight-chips').replaceChildren(...[['ไขมัน',latest?.body_fat!=null?latest.body_fat+'%':null],['กล้ามเนื้อ',latest?.muscle!=null?latest.muscle+' กก.':null],['BMI',bmi]].filter(([,v])=>v!=null).map(([k,v])=>{const c=node('span');c.append(node('b',String(v)),' '+k);return c;}));
+ $('weight-open').textContent=latest?'ดูโปรไฟล์ร่างกาย':'บันทึกค่าร่างกาย';
+ const spark=$('weight-spark'),pts=withWeight.slice(0,8).reverse();spark.replaceChildren();
+ if(pts.length>1){
+  const ws=pts.map(r=>r.weight),lo=Math.min(...ws),hi=Math.max(...ws),span=hi-lo||1;
+  const xy=pts.map((r,i)=>[i/(pts.length-1)*116+2,36-(r.weight-lo)/span*32]);
+  const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');line.setAttribute('points',xy.map(p=>p.join(',')).join(' '));
+  const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('cx',xy.at(-1)[0]);dot.setAttribute('cy',xy.at(-1)[1]);dot.setAttribute('r','3');
+  spark.append(line,dot);
+ }
+}
 async function loadBody(selectedId){
  ({records}=await api('/api/body'));
  if(profileSex&&records.some(r=>r.sex!==profileSex)){
@@ -130,7 +155,7 @@ async function loadBody(selectedId){
   records=records.map(r=>({...r,sex:profileSex}));
   api('/api/me',{method:'PATCH',body:JSON.stringify({sex:profileSex})}).catch(()=>{});
  }
- viewer.show([],undefined,profileSex);
+ viewer.show([],undefined,profileSex);renderWeightCard();
  const selected=records.find(r=>r.id===selectedId)??records.find(r=>r.id===editing);
  if(selected)openRecord(selected);else startDay();
 }
@@ -176,4 +201,5 @@ export function initBody(me={}){
   finally{button.disabled=false;}
  };
  document.querySelectorAll('[data-view="settings"]').forEach(b=>b.addEventListener('click',()=>loadBody().catch(error=>say(error.message))));
+ loadBody().catch(()=>{}); // fills the overview weight card right after sign-in
 }

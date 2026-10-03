@@ -46,3 +46,11 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .body-fields.pairs{grid-template-columns:1fr 1fr}
 .body-modes{flex-wrap:wrap}
 #body-history .team-row.selected{background:#ff70280d;border-radius:14px;padding:12px;border:1px solid #ff702855}
+/* Overview: latest weight card */
+.weight-card{grid-column:1 / 3;display:grid;gap:8px}.weight-card .stat-label{display:flex;justify-content:space-between;align-items:center;gap:8px}.weight-card .stat-value{margin:4px 0 0}
+.weight-main{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}.weight-spark{width:min(45%,220px);height:48px;flex-shrink:0}.weight-spark polyline{fill:none;stroke:#ff7028;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}.weight-spark circle{fill:#ff7028}
+.weight-change{margin:0;font-size:13px;color:#b9bbbd}.weight-change.down{color:#7fd6a0}.weight-change.up{color:#ffb487}
+.weight-chips{display:flex;flex-wrap:wrap;gap:8px}.weight-chips span{font-size:12px;color:#a7a9ab;background:#2d2f30;border:1px solid #3a3c3e;border-radius:20px;padding:5px 11px}.weight-chips b{color:#f2f2f2}
+.weight-card .quiet{justify-self:start;width:auto;margin:4px 0 0}
+@media(min-width:1151px){.overview-grid .calendar-card{grid-row:1 / 5}}
+@media(max-width:370px){.weight-card{grid-column:1/-1}}
