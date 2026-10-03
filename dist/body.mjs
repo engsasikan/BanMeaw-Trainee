@@ -11,7 +11,7 @@ const loadThree=()=>threeModule??=import('./body3d.js?v=7');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
-export function createBodyViewer(root){
+export function createBodyViewer(root,{onSelect}={}){
  root.classList.add('body-viewer');
  const head=node('div',undefined,'list-heading'),picker=node('select');picker.setAttribute('aria-label','เลือกวันที่วัด');
  head.append(node('h2','หุ่นของฉัน'),picker);
@@ -22,7 +22,7 @@ export function createBodyViewer(root){
  for(const [key,label] of [['anatomy','กล้าม/ไขมัน'],['shape','รูปร่าง'],['muscle','กล้ามเนื้อแต่ละส่วน']]){
   const b=button(label,'quiet',()=>{mode=key;draw();});b.dataset.mode=key;modes.append(b);
  }
- picker.onchange=()=>{current=records.find(r=>r.id===picker.value);draw();};
+ picker.onchange=()=>{current=records.find(r=>r.id===picker.value);draw();onSelect?.(current);};
  async function draw(){
   modes.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));
   stats.replaceChildren();note.textContent='';
@@ -90,24 +90,35 @@ function buildForm(){
 }
 // With a sex set on the profile, every measurement uses it and the per-record picker is hidden.
 function applySexSetting(){$('body-sex').closest('div').hidden=!!profileSex;}
-function fillForm(r){
- editing=r?.id??null;$('body-day').value=r?.day??localDay();
- const last=records[0];$('body-sex').value=profileSex??r?.sex??last?.sex??'male';
- for(const key of FORM_KEYS)input(key).value=r?.[key]??(!r&&key==='height'&&last?.height?last.height:'');
- $('body-note').value=r?.note??'';
- $('body-form-title').textContent=r?'แก้ไขค่าวันที่ '+thaiDate(r.day):'บันทึกค่าร่างกาย';
- $('body-cancel').hidden=!r;$('body-save').textContent=r?'บันทึกการแก้ไข':'บันทึกค่าร่างกาย';
+// The form, 3D figure, stats and history always show the same record: the one being
+// edited, or (for a new day) the latest record, whose values prefill the form.
+function fillValues(src,day){
+ $('body-day').value=day;$('body-sex').value=profileSex??src?.sex??'male';
+ for(const key of FORM_KEYS)input(key).value=src?.[key]??'';
+ $('body-note').value=editing?src?.note??'':'';
 }
-function renderHistory(selectedId){
+function openRecord(r){
+ editing=r.id;fillValues(r,r.day);viewer.show(records,r.id);renderHistory();
+ $('body-form-title').textContent='ค่าวันที่ '+thaiDate(r.day);
+ $('body-save').textContent='บันทึกการแก้ไข';$('body-cancel').hidden=false;
+}
+function startDay(day=localDay()){
+ const existing=records.find(r=>r.day===day);
+ if(existing){openRecord(existing);return;}
+ const latest=records.find(r=>r.day<=day)||records[0]||null;
+ editing=null;fillValues(latest,day);viewer.show(records,latest?.id);renderHistory();
+ $('body-form-title').textContent=latest?'บันทึกค่าใหม่ · เริ่มจากค่าล่าสุด '+thaiDate(latest.day):'บันทึกค่าร่างกาย';
+ $('body-save').textContent='บันทึกค่าร่างกาย';$('body-cancel').hidden=true;
+}
+function renderHistory(){
  const box=$('body-history');box.replaceChildren();
  if(!records.length){box.append(node('p','ยังไม่มีประวัติ กรอกค่าครั้งแรกด้านบนได้เลย','muted'));return;}
  for(const r of records){
-  const row=node('div',undefined,'team-row'),info=node('div');
-  info.append(node('strong',thaiDate(r.day)),node('span',[r.weight!=null?r.weight+' กก.':'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':'',r.score!=null?'คะแนน '+r.score:''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
+  const row=node('div',undefined,'team-row'+(r.id===editing?' selected':'')),info=node('div');
+  info.append(node('strong',thaiDate(r.day)+(r===records[0]?' · ล่าสุด':'')),node('span',[r.weight!=null?r.weight+' กก.':'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':'',r.score!=null?'คะแนน '+r.score:''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
   const actions=node('div',undefined,'team-actions');
-  actions.append(button('ดูหุ่น','primary',()=>{viewer.show(records,r.id);$('body-viewer').scrollIntoView({behavior:'smooth',block:'start'});}),
-   button('แก้ไข','quiet',()=>{fillForm(r);$('body-form').scrollIntoView({behavior:'smooth',block:'start'});}),
-   button('ลบ','quiet',async()=>{if(!confirm('ลบค่าร่างกายวันที่ '+thaiDate(r.day)+'?'))return;try{await api('/api/body/'+encodeURIComponent(r.id),{method:'DELETE'});await loadBody();say('ลบแล้ว');}catch(error){say(error.message);}}));
+  actions.append(button(r.id===editing?'กำลังดู':'เปิด',r.id===editing?'quiet':'primary',()=>{openRecord(r);$('body-viewer').scrollIntoView({behavior:'smooth',block:'start'});}),
+   button('ลบ','quiet',async()=>{if(!confirm('ลบค่าร่างกายวันที่ '+thaiDate(r.day)+'?'))return;try{await api('/api/body/'+encodeURIComponent(r.id),{method:'DELETE'});if(editing===r.id)editing=null;await loadBody();say('ลบแล้ว');}catch(error){say(error.message);}}));
   row.append(info,actions);box.append(row);
  }
 }
@@ -119,11 +130,13 @@ async function loadBody(selectedId){
   records=records.map(r=>({...r,sex:profileSex}));
   api('/api/me',{method:'PATCH',body:JSON.stringify({sex:profileSex})}).catch(()=>{});
  }
- viewer.show(records,selectedId,profileSex);renderHistory();if(!editing)fillForm(null);
+ viewer.show([],undefined,profileSex);
+ const selected=records.find(r=>r.id===selectedId)??records.find(r=>r.id===editing);
+ if(selected)openRecord(selected);else startDay();
 }
 export function initBody(me={}){
  profileSex=me.sex??null;
- viewer=createBodyViewer($('body-viewer'));buildForm();applySexSetting();fillForm(null);
+ viewer=createBodyViewer($('body-viewer'),{onSelect:r=>r&&openRecord(r)});buildForm();applySexSetting();startDay();
  const sexSetting=$('profile-sex');sexSetting.value=profileSex??'';
  sexSetting.onchange=async()=>{
   const sex=sexSetting.value||null;sexSetting.disabled=true;
@@ -134,7 +147,13 @@ export function initBody(me={}){
   }catch(error){sexSetting.value=profileSex??'';say(error.message);}
   finally{sexSetting.disabled=false;}
  };
- $('body-cancel').onclick=()=>{fillForm(null);viewer.show(records);};
+ $('body-cancel').onclick=()=>startDay();
+ // Picking a date opens that day's record, or starts a new one for it (keeping typed values).
+ $('body-day').addEventListener('change',()=>{
+  const day=$('body-day').value,r=records.find(x=>x.day===day);
+  if(r)openRecord(r);else if(editing){startDay(day);}
+  else $('body-form-title').textContent='บันทึกค่าใหม่ วันที่ '+thaiDate(day);
+ });
  // Re-shape the figure as the form changes, before saving.
  let previewTimer;
  const preview=()=>{clearTimeout(previewTimer);previewTimer=setTimeout(()=>{
@@ -146,12 +165,13 @@ export function initBody(me={}){
  $('body-form').onsubmit=async e=>{
   e.preventDefault();const button=$('body-save');button.disabled=true;
   try{
-   const row={id:editing||crypto.randomUUID(),day:$('body-day').value,sex:$('body-sex').value,note:$('body-note').value};
-   const saved=records.find(x=>x.id===editing);
+   const day=$('body-day').value,id=editing||records.find(x=>x.day===day)?.id||crypto.randomUUID(); // one record per day
+   const row={id,day,sex:$('body-sex').value,note:$('body-note').value};
+   const saved=records.find(x=>x.id===id);
    for(const key of Object.keys(FIELDS)){if(!FORM_KEYS.includes(key)){row[key]=saved?.[key]??null;continue;}const raw=input(key).value.trim();row[key]=raw===''?null:Number(raw);}
    const valid=validateBody(row);
    await api('/api/body/'+encodeURIComponent(valid.id),{method:'PUT',body:JSON.stringify(valid)});
-   editing=null;await loadBody(valid.id);say('บันทึกค่าร่างกายแล้ว');
+   await loadBody(valid.id);say('บันทึกค่าร่างกายแล้ว');
   }catch(error){say(error.message==='ข้อมูลร่างกายไม่ถูกต้อง'?'มีค่าที่อยู่นอกช่วงที่รับได้ กรุณาตรวจอีกครั้ง':error.message);}
   finally{button.disabled=false;}
  };

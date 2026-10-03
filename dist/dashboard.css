@@ -45,3 +45,4 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .profile-settings{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:14px 18px;border-radius:18px;background:#232425;border:1px solid #333436}.profile-settings label{margin:0;font-weight:700}.profile-settings select{width:auto;margin:0;min-height:42px}.profile-settings .muted{font-size:.85rem}
 .body-fields.pairs{grid-template-columns:1fr 1fr}
 .body-modes{flex-wrap:wrap}
+#body-history .team-row.selected{background:#ff70280d;border-radius:14px;padding:12px;border:1px solid #ff702855}
