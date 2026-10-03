@@ -53,4 +53,16 @@ CREATE TABLE IF NOT EXISTS team_members (
 CREATE INDEX IF NOT EXISTS team_members_member ON team_members(user_id);
 -- Role inside the team, set by the team owner.
 ALTER TABLE team_members ADD COLUMN IF NOT EXISTS team_role text NOT NULL DEFAULT 'trainee' CHECK (team_role IN ('trainer', 'trainee'));
+
+-- body_measurements: weight, girths and InBody-style segmental fat/muscle per member and day.
+CREATE TABLE IF NOT EXISTS body_measurements (
+  user_id text NOT NULL REFERENCES members(id),
+  id text NOT NULL CHECK (length(id) BETWEEN 1 AND 100),
+  day date NOT NULL,
+  payload jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, id)
+);
+CREATE INDEX IF NOT EXISTS body_measurements_member_day ON body_measurements(user_id, day DESC);
 COMMIT;

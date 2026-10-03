@@ -1,4 +1,5 @@
 import {api} from './account.js?v=2';
+import {createBodyViewer} from './body.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button';b.onclick=onclick;return b;};
@@ -7,7 +8,7 @@ const send=(path,method,body)=>api(path,{method,body:body&&JSON.stringify(body)}
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'short',day:'numeric',month:'short'}).format(new Date(day+'T12:00:00'));
 const roleName={owner:'ผู้สร้างทีม',trainer:'Trainer',trainee:'Trainee'};
 const badge=role=>node('span',roleName[role],'role-badge '+role);
-let myId='',openTeam=null;
+let myId='',openTeam=null,bodyView=null;
 
 async function act(work,done,after=refresh){try{await work();if(done)say(done);await after();}catch(error){say(error.message);}}
 const refresh=()=>openTeam?showTeam(openTeam):loadTeams();
@@ -90,8 +91,12 @@ async function viewMember(team,member){
  const box=$('team-viewer');box.hidden=false;box.replaceChildren(node('p','กำลังโหลดบันทึก…','muted'));box.scrollIntoView({behavior:'smooth',block:'start'});
  try{
   const {records}=await api('/api/teams/'+team.id+'/members/'+encodeURIComponent(member.id));
-  const head=node('div',undefined,'list-heading');head.append(node('h2','บันทึกของ '+member.display_name),button('ปิด','quiet',()=>{box.hidden=true;}));
+  const head=node('div',undefined,'list-heading');head.append(node('h2','บันทึกของ '+member.display_name),button('ปิด','quiet',()=>{box.hidden=true;bodyView?.dispose();bodyView=null;}));
   box.replaceChildren(head,node('p',member.member_code+' · ดูได้อย่างเดียว','muted'));
+  bodyView?.dispose();bodyView=null;
+  const body=await api('/api/teams/'+team.id+'/members/'+encodeURIComponent(member.id)+'/body');
+  if(body.records.length){const card=node('section',undefined,'team-body');box.append(card);bodyView=createBodyViewer(card);bodyView.setTitle('หุ่นของ '+member.display_name);bodyView.show(body.records);}
+  box.append(node('h3','บันทึกอาหารและการฝึก','team-log-title'));
   if(!records.length){box.append(node('p','ยังไม่มีบันทึก','muted'));return;}
   for(const day of [...new Set(records.map(r=>r.day))].slice(0,30)){
    const group=node('section',undefined,'team-day');group.append(node('h3',thaiDate(day)));

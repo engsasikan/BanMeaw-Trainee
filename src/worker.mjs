@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateRecords } from '../dist/store.mjs';
+import { validateBody } from '../dist/body-data.mjs';
 import schema from '../db/001_initial.sql';
 
 const keys = new Map();
@@ -51,6 +52,7 @@ export async function handleApi(request, env) {
   await sql`INSERT INTO members (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
   if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role FROM members WHERE id=${user.sub}`;return json(me);}
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
+  if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);
   return handleEntries(request,sql,user);
 }
 const teamId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -83,7 +85,7 @@ export async function handleTeams(request,sql,user) {
     await sql`UPDATE members SET role='trainer' WHERE id=${me} AND role='trainee'`;
     return json({team});
   }
-  if (!id || !teamId.test(id) || extra!==undefined) return json({error:'ไม่พบ API'},404);
+  if (!id || !teamId.test(id) || (extra!==undefined && !(extra==='body' && action==='members' && method==='GET'))) return json({error:'ไม่พบ API'},404);
   const [team]=await sql`SELECT t.id,t.name,t.owner_id,t.owner_role,o.display_name AS owner_name,o.member_code AS owner_code FROM trainer_teams t JOIN members o ON o.id=t.owner_id WHERE t.id=${id}`;
   if (!team) return json({error:'ไม่พบทีมนี้'},404);
   const owner=team.owner_id===me;
@@ -132,17 +134,42 @@ export async function handleTeams(request,sql,user) {
     }
     if (method==='GET') {
       if(!owner && !(mine?.status==='active' && mine.team_role==='trainer')) return json({error:'เฉพาะเทรนเนอร์ของทีมเท่านั้น'},403);
+      const records=async()=>(extra==='body'
+        ? await sql`SELECT payload FROM body_measurements WHERE user_id=${memberId} ORDER BY day DESC,updated_at DESC LIMIT 500`
+        : await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`).map(r=>r.payload);
       if(memberId===team.owner_id){
         if(owner || team.owner_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
-        const rows=await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`;
-        return json({member:{id:team.owner_id,member_code:team.owner_code,display_name:team.owner_name,team_role:'trainee'},records:rows.map(r=>r.payload)});
+        return json({member:{id:team.owner_id,member_code:team.owner_code,display_name:team.owner_name,team_role:'trainee'},records:await records()});
       }
       const [member]=await sql`SELECT u.id,u.member_code,u.display_name,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} AND m.user_id=${memberId} AND m.status='active'`;
       if(!member) return json({error:'สมาชิกยังไม่ได้ตอบรับเข้าทีม'},403);
       if(!owner && member.team_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
-      const rows=await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`;
-      return json({member,records:rows.map(r=>r.payload)});
+      return json({member,records:await records()});
     }
+  }
+  return json({error:'ไม่พบ API'},404);
+}
+// Body measurements: one record per measurement (history by day), owner-only writes.
+export async function handleBody(request,sql,user) {
+  const [id,extra]=new URL(request.url).pathname.split('/').slice(3).map(decodeURIComponent);
+  if (!id && request.method==='GET') {
+    const rows=await sql`SELECT payload FROM body_measurements WHERE user_id=${user.sub} ORDER BY day DESC,updated_at DESC LIMIT 500`;
+    return json({records:rows.map(r=>r.payload)});
+  }
+  if (!id || id.length>100 || extra!==undefined) return json({error:'ไม่พบ API'},404);
+  if (request.method==='DELETE') {
+    const rows=await sql`DELETE FROM body_measurements WHERE user_id=${user.sub} AND id=${id} RETURNING id`;
+    return rows.length?json({ok:true}):json({error:'ไม่พบรายการนี้'},404);
+  }
+  if (request.method==='PUT') {
+    let row;
+    try {row=validateBody(await readJson(request));if(row.id!==id) throw Error('ข้อมูลร่างกายไม่ถูกต้อง');}
+    catch(error) {return json({error:error.status?error.message:error.message||'ข้อมูลร่างกายไม่ถูกต้อง'},error.status||400);}
+    const [{count}]=await sql`SELECT count(*)::int AS count FROM body_measurements WHERE user_id=${user.sub}`;
+    if(count>=500) return json({error:'บันทึกค่าร่างกายได้สูงสุด 500 รายการ'},409);
+    await sql`INSERT INTO body_measurements (user_id,id,day,payload) VALUES (${user.sub},${id},${row.day},${JSON.stringify(row)}::jsonb)
+      ON CONFLICT (user_id,id) DO UPDATE SET day=EXCLUDED.day,payload=EXCLUDED.payload,updated_at=now()`;
+    return json({record:row});
   }
   return json({error:'ไม่พบ API'},404);
 }

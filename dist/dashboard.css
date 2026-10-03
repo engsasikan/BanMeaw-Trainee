@@ -17,7 +17,7 @@ body:not(.auth-view) header #install{display:none}
 body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .heading{margin:8px 0 18px}.heading h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem)}
 .history-card{margin-top:20px}
-#settings-panel{display:flex;flex-wrap:wrap;align-items:center;gap:12px}#settings-panel>div{flex:1 1 100%}#settings-panel .logout{color:#ff9b8a;border-color:#5a3a35}
+#account-tools{display:flex;flex-wrap:wrap;align-items:center;gap:12px}#account-tools>div{flex:1 1 100%}#account-tools .logout{color:#ff9b8a;border-color:#5a3a35}
 .team-panel{max-width:900px}.team-create{margin:0}.team-create-title{margin:26px 0 10px;font-size:1rem;color:#c3c5c7}
 .team-list{display:grid;gap:12px}
 .team-tile{display:flex;align-items:center;gap:14px;padding:18px 20px;border-radius:20px;background:#232425;border:1px solid #38393b;cursor:pointer;transition:border-color .15s,background .15s}.team-tile:hover,.team-tile:focus-visible{border-color:#ff7028;background:#2a2624;outline:none}
@@ -30,3 +30,14 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .team-tile.invited .team-tile-info{flex:1 1 100%}.team-tile.invited .team-actions{flex:1 1 100%;flex-wrap:wrap;align-items:center}.team-tile.invited .team-badge{flex:1 1 auto}.team-actions button{white-space:nowrap}
 .team-detail-head{display:grid;grid-template-columns:1fr auto;gap:10px 14px;align-items:center}.team-detail-head .team-back{grid-column:1/-1;justify-self:start}.team-detail-head>div{min-width:0}
 .team-invite input{flex:2 1 220px}.team-invite select{flex:0 1 200px}.team-invite .primary{flex:0 0 auto}.team-detail .team-invite{flex-wrap:wrap}
+/* Body profile */
+.profile-panel{display:grid;gap:20px}.profile-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+.body-viewer .list-heading select{width:auto;margin:0;min-height:40px;font-size:.85rem}
+.body-modes{display:flex;gap:8px;margin:4px 0 12px}.body-modes button{width:auto;margin:0;min-height:38px;padding:0 16px;font-size:.85rem}.body-modes button[aria-pressed="true"]{background:#ff7028;color:#1d1714;border-color:#ff7028}
+.body-stage{height:420px;border-radius:20px;background:radial-gradient(ellipse at 50% 35%,#2f2b28,#1b1c1d 70%);overflow:hidden;touch-action:none;cursor:grab}.body-stage.empty-stage{opacity:.55}
+.body-legend{margin:10px 0 0;font-size:.85rem;color:#c3c5c7}.body-estimate{font-size:.8rem;margin:6px 0 0}
+.body-stat-grid,.body-seg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px}.body-stat-grid>div,.body-seg-grid>div{display:grid;gap:2px;padding:10px 12px;border-radius:14px;background:#232425;border:1px solid #333436}.body-stat-grid span,.body-seg-grid span{font-size:.75rem;color:#9a9c9f}.body-stat-grid strong,.body-seg-grid strong{font-size:1rem}
+.body-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0 12px}.body-fields label{font-size:.85rem}
+.body-form-card details{margin-top:14px;border:1px solid #38393b;border-radius:14px;padding:4px 14px 12px}.body-form-card summary{cursor:pointer;padding:10px 0;font-weight:700;color:#e6e7e8}
+.team-body{margin:12px 0 4px}.team-body .body-stage{height:340px}.team-log-title{margin:22px 0 4px}
+@media(max-width:900px){.profile-grid{grid-template-columns:1fr}.body-stage{height:360px}}
