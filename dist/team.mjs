@@ -40,15 +40,16 @@ export async function loadTeams(){
 
 // ---- Team detail ----
 function memberRow(team,m,myRole){
- const row=node('div',undefined,'team-row'),info=node('div');
- info.append(node('strong',m.display_name+(m.id===myId?' (คุณ)':'')),node('span',m.member_code+(m.status==='invited'?' · รอตอบรับ':''),'muted'));
+ const row=node('div',undefined,'team-row'),info=node('div'),self=m.id===myId;
+ info.append(node('strong',m.display_name+(self?' (คุณ)':'')),node('span',m.member_code+(m.is_owner?' · ผู้สร้างทีม':'')+(m.status==='invited'?' · รอตอบรับ':''),'muted'));
  const actions=node('div',undefined,'team-actions'),owner=myRole==='owner';
- if(m.status==='active'&&(owner||(myRole==='trainer'&&m.team_role==='trainee')))actions.append(button('ดูบันทึก','primary',()=>viewMember(team,m)));
+ if(!self&&m.status==='active'&&((owner&&!m.is_owner)||(myRole==='trainer'&&m.team_role==='trainee')))actions.append(button('ดูบันทึก','primary',()=>viewMember(team,m)));
  if(owner){
   const select=node('select');select.setAttribute('aria-label','บทบาทของ '+m.display_name);
   for(const role of ['trainer','trainee']){const o=node('option',roleName[role]);o.value=role;o.selected=m.team_role===role;select.append(o);}
   select.onchange=()=>act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(m.id),'PATCH',{team_role:select.value}),m.display_name+' เป็น '+roleName[select.value]+' แล้ว');
-  actions.append(select,button(m.status==='invited'?'ยกเลิกคำเชิญ':'นำออก','quiet',()=>{if(confirm('นำ '+m.display_name+' ออกจากทีม '+team.name+'?'))act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(m.id),'DELETE'),'นำออกจากทีมแล้ว');}));
+  actions.append(select);
+  if(!m.is_owner)actions.append(button(m.status==='invited'?'ยกเลิกคำเชิญ':'นำออก','quiet',()=>{if(confirm('นำ '+m.display_name+' ออกจากทีม '+team.name+'?'))act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(m.id),'DELETE'),'นำออกจากทีมแล้ว');}));
  }
  row.append(info,actions);return row;
 }
@@ -68,10 +69,10 @@ async function showTeam(id){
   const box=node('section',undefined,'diary');box.append(node('h3','เชิญสมาชิก'),form);view.append(box);
  }
  for(const role of ['trainer','trainee']){
-  const list=members.filter(m=>m.team_role===role),box=node('section',undefined,'diary team-members'),head=node('div',undefined,'list-heading');
-  head.append(node('h3',role==='trainer'?'Trainer':'Trainee'),node('span',(list.length+(role==='trainer'?1:0))+' คน','pill'));box.append(head);
-  if(role==='trainer'){const ownerRow=node('div',undefined,'team-row'),info=node('div');info.append(node('strong',team.owner.display_name+(team.owner.id===myId?' (คุณ)':'')),node('span',team.owner.member_code+' · ผู้สร้างทีม','muted'));ownerRow.append(info);box.append(ownerRow);}
-  else if(!list.length)box.append(node('p','ยังไม่มีลูกเทรนในทีม','muted'));
+  const everyone=[{...team.owner,status:'active',is_owner:true},...members];
+  const list=everyone.filter(m=>m.team_role===role),box=node('section',undefined,'diary team-members'),head=node('div',undefined,'list-heading');
+  head.append(node('h3',role==='trainer'?'Trainer':'Trainee'),node('span',list.length+' คน','pill'));box.append(head);
+  if(!list.length)box.append(node('p',role==='trainer'?'ยังไม่มีเทรนเนอร์ในทีม':'ยังไม่มีลูกเทรนในทีม','muted'));
   for(const m of list)box.append(memberRow(team,m,my_role));
   view.append(box);
  }

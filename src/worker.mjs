@@ -84,7 +84,7 @@ export async function handleTeams(request,sql,user) {
     return json({team});
   }
   if (!id || !teamId.test(id) || extra!==undefined) return json({error:'ไม่พบ API'},404);
-  const [team]=await sql`SELECT t.id,t.name,t.owner_id,o.display_name AS owner_name,o.member_code AS owner_code FROM trainer_teams t JOIN members o ON o.id=t.owner_id WHERE t.id=${id}`;
+  const [team]=await sql`SELECT t.id,t.name,t.owner_id,t.owner_role,o.display_name AS owner_name,o.member_code AS owner_code FROM trainer_teams t JOIN members o ON o.id=t.owner_id WHERE t.id=${id}`;
   if (!team) return json({error:'ไม่พบทีมนี้'},404);
   const owner=team.owner_id===me;
   const [mine]=owner?[]:await sql`SELECT status,team_role FROM team_members WHERE team_id=${id} AND user_id=${me}`;
@@ -93,7 +93,7 @@ export async function handleTeams(request,sql,user) {
   if (!action && method==='GET') {
     if(!active) return json({error:'คุณยังไม่ได้อยู่ในทีมนี้'},403);
     const rows=await sql`SELECT u.id,u.member_code,u.display_name,m.status,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} ORDER BY m.status,m.team_role,u.display_name`;
-    return json({team:{id:team.id,name:team.name,owner:{id:team.owner_id,display_name:team.owner_name,member_code:team.owner_code}},my_role:owner?'owner':mine.team_role,members:owner?rows:rows.filter(r=>r.status==='active')});
+    return json({team:{id:team.id,name:team.name,owner:{id:team.owner_id,display_name:team.owner_name,member_code:team.owner_code,team_role:team.owner_role}},my_role:owner?'owner':mine.team_role,members:owner?rows:rows.filter(r=>r.status==='active')});
   }
   if (!action && method==='DELETE') {
     if(!owner) return ownerOnly();
@@ -121,6 +121,7 @@ export async function handleTeams(request,sql,user) {
       if(!owner) return ownerOnly();
       const role=(await readJson(request)).team_role;
       if(!teamRoles.has(role)) return json({error:'บทบาทไม่ถูกต้อง'},400);
+      if(memberId===me){await sql`UPDATE trainer_teams SET owner_role=${role} WHERE id=${id}`;return json({ok:true});}
       const rows=await sql`UPDATE team_members SET team_role=${role} WHERE team_id=${id} AND user_id=${memberId} RETURNING team_role`;
       return rows.length?json({ok:true}):json({error:'ไม่พบสมาชิกในทีมนี้'},404);
     }
@@ -131,6 +132,11 @@ export async function handleTeams(request,sql,user) {
     }
     if (method==='GET') {
       if(!owner && !(mine?.status==='active' && mine.team_role==='trainer')) return json({error:'เฉพาะเทรนเนอร์ของทีมเท่านั้น'},403);
+      if(memberId===team.owner_id){
+        if(owner || team.owner_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
+        const rows=await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`;
+        return json({member:{id:team.owner_id,member_code:team.owner_code,display_name:team.owner_name,team_role:'trainee'},records:rows.map(r=>r.payload)});
+      }
       const [member]=await sql`SELECT u.id,u.member_code,u.display_name,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} AND m.user_id=${memberId} AND m.status='active'`;
       if(!member) return json({error:'สมาชิกยังไม่ได้ตอบรับเข้าทีม'},403);
       if(!owner && member.team_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);

@@ -2,7 +2,7 @@ import {auth,api} from './account.js?v=2';
 import {localDay,read,write,validateRecords,mergeRecords} from './store.mjs';
 import {attachExercisePicker} from './exercise-picker.mjs?v=5';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=5';
-import {initTeams} from './team.mjs?v=6';
+import {initTeams} from './team.mjs?v=7';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();

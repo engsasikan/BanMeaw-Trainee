@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS trainer_teams (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS trainer_teams_owner ON trainer_teams(owner_id);
+-- The owner's own role inside the team (the owner always keeps management rights).
+ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS owner_role text NOT NULL DEFAULT 'trainer' CHECK (owner_role IN ('trainer', 'trainee'));
 
 -- team_members: people in a team (team_role trainer | trainee); status invited until they accept, then active.
 CREATE TABLE IF NOT EXISTS team_members (
