@@ -1,3 +1,4 @@
+import {handlePlans} from './plans.mjs';
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateRecords } from '../dist/store.mjs';
@@ -59,6 +60,7 @@ export async function handleApi(request, env) {
     return json({ok:true});
   }
   if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex FROM members WHERE id=${user.sub}`;return json(me);}
+  if(url.pathname==='/api/plans'&&request.method==='GET'){const day=url.searchParams.get('day');if(!/^\d{4}-\d{2}-\d{2}$/.test(day||''))return json({error:'วันที่ไม่ถูกต้อง'},400);return json({plans:await sql`SELECT p.id,p.day,p.exercises,t.name AS team_name FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE p.user_id=${user.sub} AND p.day=${day}::date AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${user.sub} AND m.status='active')) ORDER BY p.created_at`});}
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);
   if (url.pathname === '/api/reports') return handleReports(request,sql,user);
@@ -100,6 +102,7 @@ export async function handleTeams(request,sql,user) {
   const owner=team.owner_id===me;
   const [mine]=owner?[]:await sql`SELECT status,team_role FROM team_members WHERE team_id=${id} AND user_id=${me}`;
   const active=owner||mine?.status==='active';
+  if(action==='plans'&&memberId)return handlePlans(request,sql,user,team,mine,memberId);
   const ownerOnly=()=>json({error:'เฉพาะผู้สร้างทีมเท่านั้น'},403);
   if (!action && method==='GET') {
     if(!active) return json({error:'คุณยังไม่ได้อยู่ในทีมนี้'},403);

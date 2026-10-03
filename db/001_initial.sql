@@ -76,3 +76,14 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   PRIMARY KEY (user_id, day)
 );
 COMMIT;
+CREATE TABLE IF NOT EXISTS training_plans (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+ day date NOT NULL,
+ exercises jsonb NOT NULL,
+ created_by text NOT NULL REFERENCES members(id),
+ batch_id uuid NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS training_plans_user_day ON training_plans(user_id,day);

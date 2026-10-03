@@ -1,3 +1,4 @@
+import {trainerPlanner} from './plans.mjs?v=1';
 import {api} from './account.js?v=2';
 import {createBodyViewer} from './body.mjs?v=20';
 const $=id=>document.getElementById(id);
@@ -52,6 +53,7 @@ function memberRow(team,m,myRole){
  const badge=reportBadge(m);if(badge)info.append(badge);
  const actions=node('div',undefined,'team-actions'),owner=myRole==='owner';
  if(!self&&m.status==='active'&&((owner&&!m.is_owner)||(myRole==='trainer'&&m.team_role==='trainee')))actions.append(button('ดูบันทึก','primary',()=>viewMember(team,m)));
+ if(m.status==='active'&&m.team_role==='trainee'&&(owner||myRole==='trainer'))actions.append(button('จัดแผนฝึก','quiet',async()=>{const box=$('team-viewer');box.hidden=false;box.replaceChildren();try{await trainerPlanner(box,team,m);}catch(e){say(e.message);}}));
  if(owner){
   const select=node('select');select.setAttribute('aria-label','บทบาทของ '+m.display_name);
   for(const role of ['trainer','trainee']){const o=node('option',roleName[role]);o.value=role;o.selected=m.team_role===role;select.append(o);}

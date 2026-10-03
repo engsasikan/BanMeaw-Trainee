@@ -1,8 +1,9 @@
+import {showDailyPlans} from './plans.mjs?v=1';
 import {auth,api} from './account.js?v=2';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=12';
 import {attachExercisePicker} from './exercise-picker.mjs?v=7';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
-import {initTeams} from './team.mjs?v=11';
+import {initTeams} from './team.mjs?v=12';
 import {initBody,quickWeigh} from './body.mjs?v=23';
 import {initToday} from './today.mjs?v=4';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
@@ -43,6 +44,7 @@ function render(){renderMeals();renderWorkouts();renderDashboard(records,$('day'
 function renderWorkouts(){
  const day=$('day').value;if(!day)return;
  $('workout-date-label').textContent=new Intl.DateTimeFormat('th-TH',{dateStyle:'full'}).format(new Date(day+'T12:00:00'));
+ let plans=document.getElementById('daily-training-plans');if(!plans){plans=node('section',undefined,'diary');plans.id='daily-training-plans';$('workout-entries').parentElement.prepend(plans);}plans.dataset.day=day;showDailyPlans(plans,day);
  const rows=records.filter(r=>r.kind==='workout'&&r.day===day);$('workout-total').textContent=rows.length+' รายการ';$('workout-entries').replaceChildren();
  if(!rows.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีท่าที่บันทึก'),node('p','จดชื่อท่าและน้ำหนักที่ใช้วันนี้ได้เลย'));$('workout-entries').append(box);return;}
  for(const r of rows){
