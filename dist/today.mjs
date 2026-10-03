@@ -61,7 +61,7 @@ function summary(){
  // Each meal: a heading line, then the food on its own line(s), keeping the user's line breaks.
  for(const r of meals){
   lines.push('• '+r.meal+(r.time?' '+r.time:'')+(TIMING[r.workoutTiming]||''));
-  for(const food of r.text.split(/\n+/).map(x=>x.trim()).filter(Boolean))lines.push('   '+food);
+  for(const food of r.text.split(/\n+/).map(x=>x.trim()).filter(Boolean))lines.push('   ◦ '+food.replace(/^[-•◦*]\s*/,''));
  }
  const workouts=todayWorkouts();
  if(workouts.length){lines.push('','💪 การฝึก');for(const r of workouts)lines.push('• '+r.exercise+[r.weight===null?'':(r.weight===0?' น้ำหนักตัว':' '+r.weight+' กก.'),r.sets&&r.reps?' '+r.sets+'×'+r.reps:r.sets?' '+r.sets+' เซ็ต':''].join(''));}
