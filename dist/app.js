@@ -3,7 +3,7 @@ import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './st
 import {attachExercisePicker} from './exercise-picker.mjs?v=5';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
 import {initTeams} from './team.mjs?v=11';
-import {initBody,quickWeigh} from './body.mjs?v=18';
+import {initBody,quickWeigh} from './body.mjs?v=19';
 import {initToday} from './today.mjs?v=1';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
