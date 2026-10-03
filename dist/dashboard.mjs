@@ -1,3 +1,4 @@
+import {renderCalendar} from './calendar.mjs';
 import {localDay} from './store.mjs';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -10,7 +11,7 @@ export function switchView(view){
 }
 export function attachNavigation(){document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));}
 export function renderDashboard(records,day){
- if(!day)return;const week=getWeek(records,day),today=week[6];$('dash-meals').textContent=today.foods;$('dash-workouts').textContent=today.workouts;$('dash-sets').textContent=today.sets+' เซ็ตที่บันทึก'+(today.missingSets?' · '+today.missingSets+' ท่ายังไม่ระบุเซ็ต':'');
+ if(!day)return;renderCalendar(records,day);const week=getWeek(records,day),today=week[6];$('dash-meals').textContent=today.foods;$('dash-workouts').textContent=today.workouts;$('dash-sets').textContent=today.sets+' เซ็ตที่บันทึก'+(today.missingSets?' · '+today.missingSets+' ท่ายังไม่ระบุเซ็ต':'');
  const maximum=Math.max(1,...week.flatMap(d=>[d.foods,d.workouts]));$('dashboard-chart').replaceChildren();
  for(const d of week){const column=node('div',undefined,'chart-column'),bars=node('div',undefined,'chart-bars');for(const [key,cls] of [['foods','food-bar'],['workouts','workout-bar']]){const bar=node('span',undefined,cls);bar.style.height=(d[key]/maximum*100)+'%';bars.append(bar);}column.append(node('span',d.foods+' / '+d.workouts,'chart-count'),bars,node('span',new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(d.day+'T12:00:00')),'chart-day'));column.setAttribute('aria-label',d.day+' อาหาร '+d.foods+' รายการ ออกกำลังกาย '+d.workouts+' ท่า');$('dashboard-chart').append(column);}
  const count=week.reduce((n,d)=>n+d.foods+d.workouts,0);$('dash-trend-note').textContent=count?'รวม '+count+' รายการในช่วง 7 วันนี้':'ยังไม่มีข้อมูลในช่วงนี้ เริ่มบันทึกอาหารหรือการฝึกได้เลย';
