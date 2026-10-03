@@ -17,7 +17,8 @@ export const FIELDS={
  calf:{label:'รอบน่อง',unit:'ซม.',min:15,max:80},
 };
 for(const [key,label] of SEGMENTS){
- FIELDS['fat_'+key]={label:'ไขมัน'+label,unit:'%',min:1,max:75};
+ // InBody reports segmental fat as % of the standard value (100 = standard).
+ FIELDS['fat_'+key]={label:'ไขมัน'+label,unit:'%',min:1,max:500};
  FIELDS['mus_'+key]={label:'กล้ามเนื้อ'+label,unit:'กก.',min:0.1,max:60};
 }
 export const BASIC=['height','weight','body_fat','muscle','visceral'];

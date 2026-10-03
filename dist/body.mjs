@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+' '+FIELDS[key].unit;
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=1');
+const loadThree=()=>threeModule??=import('./body3d.js?v=2');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -33,7 +33,7 @@ export function createBodyViewer(root){
    if(!figure){figure=three.mountBody(stage);}
    const shape=figure.update(current||{},mode);
    if(!current)return;
-   legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย (ตามค่าแต่ละส่วน)':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อมาก · สีเทา = น้อย (เทียบค่าเฉลี่ย)':'รูปร่างจากส่วนสูง น้ำหนัก และสัดส่วนที่กรอก';
+   legend.textContent=mode==='fat'?'สีส้มเข้ม = ไขมันเกินมาตรฐาน · สีอ่อน = ไขมันน้อย (ตามค่าแต่ละส่วน)':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อมาก · สีเทา = น้อย (เทียบค่าเฉลี่ย)':'รูปร่างจากส่วนสูง น้ำหนัก และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
    if(mode!=='shape'&&SEGMENTS.every(([s])=>current[(mode==='fat'?'fat_':'mus_')+s]==null))note.textContent=(mode==='fat'?'ยังไม่ได้กรอกไขมันแต่ละส่วน ใช้ % ไขมันรวมแทน':'ยังไม่ได้กรอกกล้ามเนื้อแต่ละส่วน');
   }catch{stage.classList.add('empty-stage');legend.textContent='อุปกรณ์นี้แสดง 3D ไม่ได้ แต่ยังดูตัวเลขได้';}

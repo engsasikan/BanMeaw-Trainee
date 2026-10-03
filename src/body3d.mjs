@@ -25,8 +25,10 @@ export function bodyShape(r = {}) {
 export function segmentLevel(r, seg, mode) {
   const sex = r.sex === 'female' ? 'female' : 'male';
   if (mode === 'fat') {
-    const v = r['fat_' + seg] ?? r.body_fat;
-    return v == null ? null : clamp((v - (sex === 'female' ? 18 : 10)) / 25, 0, 1);
+    // Segment fat is % of standard (100 = standard); fall back to overall body fat %.
+    const v = r['fat_' + seg];
+    if (v != null) return clamp((v - 60) / 140, 0, 1);
+    return r.body_fat == null ? null : clamp((r.body_fat - (sex === 'female' ? 18 : 10)) / 25, 0, 1);
   }
   if (mode === 'muscle') {
     const v = r['mus_' + seg];

@@ -41,3 +41,4 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .body-form-card details{margin-top:14px;border:1px solid #38393b;border-radius:14px;padding:4px 14px 12px}.body-form-card summary{cursor:pointer;padding:10px 0;font-weight:700;color:#e6e7e8}
 .team-body{margin:12px 0 4px}.team-body .body-stage{height:340px}.team-log-title{margin:22px 0 4px}
 @media(max-width:900px){.profile-grid{grid-template-columns:1fr}.body-stage{height:360px}}
+.body-hint{font-size:.8rem;margin:0 0 4px}
