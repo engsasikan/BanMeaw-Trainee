@@ -19,7 +19,7 @@ export function createBodyViewer(root){
  const stage=node('div',undefined,'body-stage'),legend=node('p',undefined,'body-legend'),stats=node('div',undefined,'body-stats'),note=node('p',undefined,'muted body-estimate');
  root.replaceChildren(head,modes,stage,legend,stats,note);
  let records=[],current=null,mode='anatomy',figure=null,fallbackSex='male';
- for(const [key,label] of [['anatomy','กล้าม/ไขมัน'],['shape','รูปร่าง'],['fat','ไขมันแต่ละส่วน'],['muscle','กล้ามเนื้อแต่ละส่วน']]){
+ for(const [key,label] of [['anatomy','กล้าม/ไขมัน'],['shape','รูปร่าง'],['muscle','กล้ามเนื้อแต่ละส่วน']]){
   const b=button(label,'quiet',()=>{mode=key;draw();});b.dataset.mode=key;modes.append(b);
  }
  picker.onchange=()=>{current=records.find(r=>r.id===picker.value);draw();};
@@ -42,7 +42,7 @@ export function createBodyViewer(root){
   const bmi=current.height&&current.weight?Math.round(current.weight/(current.height/100)**2*10)/10:null;
   const items=[['น้ำหนัก',fmt('weight',current.weight)],['BMI',bmi??'–'],['ไขมัน (PBF)',fmt('body_fat',current.body_fat)],['กล้ามเนื้อโครงร่าง',fmt('muscle',current.muscle)]];
   const whr=current.whr??(current.waist&&current.hip?Math.round(current.waist/current.hip*100)/100:null);
-  for(const [label,key,value] of [['มวลไขมัน','body_fat_mass'],['ไขมันช่องท้อง','visceral'],['คะแนน InBody','score'],['เผาผลาญพื้นฐาน','bmr'],['เอว/สะโพก','whr',whr],['อัตราส่วน ECW','ecw_ratio'],['น้ำหนักเป้าหมาย','target_weight']]){
+  for(const [label,key,value] of [['มวลไขมัน','body_fat_mass'],['ไขมันช่องท้อง','visceral'],['คะแนน InBody','score'],['เผาผลาญพื้นฐาน','bmr'],['เอว/สะโพก','whr',whr],['อัตราส่วน ECW','ecw_ratio']]){
    const v=value!==undefined?value:current[key];if(v!=null)items.push([label,fmt(key,v)]);
   }
   const grid=node('div',undefined,'body-stat-grid');for(const [k,v] of items){const cell=node('div');cell.append(node('span',k),node('strong',String(v)));grid.append(cell);}stats.append(grid);

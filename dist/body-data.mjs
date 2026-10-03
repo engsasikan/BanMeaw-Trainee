@@ -56,9 +56,7 @@ export const GROUPS=[
  {title:'การวิเคราะห์องค์ประกอบร่างกาย',keys:['tbw','protein','minerals','soft_lean','ffm']},
  {title:'ความสมดุลกล้ามเนื้อแต่ละส่วน (กก. และ %)',segments:'mus',keys:SEGMENTS.flatMap(([s])=>['mus_'+s,'musp_'+s])},
  {title:'ข้อมูลเพิ่มเติม',keys:['icw','ecw','ecw_ratio','phase_angle','smi','bmr','whr','obesity_degree','bmc','bcm']},
- {title:'แนวทางการควบคุมน้ำหนัก',keys:['target_weight','weight_control','fat_control','muscle_control']},
- {title:'สัดส่วนจากสายวัด (ซม.)',keys:['chest','waist','hip','arm','thigh','calf']},
- {title:'ไขมันแต่ละส่วน (% เทียบมาตรฐาน · เฉพาะบางรุ่น)',keys:SEGMENTS.map(([s])=>'fat_'+s)},
+ {title:'สัดส่วนจากสายวัด (ซม.)',keys:['chest','waist','hip','arm','thigh','calf']}
 ];
 export const GIRTHS=['chest','waist','hip','arm','thigh','calf'];
 
