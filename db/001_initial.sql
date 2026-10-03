@@ -23,5 +23,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, id)
 );
+-- Public member ID (e.g. BM-3F9A0C) used to invite trainees into a trainer's team.
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS member_code text NOT NULL UNIQUE DEFAULT ('BM-' || upper(substr(md5(gen_random_uuid()::text), 1, 6)));
 CREATE INDEX IF NOT EXISTS diary_entries_user_day ON diary_entries(user_id, day DESC);
 COMMIT;

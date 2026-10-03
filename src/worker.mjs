@@ -6,7 +6,7 @@ import schema from '../db/001_initial.sql';
 const keys = new Map();
 let schemaReady;
 const json = (value, status = 200) => Response.json(value, {status, headers: {'Cache-Control':'no-store'}});
-const authPaths = new Set(['sign-up/email','sign-in/email','sign-out','get-session','token','request-password-reset','reset-password','send-verification-email','verify-email','email-otp/send-verification-otp','email-otp/verify-email']);
+const authPaths = new Set(['sign-up/email','sign-in/email','sign-in/social','sign-out','get-session','token','request-password-reset','reset-password','send-verification-email','verify-email','email-otp/send-verification-otp','email-otp/verify-email']);
 export async function identity(request, env) {
   const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
   if (!token) throw Object.assign(new Error('กรุณาเข้าสู่ระบบ'), {status:401});
@@ -49,7 +49,7 @@ export async function handleApi(request, env) {
   await initialize(sql);
   const role = user.emailVerified === true && env.ADMIN_EMAIL?.toLowerCase() === user.email?.toLowerCase() ? 'admin' : 'trainee';
   await sql`INSERT INTO app_users (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
-  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,display_name,role FROM app_users WHERE id=${user.sub}`;return json(me);}
+  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role FROM app_users WHERE id=${user.sub}`;return json(me);}
   return handleEntries(request,sql,user);
 }
 export async function handleEntries(request,sql,user) {
