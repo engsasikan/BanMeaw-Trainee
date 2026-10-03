@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=6');
+const loadThree=()=>threeModule??=import('./body3d.js?v=7');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -71,6 +71,8 @@ export function createBodyViewer(root){
 // ---- Profile page (own measurements) ----
 let records=[],editing=null,viewer,profileSex=null;
 const input=key=>$('bf-'+key);
+// Only fields shown in the form; others (e.g. removed sections) keep their saved values.
+const FORM_KEYS=GROUPS.flatMap(g=>g.keys);
 function buildForm(){
  const root=$('body-groups');root.replaceChildren();
  for(const group of GROUPS){
@@ -91,7 +93,7 @@ function applySexSetting(){$('body-sex').closest('div').hidden=!!profileSex;}
 function fillForm(r){
  editing=r?.id??null;$('body-day').value=r?.day??localDay();
  const last=records[0];$('body-sex').value=profileSex??r?.sex??last?.sex??'male';
- for(const key of Object.keys(FIELDS))input(key).value=r?.[key]??(!r&&key==='height'&&last?.height?last.height:'');
+ for(const key of FORM_KEYS)input(key).value=r?.[key]??(!r&&key==='height'&&last?.height?last.height:'');
  $('body-note').value=r?.note??'';
  $('body-form-title').textContent=r?'แก้ไขค่าวันที่ '+thaiDate(r.day):'บันทึกค่าร่างกาย';
  $('body-cancel').hidden=!r;$('body-save').textContent=r?'บันทึกการแก้ไข':'บันทึกค่าร่างกาย';
@@ -137,7 +139,7 @@ export function initBody(me={}){
  let previewTimer;
  const preview=()=>{clearTimeout(previewTimer);previewTimer=setTimeout(()=>{
   const row={id:'preview',day:$('body-day').value,sex:$('body-sex').value};
-  for(const key of Object.keys(FIELDS)){const v=Number(input(key).value);const f=FIELDS[key];row[key]=input(key).value.trim()!==''&&v>=f.min&&v<=f.max?v:null;}
+  for(const key of FORM_KEYS){const v=Number(input(key).value);const f=FIELDS[key];row[key]=input(key).value.trim()!==''&&v>=f.min&&v<=f.max?v:null;}
   viewer.preview(row);
  },250);};
  $('body-form').addEventListener('input',preview);$('body-form').addEventListener('change',preview);
@@ -145,7 +147,8 @@ export function initBody(me={}){
   e.preventDefault();const button=$('body-save');button.disabled=true;
   try{
    const row={id:editing||crypto.randomUUID(),day:$('body-day').value,sex:$('body-sex').value,note:$('body-note').value};
-   for(const key of Object.keys(FIELDS)){const raw=input(key).value.trim();row[key]=raw===''?null:Number(raw);}
+   const saved=records.find(x=>x.id===editing);
+   for(const key of Object.keys(FIELDS)){if(!FORM_KEYS.includes(key)){row[key]=saved?.[key]??null;continue;}const raw=input(key).value.trim();row[key]=raw===''?null:Number(raw);}
    const valid=validateBody(row);
    await api('/api/body/'+encodeURIComponent(valid.id),{method:'PUT',body:JSON.stringify(valid)});
    editing=null;await loadBody(valid.id);say('บันทึกค่าร่างกายแล้ว');

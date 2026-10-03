@@ -19,8 +19,10 @@
 //               vertex u16[count], delta i16[count*3] (units of 0.001)
 //   localCount u32, then per local target: nameLength u32, name (ASCII, padded), count u32,
 //               vertex u16[count], delta i16[count*3]
+//   'ANAT', region u8[n], fibre direction i8[n*3], flags u8[n] (see scripts/body-anatomy.mjs)
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import {join} from 'node:path';
+import {muscleMap} from './body-anatomy.mjs';
 
 const src = process.argv[2];
 if (!src) throw Error('usage: node scripts/build-body-models.mjs <makehuman data folder>');
@@ -113,8 +115,10 @@ for (const sex of ['male', 'female']) {
   const pad = len => (len + 3) & ~3;
   let size = 16 + n * 12 + pad(n) + pad(indices.length * 2);
   for (const t of targets) size += 12 + pad(t.ids.length * 2) + pad(t.deltas.length * 2);
+  const anatomy = muscleMap({positions, indices, segments, J});
   size += 4;
   for (const t of localTargets) size += 8 + pad(t.name.length) + pad(t.ids.length * 2) + pad(t.deltas.length * 2);
+  size += 4 + pad(n) + pad(n * 3) + pad(n);
   const buf = new ArrayBuffer(size), view = new DataView(buf);
   let o = 0;
   new Uint8Array(buf, 0, 4).set([66, 77, 66, 50]); o = 4; // 'BMB2'
@@ -135,9 +139,13 @@ for (const sex of ['male', 'female']) {
     new Uint16Array(buf, o, t.ids.length).set(t.ids); o += pad(t.ids.length * 2);
     new Int16Array(buf, o, t.deltas.length).set(t.deltas); o += pad(t.deltas.length * 2);
   }
+  new Uint8Array(buf, o, 4).set([65, 78, 65, 84]); o += 4; // 'ANAT'
+  new Uint8Array(buf, o, n).set(anatomy.region); o += pad(n);
+  new Int8Array(buf, o, n * 3).set(anatomy.fiber); o += pad(n * 3);
+  new Uint8Array(buf, o, n).set(anatomy.flags); o += pad(n);
   if (o !== size) throw Error(`size mismatch ${o} != ${size}`);
   mkdirSync('dist/models', {recursive: true});
   writeFileSync(`dist/models/body-${sex}.bin`, new Uint8Array(buf));
   const counts = [0, 0, 0, 0, 0, 0]; for (const s of segments) counts[s]++;
-  console.log(sex, {vertices: n, triangles: indices.length / 3, targets: targets.length, locals: localTargets.length, bytes: size, segments: counts});
+  console.log(sex, {vertices: n, triangles: indices.length / 3, targets: targets.length, locals: localTargets.length, regions: anatomy.regions, bytes: size, segments: counts});
 }

@@ -16,7 +16,7 @@ const GIRTHS = ['chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=2`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=3`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -43,7 +43,21 @@ function loadModel(sex) {
         locals.set(name, {ids, deltas});
       }
     }
-    return {n, base, segments, indices, targets, locals};
+    // Muscle map (ANAT): region, fibre direction and flags per vertex, as shader attributes.
+    let anatomy = null;
+    if (o + 4 <= buf.byteLength && String.fromCharCode(...new Uint8Array(buf, o, 4)) === 'ANAT') {
+      o += 4;
+      const region = new Uint8Array(buf, o, n); o += pad(n);
+      const fiber = new Int8Array(buf, o, n * 3); o += pad(n * 3);
+      const flags = new Uint8Array(buf, o, n); o += pad(n);
+      const anat = new Float32Array(n * 3), tone = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        anat[i * 3] = flags[i] & 1; anat[i * 3 + 1] = (flags[i] >> 1) & 1; anat[i * 3 + 2] = (flags[i] >> 2) & 1;
+        tone[i] = ((region[i] * 2654435761) >>> 0) % 1000 / 1000; // stable per-region shade
+      }
+      anatomy = {fiber: new THREE.BufferAttribute(fiber, 3, true), anat: new THREE.BufferAttribute(anat, 3), tone: new THREE.BufferAttribute(tone, 1)};
+    }
+    return {n, base, segments, indices, targets, locals, anatomy};
   }).catch(error => { delete models[sex]; throw error; });
 }
 
@@ -175,6 +189,10 @@ function shapeBody(model, r, lean = false) {
 const ANATOMY_NOISE = `
 varying float vFat;
 varying vec3 vObjPos;
+varying vec3 vFiber;
+varying vec3 vAnat;
+varying float vTone;
+varying vec3 vObjNormal;
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 vec3 hash3(vec3 p) { return vec3(hash(p), hash(p + 17.13), hash(p + 31.71)); }
 float noise(vec3 x) {
@@ -195,16 +213,25 @@ function anatomyMaterial() {
   const material = new THREE.MeshStandardMaterial({roughness: 0.5, metalness: 0});
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float fatAmt;\nvarying float vFat;\nvarying vec3 vObjPos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFat = fatAmt;\nvObjPos = position;');
+      .replace('#include <common>', '#include <common>\nattribute float fatAmt;\nattribute vec3 aFiber;\nattribute vec3 aAnat;\nattribute float aTone;\nvarying float vFat;\nvarying vec3 vObjPos;\nvarying vec3 vFiber;\nvarying vec3 vAnat;\nvarying float vTone;\nvarying vec3 vObjNormal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFat = fatAmt;\nvObjPos = position;\nvFiber = aFiber;\nvAnat = aAnat;\nvTone = aTone;\nvObjNormal = normal;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\n' + ANATOMY_NOISE)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        float n = noise(vObjPos * vec3(30.0, 5.0, 30.0));
-        float phase = (vObjPos.x + vObjPos.z * 0.7) * 1100.0 + n * 10.0;
+        // Fibres run along each muscle's direction: stripes vary across it on the surface.
+        vec3 nrm = normalize(vObjNormal);
+        vec3 fdir = vFiber - nrm * dot(vFiber, nrm);
+        fdir = length(fdir) > 0.001 ? normalize(fdir) : vec3(0.0, 1.0, 0.0);
+        vec3 perp = normalize(cross(fdir, nrm));
+        float phase = dot(vObjPos, perp) * 1300.0 + noise(vObjPos * 40.0) * 6.0;
         float aa = clamp(1.0 - fwidth(phase) / 2.5, 0.0, 1.0); // fade fibres when too fine for the pixel
-        float shade = 0.6 + 0.22 * sin(phase) * aa + 0.18 * (noise(vObjPos * 70.0) - 0.5);
-        vec3 muscleCol = mix(vec3(0.34, 0.03, 0.04), vec3(0.82, 0.13, 0.12), shade);
+        float shade = 0.62 + 0.2 * sin(phase) * aa + 0.12 * (noise(vObjPos * 70.0) - 0.5) + (vTone - 0.5) * 0.16;
+        shade *= 1.0 - 0.35 * smoothstep(0.1, 0.8, vAnat.x); // muscle edges sink in a little
+        vec3 muscleCol = mix(vec3(0.34, 0.03, 0.04), vec3(0.86, 0.15, 0.14), shade);
+        vec3 tendonCol = mix(vec3(0.84, 0.78, 0.78), vec3(0.97, 0.94, 0.93), 0.5 + 0.3 * sin(phase * 0.6) * aa);
+        muscleCol = mix(muscleCol, tendonCol, smoothstep(0.4, 0.6, vAnat.y));
+        muscleCol = mix(muscleCol, vec3(0.9, 0.76, 0.74), smoothstep(0.4, 0.6, vAnat.z));
+        muscleCol = mix(muscleCol, vec3(0.93, 0.88, 0.87), smoothstep(0.82, 0.98, vAnat.x) * 0.8); // fascia lines
         vec2 v = voronoi(vObjPos * 95.0);
         vec3 fatCol = mix(vec3(1.0, 0.88, 0.48), vec3(0.78, 0.55, 0.16), smoothstep(0.15, 0.8, v.x));
         fatCol *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.09, v.y - v.x));
@@ -246,6 +273,10 @@ export function mountBody(container) {
         fatAmt[i] = model.segments[i] === 5 ? 0 : clamp((t - 0.006) / 0.03, 0, 1);
       }
       geometry.setAttribute('fatAmt', new THREE.BufferAttribute(fatAmt, 1));
+      const a = model.anatomy, zero3 = new THREE.BufferAttribute(new Float32Array(model.n * 3), 3);
+      geometry.setAttribute('aFiber', a?.fiber ?? zero3);
+      geometry.setAttribute('aAnat', a?.anat ?? zero3);
+      geometry.setAttribute('aTone', a?.tone ?? new THREE.BufferAttribute(new Float32Array(model.n), 1));
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geometry.setIndex(new THREE.BufferAttribute(model.indices, 1));
