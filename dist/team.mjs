@@ -1,4 +1,4 @@
-import {trainerPlanner} from './plans.mjs?v=1';
+import {trainerPlanner} from './plans.mjs?v=2';
 import {api} from './account.js?v=2';
 import {createBodyViewer} from './body.mjs?v=20';
 const $=id=>document.getElementById(id);
