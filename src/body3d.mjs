@@ -292,8 +292,14 @@ export function mountBody(container) {
     const r = record, sex = r.sex === 'female' ? 'female' : 'male', ticket = ++request;
     if(mode==='anatomy'){
       const atlas=await loadAnatomyAtlas();if(ticket!==request)return {estimated:[]};
-      if(mesh){scene.remove(mesh);mesh.geometry.dispose();}
-      mesh=new THREE.Mesh(atlas.clone(),atlasMaterials);scene.add(mesh);controls.target.set(0,0.93,0);
+      if(mesh){scene.remove(mesh);mesh.children.forEach(c=>c.geometry?.dispose());mesh.geometry.dispose();}
+      const geometry=atlas.clone(),positions=geometry.attributes.position,source=geometry.index.array,kept=[],split=atlas.groups[0].count;
+      let muscleCount=0;
+      for(let i=0;i<source.length;i+=3){if([source[i],source[i+1],source[i+2]].some(v=>positions.getY(v)>1.57))continue;kept.push(source[i],source[i+1],source[i+2]);if(i<split)muscleCount+=3;}
+      geometry.setIndex(kept);geometry.clearGroups();geometry.addGroup(0,muscleCount,0);geometry.addGroup(muscleCount,kept.length-muscleCount,1);
+      mesh=new THREE.Mesh(geometry,atlasMaterials);
+      const head=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),atlasMaterials[1]);head.scale.set(.075,.105,.08);head.position.set(0,1.65,0);mesh.add(head);
+      scene.add(mesh);controls.target.set(0,0.93,0);
       if(!camera.userData.placed){camera.position.set(0.8,1.0,3.7);camera.userData.placed=true;}controls.update();
       return {estimated:[],referenceAnatomy:true};
     }
@@ -323,7 +329,7 @@ export function mountBody(container) {
     for (let i = 0; i < model.n; i++) { const c = palette[model.segments[i]]; colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b; }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
-    if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
+    if (mesh) { scene.remove(mesh);mesh.children.forEach(c=>c.geometry?.dispose()); mesh.geometry.dispose(); }
     mesh = new THREE.Mesh(geometry, mode === 'anatomy' ? anatomy : material); scene.add(mesh);
     controls.target.set(0, H * 0.53, 0);
     if (!camera.userData.placed) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
@@ -337,6 +343,6 @@ export function mountBody(container) {
   loop();
   return {
     update,
-    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); atlasMaterials.forEach(m=>m.dispose()); shadow.geometry.dispose();shadow.material.dispose();shadowTex.dispose();renderer.dispose(); renderer.domElement.remove(); },
+    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.children.forEach(c=>c.geometry?.dispose());mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); atlasMaterials.forEach(m=>m.dispose()); shadow.geometry.dispose();shadow.material.dispose();shadowTex.dispose();renderer.dispose(); renderer.domElement.remove(); },
   };
 }

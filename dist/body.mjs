@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=11');
+const loadThree=()=>threeModule??=import('./body3d.js?v=12');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -18,8 +18,8 @@ export function createBodyViewer(root,{onSelect}={}){
  const modes=node('div',undefined,'body-modes');modes.setAttribute('role','group');modes.setAttribute('aria-label','รูปแบบการแสดงผล');
  const stage=node('div',undefined,'body-stage'),legend=node('p',undefined,'body-legend'),stats=node('div',undefined,'body-stats'),note=node('p',undefined,'muted body-estimate');
  root.replaceChildren(head,modes,stage,legend,stats,note);
- let records=[],current=null,mode='anatomy',figure=null,fallbackSex='male';
- for(const [key,label] of [['anatomy','กายวิภาคกล้ามเนื้อ'],['shape','รูปร่าง'],['muscle','กล้ามเนื้อแต่ละส่วน']]){
+ let records=[],current=null,mode='shape',figure=null,fallbackSex='male';
+ for(const [key,label] of [['shape','รูปร่างของฉัน'],['fat','ไขมัน'],['muscle','กล้ามเนื้อ'],['anatomy','กายวิภาคอ้างอิง']]){
   const b=button(label,'quiet',()=>{mode=key;draw();});b.dataset.mode=key;modes.append(b);
  }
  picker.onchange=()=>{current=records.find(r=>r.id===picker.value);draw();onSelect?.(current);};
@@ -31,7 +31,7 @@ export function createBodyViewer(root,{onSelect}={}){
   try{
    const three=await loadThree();
    if(!figure){figure=three.mountBody(stage);}
-   const shape=await figure.update(current||{sex:fallbackSex},mode);
+   const shape=await figure.update({...current,sex:current?.sex||fallbackSex},mode);
    if(!current){if(mode==='anatomy'){legend.textContent='มัดกล้ามเนื้อจริงจาก Z-Anatomy / BodyParts3D';note.textContent='โมเดลกายวิภาคอ้างอิง ไม่ใช่รูปร่างเฉพาะบุคคล';const credit=node('a','Z-Anatomy / BodyParts3D · CC BY-SA','muted');credit.href='/models/ANATOMY-LICENSE.txt';note.append(' · ',credit);}return;}
    legend.textContent=mode==='anatomy'?'แดง = กล้ามเนื้อ · สีครีม = เอ็นและเนื้อเยื่อเกี่ยวพัน':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อเกินมาตรฐาน · สีเทา = ต่ำกว่ามาตรฐาน (100%)':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
@@ -40,14 +40,16 @@ export function createBodyViewer(root,{onSelect}={}){
    if(mode==='muscle'&&SEGMENTS.every(([s])=>current['mus_'+s]==null&&current['musp_'+s]==null))note.textContent='ยังไม่ได้กรอกความสมดุลกล้ามเนื้อแต่ละส่วน';
   }catch{stage.classList.add('empty-stage');legend.textContent='อุปกรณ์นี้แสดง 3D ไม่ได้ แต่ยังดูตัวเลขได้';}
   if(!current)return;
+  if(mode==='fat')note.append(' · สีเป็นการแสดงระดับจากค่าที่บันทึก ไม่ใช่ตำแหน่งไขมันที่ตรวจวัดจริง');
+  if(mode==='muscle')note.append(' · มวลกล้ามเนื้อรวมใช้ค่า SMM ที่บันทึก; รายส่วนแสดงเฉพาะค่าที่กรอก');
   const bmi=current.height&&current.weight?Math.round(current.weight/(current.height/100)**2*10)/10:null;
-  const items=[['น้ำหนัก',fmt('weight',current.weight)],['BMI',bmi??'–'],['ไขมัน (PBF)',fmt('body_fat',current.body_fat)],['กล้ามเนื้อโครงร่าง',fmt('muscle',current.muscle)]];
+  const items=[['เพศ',(current.sex||fallbackSex)==='female'?'หญิง':'ชาย'],['น้ำหนัก',fmt('weight',current.weight)],['BMI',bmi??'–'],['ไขมัน (PBF)',fmt('body_fat',current.body_fat)],['กล้ามเนื้อโครงร่าง',fmt('muscle',current.muscle)]];
   const whr=current.whr??(current.waist&&current.hip?Math.round(current.waist/current.hip*100)/100:null);
   for(const [label,key,value] of [['มวลไขมัน','body_fat_mass'],['ไขมันช่องท้อง','visceral'],['คะแนน InBody','score'],['เผาผลาญพื้นฐาน','bmr'],['เอว/สะโพก','whr',whr],['อัตราส่วน ECW','ecw_ratio']]){
    const v=value!==undefined?value:current[key];if(v!=null)items.push([label,fmt(key,v)]);
   }
   const grid=node('div',undefined,'body-stat-grid');for(const [k,v] of items){const cell=node('div');cell.append(node('span',k),node('strong',String(v)));grid.append(cell);}stats.append(grid);
-  if(mode!=='shape'){
+  if(mode==='fat'||mode==='muscle'){
    const table=node('div',undefined,'body-seg-grid');
    for(const [s,label] of SEGMENTS){
     const value=mode==='fat'?fmt('fat_'+s,current['fat_'+s]):[current['mus_'+s]!=null?fmt('mus_'+s,current['mus_'+s]):'',current['musp_'+s]!=null?current['musp_'+s]+'%':''].filter(Boolean).join(' · ')||'–';
