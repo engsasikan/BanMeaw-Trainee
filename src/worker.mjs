@@ -60,16 +60,19 @@ async function readJson(request) {
   try {const value=JSON.parse(text);if(value&&typeof value==='object') return value;} catch {}
   throw Object.assign(new Error('ข้อมูลไม่ถูกต้อง'),{status:400});
 }
-// Teams: the owner acts as trainer; members are invited by member_code and must accept
-// before the trainer can read their diary (read-only).
+// Teams: the owner manages the team and sets each member's team role (trainer/trainee).
+// Members join by invitation (member_code) and must accept. The owner and active trainers
+// can read active trainees' logs (read-only); the owner can read any active member.
+const teamRoles=new Set(['trainer','trainee']);
 export async function handleTeams(request,sql,user) {
   const [id,action,memberId,extra]=new URL(request.url).pathname.split('/').slice(3).map(decodeURIComponent);
   const method=request.method, me=user.sub;
   if (!id && method==='GET') {
-    const owned=await sql`SELECT id,name FROM trainer_teams WHERE owner_id=${me} ORDER BY created_at`;
-    const members=await sql`SELECT m.team_id,m.status,u.id,u.member_code,u.display_name FROM team_members m JOIN trainer_teams t ON t.id=m.team_id JOIN members u ON u.id=m.user_id WHERE t.owner_id=${me} ORDER BY m.status,u.display_name`;
-    const memberships=await sql`SELECT t.id AS team_id,t.name AS team_name,m.status,o.display_name AS trainer_name,o.member_code AS trainer_code FROM team_members m JOIN trainer_teams t ON t.id=m.team_id JOIN members o ON o.id=t.owner_id WHERE m.user_id=${me} ORDER BY m.invited_at DESC`;
-    return json({teams:owned.map(t=>({...t,members:members.filter(m=>m.team_id===t.id).map(({team_id,...m})=>m)})),memberships});
+    const teams=await sql`SELECT t.id,t.name,(t.owner_id=${me}) AS is_owner,o.display_name AS owner_name,m.status,m.team_role,
+      (SELECT count(*)::int FROM team_members c WHERE c.team_id=t.id AND c.status='active') AS member_count
+      FROM trainer_teams t JOIN members o ON o.id=t.owner_id LEFT JOIN team_members m ON m.team_id=t.id AND m.user_id=${me}
+      WHERE t.owner_id=${me} OR m.user_id=${me} ORDER BY (m.status='invited') DESC NULLS LAST,t.created_at`;
+    return json({teams:teams.map(t=>({id:t.id,name:t.name,owner_name:t.owner_name,member_count:t.member_count,my_role:t.is_owner?'owner':t.team_role,status:t.is_owner?'active':t.status}))});
   }
   if (!id && method==='POST') {
     const name=String((await readJson(request)).name??'').trim();
@@ -78,43 +81,59 @@ export async function handleTeams(request,sql,user) {
     if(count>=10) return json({error:'สร้างทีมได้สูงสุด 10 ทีม'},409);
     const [team]=await sql`INSERT INTO trainer_teams (owner_id,name) VALUES (${me},${name}) RETURNING id,name`;
     await sql`UPDATE members SET role='trainer' WHERE id=${me} AND role='trainee'`;
-    return json({team:{...team,members:[]}});
+    return json({team});
   }
   if (!id || !teamId.test(id) || extra!==undefined) return json({error:'ไม่พบ API'},404);
-  const [team]=await sql`SELECT id,owner_id FROM trainer_teams WHERE id=${id}`;
+  const [team]=await sql`SELECT t.id,t.name,t.owner_id,o.display_name AS owner_name,o.member_code AS owner_code FROM trainer_teams t JOIN members o ON o.id=t.owner_id WHERE t.id=${id}`;
   if (!team) return json({error:'ไม่พบทีมนี้'},404);
   const owner=team.owner_id===me;
+  const [mine]=owner?[]:await sql`SELECT status,team_role FROM team_members WHERE team_id=${id} AND user_id=${me}`;
+  const active=owner||mine?.status==='active';
+  const ownerOnly=()=>json({error:'เฉพาะผู้สร้างทีมเท่านั้น'},403);
+  if (!action && method==='GET') {
+    if(!active) return json({error:'คุณยังไม่ได้อยู่ในทีมนี้'},403);
+    const rows=await sql`SELECT u.id,u.member_code,u.display_name,m.status,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} ORDER BY m.status,m.team_role,u.display_name`;
+    return json({team:{id:team.id,name:team.name,owner:{id:team.owner_id,display_name:team.owner_name,member_code:team.owner_code}},my_role:owner?'owner':mine.team_role,members:owner?rows:rows.filter(r=>r.status==='active')});
+  }
   if (!action && method==='DELETE') {
-    if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
+    if(!owner) return ownerOnly();
     await sql`DELETE FROM trainer_teams WHERE id=${id}`;
     return json({ok:true});
   }
   if (action==='invites' && !memberId && method==='POST') {
-    if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
-    const code=String((await readJson(request)).member_code??'').trim().toUpperCase();
+    if(!owner) return ownerOnly();
+    const body=await readJson(request), code=String(body.member_code??'').trim().toUpperCase(), role=teamRoles.has(body.team_role)?body.team_role:'trainee';
     const [invitee]=code.length<=20?await sql`SELECT id,member_code,display_name FROM members WHERE member_code=${code}`:[];
     if(!invitee) return json({error:'ไม่พบสมาชิก ID นี้ กรุณาตรวจอีกครั้ง'},404);
-    if(invitee.id===me) return json({error:'เพิ่มตัวเองเข้าทีมไม่ได้'},400);
+    if(invitee.id===me) return json({error:'คุณเป็นผู้สร้างทีมนี้อยู่แล้ว'},400);
     const [{count}]=await sql`SELECT count(*)::int AS count FROM team_members WHERE team_id=${id}`;
     if(count>=50) return json({error:'ทีมนี้มีสมาชิกครบ 50 คนแล้ว'},409);
-    const rows=await sql`INSERT INTO team_members (team_id,user_id,status) VALUES (${id},${invitee.id},'invited') ON CONFLICT DO NOTHING RETURNING status`;
+    const rows=await sql`INSERT INTO team_members (team_id,user_id,status,team_role) VALUES (${id},${invitee.id},'invited',${role}) ON CONFLICT DO NOTHING RETURNING status`;
     if(!rows.length) return json({error:'สมาชิกคนนี้อยู่ในทีมหรือได้รับคำเชิญแล้ว'},409);
-    return json({member:{...invitee,status:'invited'}});
+    return json({member:{...invitee,status:'invited',team_role:role}});
   }
   if (action==='accept' && !memberId && method==='POST') {
     const rows=await sql`UPDATE team_members SET status='active',joined_at=now() WHERE team_id=${id} AND user_id=${me} AND status='invited' RETURNING status`;
     return rows.length?json({ok:true}):json({error:'ไม่พบคำเชิญนี้'},404);
   }
   if (action==='members' && memberId && memberId.length<=200) {
+    if (method==='PATCH') {
+      if(!owner) return ownerOnly();
+      const role=(await readJson(request)).team_role;
+      if(!teamRoles.has(role)) return json({error:'บทบาทไม่ถูกต้อง'},400);
+      const rows=await sql`UPDATE team_members SET team_role=${role} WHERE team_id=${id} AND user_id=${memberId} RETURNING team_role`;
+      return rows.length?json({ok:true}):json({error:'ไม่พบสมาชิกในทีมนี้'},404);
+    }
     if (method==='DELETE') {
       if(!owner && memberId!==me) return json({error:'ไม่มีสิทธิ์นำสมาชิกคนนี้ออก'},403);
       const rows=await sql`DELETE FROM team_members WHERE team_id=${id} AND user_id=${memberId} RETURNING user_id`;
       return rows.length?json({ok:true}):json({error:'ไม่พบสมาชิกในทีมนี้'},404);
     }
     if (method==='GET') {
-      if(!owner) return json({error:'เฉพาะเทรนเนอร์เจ้าของทีมเท่านั้น'},403);
-      const [member]=await sql`SELECT u.id,u.member_code,u.display_name FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} AND m.user_id=${memberId} AND m.status='active'`;
+      if(!owner && !(mine?.status==='active' && mine.team_role==='trainer')) return json({error:'เฉพาะเทรนเนอร์ของทีมเท่านั้น'},403);
+      const [member]=await sql`SELECT u.id,u.member_code,u.display_name,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} AND m.user_id=${memberId} AND m.status='active'`;
       if(!member) return json({error:'สมาชิกยังไม่ได้ตอบรับเข้าทีม'},403);
+      if(!owner && member.team_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
       const rows=await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`;
       return json({member,records:rows.map(r=>r.payload)});
     }

@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS trainer_teams (
 );
 CREATE INDEX IF NOT EXISTS trainer_teams_owner ON trainer_teams(owner_id);
 
--- team_members: trainees in a team; status invited until they accept, then active.
+-- team_members: people in a team (team_role trainer | trainee); status invited until they accept, then active.
 CREATE TABLE IF NOT EXISTS team_members (
   team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
   user_id text NOT NULL REFERENCES members(id),
@@ -49,4 +49,6 @@ CREATE TABLE IF NOT EXISTS team_members (
   PRIMARY KEY (team_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS team_members_member ON team_members(user_id);
+-- Role inside the team, set by the team owner.
+ALTER TABLE team_members ADD COLUMN IF NOT EXISTS team_role text NOT NULL DEFAULT 'trainee' CHECK (team_role IN ('trainer', 'trainee'));
 COMMIT;

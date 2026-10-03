@@ -5,55 +5,87 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const say=text=>{$('team-message').textContent=text;};
 const send=(path,method,body)=>api(path,{method,body:body&&JSON.stringify(body)});
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'short',day:'numeric',month:'short'}).format(new Date(day+'T12:00:00'));
-let myId='',loaded=false;
-async function act(work,done){try{await work();if(done)say(done);await loadTeams();}catch(error){say(error.message);}}
+const roleName={owner:'ผู้สร้างทีม',trainer:'Trainer',trainee:'Trainee'};
+const badge=role=>node('span',roleName[role],'role-badge '+role);
+let myId='',openTeam=null;
 
-function renderMemberships(list){
- const box=$('team-memberships');box.replaceChildren();
- if(!list.length){box.append(node('p','ยังไม่มีทีม เมื่อเทรนเนอร์เชิญคุณ คำเชิญจะแสดงที่นี่','muted'));return;}
- for(const m of list){
-  const card=node('article',undefined,'team-row'),info=node('div'),actions=node('div',undefined,'team-actions');
-  info.append(node('strong',m.team_name),node('span','เทรนเนอร์ '+m.trainer_name+' · '+m.trainer_code,'muted'));
-  const leave=()=>send('/api/teams/'+m.team_id+'/members/'+encodeURIComponent(myId),'DELETE');
-  if(m.status==='invited'){
-   card.classList.add('invited');info.append(node('span','รอคุณตอบรับ · เทรนเนอร์จะเห็นบันทึกอาหารและการฝึกของคุณหลังตอบรับ','team-badge'));
-   actions.append(button('ตอบรับ','primary',()=>act(()=>send('/api/teams/'+m.team_id+'/accept','POST'),'เข้าร่วมทีม '+m.team_name+' แล้ว')),
-    button('ปฏิเสธ','quiet',()=>act(leave,'ปฏิเสธคำเชิญแล้ว')));
-  } else actions.append(button('ออกจากทีม','quiet',()=>{if(confirm('ออกจากทีม '+m.team_name+'? เทรนเนอร์จะดูบันทึกของคุณไม่ได้อีก'))act(leave,'ออกจากทีมแล้ว');}));
-  card.append(info,actions);box.append(card);
- }
-}
+async function act(work,done,after=refresh){try{await work();if(done)say(done);await after();}catch(error){say(error.message);}}
+const refresh=()=>openTeam?showTeam(openTeam):loadTeams();
 
-function renderTeams(teams){
- const box=$('team-owned');box.replaceChildren();
- if(!teams.length){box.append(node('p','ยังไม่มีทีม ตั้งชื่อทีมด้านบนเพื่อเริ่มเป็นเทรนเนอร์','muted'));return;}
+// ---- Team list ----
+export async function loadTeams(){
+ openTeam=null;$('team-detail-view').hidden=true;$('team-list-view').hidden=false;
+ const {teams}=await api('/api/teams'),box=$('team-list');box.replaceChildren();
+ document.querySelectorAll('.team-dot').forEach(dot=>{dot.hidden=!teams.some(t=>t.status==='invited');});
+ if(!teams.length){const empty=node('div',undefined,'empty');empty.append(node('h3','ยังไม่มีทีม'),node('p','สร้างทีมของคุณด้านบน หรือส่ง ID (มุมขวาบน) ให้ผู้สร้างทีมเพื่อรับคำเชิญ'));box.append(empty);return;}
  for(const t of teams){
-  const card=node('article',undefined,'team-card'),head=node('div',undefined,'list-heading');
-  head.append(node('h3',t.name),node('span',t.members.filter(m=>m.status==='active').length+' คนในทีม','pill'));
-  const form=node('form',undefined,'team-invite'),input=node('input');
-  input.placeholder='ID ลูกเทรน เช่น BM-3F9A0C';input.maxLength=20;input.required=true;input.autocomplete='off';input.setAttribute('aria-label','ID ลูกเทรนที่ต้องการเชิญ');
-  form.append(input,node('button','เชิญเข้าทีม','primary'));
-  form.onsubmit=e=>{e.preventDefault();act(()=>send('/api/teams/'+t.id+'/invites','POST',{member_code:input.value}),'ส่งคำเชิญแล้ว รอลูกเทรนกดตอบรับ');};
-  const list=node('div',undefined,'team-members');
-  if(!t.members.length)list.append(node('p','ยังไม่มีสมาชิก ขอ ID จากลูกเทรนแล้วเชิญเข้าทีม','muted'));
-  for(const m of t.members){
-   const row=node('div',undefined,'team-row'),info=node('div'),actions=node('div',undefined,'team-actions');
-   info.append(node('strong',m.display_name),node('span',m.member_code+(m.status==='invited'?' · รอตอบรับ':''),'muted'));
-   if(m.status==='active')actions.append(button('ดูบันทึก','primary',()=>viewMember(t,m)));
-   actions.append(button(m.status==='invited'?'ยกเลิกคำเชิญ':'นำออก','quiet',()=>{if(confirm('นำ '+m.display_name+' ออกจากทีม '+t.name+'?'))act(()=>send('/api/teams/'+t.id+'/members/'+encodeURIComponent(m.id),'DELETE'),'นำออกจากทีมแล้ว');}));
-   row.append(info,actions);list.append(row);
+  const card=node('article',undefined,'team-tile'+(t.status==='invited'?' invited':'')),info=node('div',undefined,'team-tile-info');
+  info.append(node('h3',t.name),node('p',(t.my_role==='owner'?'ทีมของคุณ':'สร้างโดย '+t.owner_name)+' · '+t.member_count+' คน','muted'));
+  card.append(info);
+  if(t.status==='invited'){
+   const actions=node('div',undefined,'team-actions');
+   actions.append(node('span','คำเชิญเป็น '+roleName[t.my_role],'team-badge'),
+    button('ตอบรับ','primary',()=>act(()=>send('/api/teams/'+t.id+'/accept','POST'),'เข้าร่วมทีม '+t.name+' แล้ว')),
+    button('ปฏิเสธ','quiet',()=>act(()=>send('/api/teams/'+t.id+'/members/'+encodeURIComponent(myId),'DELETE'),'ปฏิเสธคำเชิญแล้ว')));
+   card.append(actions);
+  } else {
+   card.append(badge(t.my_role),node('span','›','team-tile-arrow'));
+   card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label','เปิดทีม '+t.name);
+   card.onclick=()=>{say('');showTeam(t.id).catch(error=>say(error.message));};
+   card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}};
   }
-  const remove=button('ลบทีม','quiet team-delete',()=>{if(confirm('ลบทีม '+t.name+'? สมาชิกทุกคนจะออกจากทีม (บันทึกของแต่ละคนไม่หาย)'))act(()=>send('/api/teams/'+t.id,'DELETE'),'ลบทีมแล้ว');});
-  card.append(head,form,list,remove);box.append(card);
+  box.append(card);
  }
 }
 
+// ---- Team detail ----
+function memberRow(team,m,myRole){
+ const row=node('div',undefined,'team-row'),info=node('div');
+ info.append(node('strong',m.display_name+(m.id===myId?' (คุณ)':'')),node('span',m.member_code+(m.status==='invited'?' · รอตอบรับ':''),'muted'));
+ const actions=node('div',undefined,'team-actions'),owner=myRole==='owner';
+ if(m.status==='active'&&(owner||(myRole==='trainer'&&m.team_role==='trainee')))actions.append(button('ดูบันทึก','primary',()=>viewMember(team,m)));
+ if(owner){
+  const select=node('select');select.setAttribute('aria-label','บทบาทของ '+m.display_name);
+  for(const role of ['trainer','trainee']){const o=node('option',roleName[role]);o.value=role;o.selected=m.team_role===role;select.append(o);}
+  select.onchange=()=>act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(m.id),'PATCH',{team_role:select.value}),m.display_name+' เป็น '+roleName[select.value]+' แล้ว');
+  actions.append(select,button(m.status==='invited'?'ยกเลิกคำเชิญ':'นำออก','quiet',()=>{if(confirm('นำ '+m.display_name+' ออกจากทีม '+team.name+'?'))act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(m.id),'DELETE'),'นำออกจากทีมแล้ว');}));
+ }
+ row.append(info,actions);return row;
+}
+async function showTeam(id){
+ const {team,my_role,members}=await api('/api/teams/'+id);openTeam=id;
+ const view=$('team-detail-view');$('team-list-view').hidden=true;view.hidden=false;
+ const head=node('div',undefined,'team-detail-head'),title=node('div');
+ title.append(node('h2',team.name),node('p','สร้างโดย '+team.owner.display_name+' · '+team.owner.member_code,'muted'));
+ head.append(button('‹ ทีมทั้งหมด','quiet team-back',()=>{say('');loadTeams().catch(error=>say(error.message));}),title,badge(my_role));
+ view.replaceChildren(head);
+ if(my_role==='owner'){
+  const form=node('form',undefined,'team-invite'),input=node('input'),role=node('select');
+  input.placeholder='ID สมาชิก เช่น BM-3F9A0C';input.maxLength=20;input.required=true;input.autocomplete='off';input.setAttribute('aria-label','ID ที่ต้องการเชิญ');
+  for(const r of ['trainee','trainer']){const o=node('option','เชิญเป็น '+roleName[r]);o.value=r;role.append(o);}role.setAttribute('aria-label','บทบาทในทีม');
+  form.append(input,role,node('button','เชิญ','primary'));
+  form.onsubmit=e=>{e.preventDefault();act(()=>send('/api/teams/'+team.id+'/invites','POST',{member_code:input.value,team_role:role.value}),'ส่งคำเชิญแล้ว รอสมาชิกกดตอบรับ');};
+  const box=node('section',undefined,'diary');box.append(node('h3','เชิญสมาชิก'),form);view.append(box);
+ }
+ for(const role of ['trainer','trainee']){
+  const list=members.filter(m=>m.team_role===role),box=node('section',undefined,'diary team-members'),head=node('div',undefined,'list-heading');
+  head.append(node('h3',role==='trainer'?'Trainer':'Trainee'),node('span',(list.length+(role==='trainer'?1:0))+' คน','pill'));box.append(head);
+  if(role==='trainer'){const ownerRow=node('div',undefined,'team-row'),info=node('div');info.append(node('strong',team.owner.display_name+(team.owner.id===myId?' (คุณ)':'')),node('span',team.owner.member_code+' · ผู้สร้างทีม','muted'));ownerRow.append(info);box.append(ownerRow);}
+  else if(!list.length)box.append(node('p','ยังไม่มีลูกเทรนในทีม','muted'));
+  for(const m of list)box.append(memberRow(team,m,my_role));
+  view.append(box);
+ }
+ const viewer=node('section',undefined,'diary team-viewer');viewer.id='team-viewer';viewer.hidden=true;view.append(viewer);
+ view.append(my_role==='owner'
+  ?button('ลบทีมนี้','quiet team-delete',()=>{if(confirm('ลบทีม '+team.name+'? สมาชิกทุกคนจะออกจากทีม (บันทึกของแต่ละคนไม่หาย)'))act(()=>send('/api/teams/'+team.id,'DELETE'),'ลบทีมแล้ว',loadTeams);})
+  :button('ออกจากทีม','quiet team-delete',()=>{if(confirm('ออกจากทีม '+team.name+'?'))act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(myId),'DELETE'),'ออกจากทีมแล้ว',loadTeams);}));
+}
 async function viewMember(team,member){
  const box=$('team-viewer');box.hidden=false;box.replaceChildren(node('p','กำลังโหลดบันทึก…','muted'));box.scrollIntoView({behavior:'smooth',block:'start'});
  try{
   const {records}=await api('/api/teams/'+team.id+'/members/'+encodeURIComponent(member.id));
   const head=node('div',undefined,'list-heading');head.append(node('h2','บันทึกของ '+member.display_name),button('ปิด','quiet',()=>{box.hidden=true;}));
-  box.replaceChildren(head,node('p',member.member_code+' · ทีม '+team.name+' · ดูได้อย่างเดียว','muted'));
+  box.replaceChildren(head,node('p',member.member_code+' · ดูได้อย่างเดียว','muted'));
   if(!records.length){box.append(node('p','ยังไม่มีบันทึก','muted'));return;}
   for(const day of [...new Set(records.map(r=>r.day))].slice(0,30)){
    const group=node('section',undefined,'team-day');group.append(node('h3',thaiDate(day)));
@@ -70,16 +102,9 @@ async function viewMember(team,member){
  }catch(error){box.replaceChildren(node('p',error.message,'muted'));}
 }
 
-export async function loadTeams(){
- const {teams,memberships}=await api('/api/teams');loaded=true;
- renderTeams(teams);renderMemberships(memberships);
- const pending=memberships.some(m=>m.status==='invited');
- document.querySelectorAll('.team-dot').forEach(dot=>{dot.hidden=!pending;});
-}
 export function initTeams(me){
- myId=me.id;$('my-member-code').textContent=me.member_code||'-';
- $('copy-member-code').onclick=async()=>{try{await navigator.clipboard.writeText(me.member_code);say('คัดลอก ID แล้ว ส่งให้เทรนเนอร์ได้เลย');}catch{say('คัดลอกไม่ได้ กรุณาจด ID: '+me.member_code);}};
- $('team-create').onsubmit=e=>{e.preventDefault();const input=$('team-name');act(async()=>{await send('/api/teams','POST',{name:input.value});input.value='';},'สร้างทีมแล้ว เชิญลูกเทรนด้วย ID ได้เลย');};
- document.querySelectorAll('[data-view="team"]').forEach(b=>b.addEventListener('click',()=>{if(loaded)say('');loadTeams().catch(error=>say(error.message));}));
+ myId=me.id;
+ $('team-create').onsubmit=e=>{e.preventDefault();const input=$('team-name');act(async()=>{const {team}=await send('/api/teams','POST',{name:input.value});input.value='';openTeam=team.id;},'สร้างทีมแล้ว เชิญสมาชิกด้วย ID ได้เลย');};
+ document.querySelectorAll('[data-view="team"]').forEach(b=>b.addEventListener('click',()=>{say('');loadTeams().catch(error=>say(error.message));}));
  loadTeams().catch(()=>{});
 }
