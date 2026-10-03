@@ -12,11 +12,11 @@ const REF = {
 const SEG = ['trunk', 'la', 'ra', 'll', 'rl', null];
 const CLAY = new THREE.Color('#d8d2c8'), FAT = new THREE.Color('#ff6a1f'), LEAN = new THREE.Color('#f3e2c9'), MUSCLE = new THREE.Color('#4f8dff'), LOW = new THREE.Color('#b9b4ad');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const GIRTHS = ['chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
+const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=3`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=4`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -167,7 +167,19 @@ function shapeBody(model, r, lean = false) {
     return per.reduce((a, b) => a + b) / per.length;
   };
   // Fit each entered tape measurement with MakeHuman's measure targets (deltas scaled to metres).
+  // Shoulder width: straight width across the shoulder tops (trunk + arms at ~82% of height),
+  // which matches a tape laid across the back from shoulder tip to shoulder tip.
+  const shoulderWidth = p => {
+    let x0 = Infinity, x1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (segments[i] > 2) continue;
+      const b = Math.floor(p[i * 3 + 1] / H * 100); if (b < 81 || b > 83) continue;
+      x0 = Math.min(x0, p[i * 3]); x1 = Math.max(x1, p[i * 3]);
+    }
+    return x1 > x0 ? (x1 - x0) * 100 : 0;
+  };
   const fits = [
+    ['shoulder', 'measure-shoulder-dist', [0, 1, 2], 82, 82, median],
     ['hip', 'measure-hips-circ', [0], 45, 55, Math.max],
     ['waist', 'measure-waist-circ', [0], 57, 61, median],
     ['chest', 'measure-bust-circ', [0], 69, 75, Math.max],
@@ -178,10 +190,11 @@ function shapeBody(model, r, lean = false) {
   // Two passes: neighbouring measures (waist/hip/bust) affect each other.
   for (let pass = 0; pass < (lean ? 0 : 2); pass++) for (const [key, name, segs, from, to, pick] of fits) {
     const target = r[key]; if (!target) continue;
-    const depthOnly = key === 'arm', g0 = girth(pos, segs, from, to, pick, depthOnly); if (!g0 || Math.abs(target - g0) < 0.5) continue;
+    const measure = key === 'shoulder' ? shoulderWidth : p => girth(p, segs, from, to, pick, key === 'arm');
+    const g0 = measure(pos); if (!g0 || Math.abs(target - g0) < 0.5) continue;
     const dir = target > g0 ? 1 : -1, probe = Float32Array.from(pos);
     apply(probe, name, dir, s);
-    const g1 = girth(probe, segs, from, to, pick, depthOnly);
+    const g1 = measure(probe);
     if (Math.abs(g1 - g0) < 0.1) continue;
     apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 2.5), s);
   }
@@ -271,7 +284,8 @@ export function mountBody(container) {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
       // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
       const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
-      for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
+      const skin = model.anatomy?.anat.array; // hands/feet/head have dense vertices: keep them out of the fat share
+      for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 || skin?.[i * 3 + 2] ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
       const sorted = Array.from(thick).filter(t => t > 0).sort((a, b) => a - b), q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))] ?? 0;
       const fatPct = r.body_fat ?? (macros(r).weight * 40 + 5), cover = clamp((fatPct - (r.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
       const from = Math.max(q(1 - cover), 0.006), full = Math.max(q(1 - cover * 0.35), from + 0.004);

@@ -36,6 +36,7 @@ export const FIELDS={
  fat_control:f('การควบคุมไขมัน','กก.',-200,200),
  muscle_control:f('การควบคุมกล้ามเนื้อ','กก.',-100,100),
  // Tape measurements
+ shoulder:f('ความกว้างไหล่','ซม.',20,80),
  chest:f('รอบอก','ซม.',40,200),
  waist:f('รอบเอว','ซม.',30,250),
  hip:f('รอบสะโพก','ซม.',40,250),
@@ -56,9 +57,9 @@ export const GROUPS=[
  {title:'การวิเคราะห์องค์ประกอบร่างกาย',keys:['tbw','protein','minerals','soft_lean','ffm']},
  {title:'ความสมดุลกล้ามเนื้อแต่ละส่วน (กก. และ %)',segments:'mus',keys:SEGMENTS.flatMap(([s])=>['mus_'+s,'musp_'+s])},
  {title:'ข้อมูลเพิ่มเติม',keys:['icw','ecw','ecw_ratio','phase_angle','smi','bmr','whr','obesity_degree','bmc','bcm']},
- {title:'สัดส่วนจากสายวัด (ซม.)',keys:['chest','waist','hip','arm','thigh','calf']}
+ {title:'สัดส่วนจากสายวัด (ซม.)',hint:'ไหล่: วัดด้านหลังจากปลายไหล่ซ้ายถึงขวา · เอว: ระดับสะดือ · สะโพก: ส่วนที่กว้างที่สุด',keys:['shoulder','chest','waist','hip','arm','thigh','calf']}
 ];
-export const GIRTHS=['chest','waist','hip','arm','thigh','calf'];
+export const GIRTHS=['shoulder','chest','waist','hip','arm','thigh','calf'];
 
 export function validateBody(r){
  const fail=()=>{throw new Error('ข้อมูลร่างกายไม่ถูกต้อง');};

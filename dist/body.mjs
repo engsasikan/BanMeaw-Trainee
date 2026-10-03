@@ -7,7 +7,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=8');
+const loadThree=()=>threeModule??=import('./body3d.js?v=9');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -79,6 +79,7 @@ function buildForm(){
   const section=node('details'),grid=node('div',undefined,'body-fields'+(group.segments?' pairs':''));section.open=!!group.open;
   section.append(node('summary',group.title));
   if(group.segments)section.append(node('p','กรอกได้ทั้งกิโลกรัมและ % ตามแถวในใบผล (100% = มาตรฐาน)','muted body-hint'));
+  if(group.hint)section.append(node('p',group.hint,'muted body-hint'));
   for(const key of group.keys){
    const f=FIELDS[key],wrap=node('div'),label=node('label',f.label+(f.unit?' ('+f.unit+')':'')),field=node('input');
    label.htmlFor='bf-'+key;

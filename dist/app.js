@@ -3,7 +3,7 @@ import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './st
 import {attachExercisePicker} from './exercise-picker.mjs?v=5';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
 import {initTeams} from './team.mjs?v=10';
-import {initBody} from './body.mjs?v=14';
+import {initBody} from './body.mjs?v=15';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();

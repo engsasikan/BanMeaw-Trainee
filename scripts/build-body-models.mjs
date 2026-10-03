@@ -8,6 +8,7 @@
 //   targets/torso/torso-muscle-{dorsi,pectoral}-{decr,incr}.target
 //   targets/stomach/stomach-{pregnant,tone}-{decr,incr}.target
 //   targets/measure/measure-{bust,waist,hips,upperarm,thigh,calf}-circ-{decr,incr}.target
+//   targets/measure/measure-shoulder-dist-{decr,incr}.target
 // Usage: node scripts/build-body-models.mjs <folder with those files>
 //
 // Output format (little endian, 4-byte aligned):
@@ -106,6 +107,7 @@ for (const sex of ['male', 'female']) {
   for (const m of ['dorsi', 'pectoral']) for (const dir of ['decr', 'incr']) locals.push(`torso-muscle-${m}-${dir}`);
   for (const m of ['pregnant', 'tone']) for (const dir of ['decr', 'incr']) locals.push(`stomach-${m}-${dir}`);
   for (const m of ['bust', 'waist', 'hips', 'upperarm', 'thigh', 'calf']) for (const dir of ['decr', 'incr']) locals.push(`measure-${m}-circ-${dir}`);
+  for (const dir of ['decr', 'incr']) locals.push(`measure-shoulder-dist-${dir}`);
   const localTargets = locals.map(name => {
     const ids = [], deltas = [];
     for (const [i, d] of readTarget(name + '.target')) if (remap.has(i)) { ids.push(remap.get(i)); deltas.push(...d.map(x => Math.round(x * 1000))); }
