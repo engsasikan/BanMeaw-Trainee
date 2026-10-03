@@ -25,3 +25,13 @@ This version stores records in browser localStorage on each device. Shared data,
 Neon configuration is included as an initial setup only. No database connection or database migration has been deployed. Cloudflare Workers hosting for the new application is planned but not configured in this version.
 
 Do not commit environment files or database credentials.
+
+## Cloudflare Workers deployment
+
+The root `wrangler.jsonc` serves the existing `dist` folder as static assets. In Workers Builds use:
+
+- Root directory: `/`
+- Build command: leave empty
+- Deploy command: `npx wrangler deploy`
+
+For local preview use `npx wrangler dev`. Validate packaging without publishing using `npx wrangler deploy --dry-run`.
