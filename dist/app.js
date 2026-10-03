@@ -1,15 +1,15 @@
 import {auth,api} from './account.js?v=2';
-import {localDay,read,write,validateRecords,mergeRecords} from './store.mjs';
+import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=10';
 import {attachExercisePicker} from './exercise-picker.mjs?v=5';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
-import {initTeams} from './team.mjs?v=8';
+import {initTeams} from './team.mjs?v=10';
 import {initBody} from './body.mjs?v=14';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();
 function tell(message){$('status').textContent=message;}
 const legacyRecords=(()=>{try{return read(localStorage);}catch{return [];}})();storageOK=false;
-$('day').value=localDay();$('time').value=new Date().toTimeString().slice(0,5);
+$('day').value=localDay();$('time').value=new Date().toTimeString().slice(0,5);$('meal').value=mealForTime($('time').value)||'มื้อเช้า';
 let saving=false;
 async function loadRecords(){const result=await api('/api/entries');records=result.records;storageOK=true;render();}
 async function saveRecords(next){
@@ -24,7 +24,7 @@ async function saveRecords(next){
  finally{saving=false;document.querySelectorAll('#meal-form button,#workout-form button,.entry-actions button,#import,#migrate-local').forEach(b=>b.disabled=false);}
 }
 
-function reset(){editing=null;$('meal-form').reset();$('time').value=new Date().toTimeString().slice(0,5);$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('cancel').hidden=true;$('count').textContent='0 / 3,000';resetWorkout();}
+function reset(){editing=null;$('meal-form').reset();$('time').value=new Date().toTimeString().slice(0,5);$('meal').value=mealForTime($('time').value)||'มื้อเช้า';$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('cancel').hidden=true;$('count').textContent='0 / 3,000';resetWorkout();}
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 function renderMeals(){
  const day=$('day').value;if(!day)return;
@@ -32,7 +32,7 @@ function renderMeals(){
  const meals=records.filter(r=>r.day===day&&r.kind!=='workout').sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  $('total').textContent=meals.length+' รายการ';$('entries').replaceChildren();
  if(!meals.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีมื้อที่บันทึก'),node('p','เริ่มจดมื้อแรกของวันนี้ได้เลย'));$('entries').append(box);return;}
- for(const r of meals){const card=node('article',undefined,'entry'),top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top,node('p',r.text,'entry-text'));const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';$('cancel').hidden=false;count();$('details').focus();$('meal-form').scrollIntoView({behavior:'smooth',block:'center'});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=async()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(await saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
+ for(const r of meals){const card=node('article',undefined,'entry'),top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top);if(r.workoutTiming)card.append(node('span',r.workoutTiming==='pre-workout'?'Pre-workout · ก่อนฝึก':'Post-workout · หลังฝึก','meal-timing-badge'));card.append(node('p',r.text,'entry-text'));const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;document.querySelectorAll('[name="workout-timing"]').forEach(input=>input.checked=input.value===(r.workoutTiming||''));$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';$('cancel').hidden=false;count();$('details').focus();$('meal-form').scrollIntoView({behavior:'smooth',block:'center'});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=async()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(await saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
 }
 function count(){$('count').textContent=$('details').value.length.toLocaleString('en-US')+' / 3,000';}
 function resetWorkout(){workoutEditing=null;$('workout-form').reset();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
@@ -59,8 +59,10 @@ $('workout-form').addEventListener('submit',async e=>{
  const row={id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,weight:number('weight'),sets:number('sets'),reps:number('reps'),notes:$('workout-notes').value.trim()};
  const next=workoutEditing?records.map(r=>r.id===workoutEditing?row:r):[...records,row];if(await saveRecords(next)){resetWorkout();render();tell('บันทึกท่าออกกำลังกายแล้ว');}
 });
+$('time').addEventListener('change',()=>{const meal=mealForTime($('time').value);if(meal)$('meal').value=meal;});
+$('meal').addEventListener('change',()=>{const start={'มื้อเช้า':'08:00','มื้อกลางวัน':'12:00','มื้อเย็น':'16:00'}[$('meal').value];if(start)$('time').value=start;});
 $('details').addEventListener('input',count);
-$('meal-form').addEventListener('submit',async e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text};const next=editing?records.map(r=>r.id===editing?row:r):[...records,row];if(await saveRecords(next)){reset();render();tell('บันทึกเรียบร้อยแล้ว');}});
+$('meal-form').addEventListener('submit',async e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text,workoutTiming:document.querySelector('[name="workout-timing"]:checked').value};const next=editing?records.map(r=>r.id===editing?row:r):[...records,row];if(await saveRecords(next)){reset();render();tell('บันทึกเรียบร้อยแล้ว');}});
 $('details').addEventListener('input',()=>$('details').setCustomValidity(''));
 $('cancel').onclick=reset;$('day').onchange=()=>{reset();render();};
 function moveDay(offset){const d=new Date(($('day').value||localDay())+'T12:00:00');d.setDate(d.getDate()+offset);$('day').value=localDay(d);reset();render();}

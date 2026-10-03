@@ -105,7 +105,7 @@ async function viewMember(team,member){
     if(r.kind==='workout'){
      const detail=[r.weight===null?'':(r.weight===0?'น้ำหนักตัว':r.weight+' กก.'),r.sets?r.sets+' เซ็ต':'',r.reps?r.reps+' ครั้ง':''].filter(Boolean).join(' · ');
      row.append(node('strong',r.exercise),node('span',[detail,r.notes].filter(Boolean).join(' — ')));
-    } else row.append(node('strong',r.meal+(r.time?' · '+r.time:'')),node('span',r.text));
+    } else row.append(node('strong',r.meal+(r.time?' · '+r.time:'')+(r.workoutTiming?' · '+r.workoutTiming:'')),node('span',r.text));
     group.append(row);
    }
    box.append(group);
