@@ -15,3 +15,9 @@
 #account-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.id-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:20px;background:#ff70281a;border:1px solid #ff702855;color:#ffb487;font-size:.85rem;font-weight:700;letter-spacing:.3px;cursor:pointer}.id-chip:hover{background:#ff70282e}.id-chip.copied{background:#ff7028;color:#1d1714}.id-chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
 @media(max-width:700px){#account-label{font-size:.85rem;gap:6px}.id-chip{min-height:30px;padding:0 10px;font-size:.78rem}}
 .id-chip{white-space:nowrap}header .quiet{white-space:nowrap}@media(max-width:700px){header{flex-wrap:wrap;row-gap:10px}header #account-label{order:3;width:100%;margin:0;justify-content:space-between}header #account-label:empty{display:none}}
+/* Simplified layout: one navigation (side rail / bottom bar), quiet header */
+body:not(.auth-view) header #install{display:none}
+body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
+.heading{margin:8px 0 18px}.heading h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem)}
+.history-card{margin-top:20px}
+#settings-panel{display:flex;flex-wrap:wrap;align-items:center;gap:12px}#settings-panel>div{flex:1 1 100%}#settings-panel .logout{color:#ff9b8a;border-color:#5a3a35}

@@ -1,8 +1,8 @@
 import {auth,api} from './account.js?v=2';
 import {localDay,read,write,validateRecords,mergeRecords} from './store.mjs';
-import {attachExercisePicker} from './exercise-picker.mjs';
-import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=3';
-import {initTeams} from './team.mjs?v=3';
+import {attachExercisePicker} from './exercise-picker.mjs?v=5';
+import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=5';
+import {initTeams} from './team.mjs?v=5';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();
@@ -50,7 +50,7 @@ function renderWorkouts(){
  }
 }
 function switchPanel(workout){switchView(workout?'workout':'food');}
-$('food-tab').onclick=()=>switchPanel(false);$('workout-tab').onclick=()=>switchPanel(true);$('workout-cancel').onclick=resetWorkout;
+$('workout-cancel').onclick=resetWorkout;
 $('exercise').addEventListener('input',()=>$('exercise').setCustomValidity(''));
 $('workout-form').addEventListener('submit',async e=>{
  e.preventDefault();const exercise=$('exercise').value.trim(),day=$('day').value;if(!exercise){$('exercise').setCustomValidity('กรุณาใส่ชื่อท่า');$('exercise').reportValidity();return;}if(!day){$('day').reportValidity();return;}
@@ -66,7 +66,7 @@ function moveDay(offset){const d=new Date(($('day').value||localDay())+'T12:00:0
 $('prev').onclick=()=>moveDay(-1);$('next').onclick=()=>moveDay(1);$('today').onclick=()=>{$('day').value=localDay();reset();render();};
 $('export').onclick=()=>{if(!storageOK){tell('อ่านข้อมูลเดิมไม่ได้ จึงยังสำรองไม่ได้ กรุณาลองเปิดใหม่');return;}const blob=new Blob([JSON.stringify({version:2,records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='meal-diary-'+localDay()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);tell('ส่งออกข้อมูลแล้ว เก็บไฟล์นี้ไว้สำหรับนำเข้าภายหลัง');};
 $('import').onclick=()=>$('import-file').click();$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>15000000)throw new Error('ไฟล์ใหญ่เกินไป');const payload=JSON.parse(await file.text());if(![1,2].includes(payload.version))throw new Error('ไม่รองรับไฟล์นี้');const incoming=validateRecords(payload.records);if(!confirm('นำเข้า '+incoming.length+' รายการ? ข้อมูลเดิมจะยังอยู่ และรายการที่ซ้ำจะไม่ถูกเพิ่ม'))return;if(await saveRecords(mergeRecords(records,incoming))){render();tell('นำเข้าข้อมูลเรียบร้อยแล้ว');}}catch{tell('นำเข้าไม่สำเร็จ กรุณาเลือกไฟล์สำรองจากเว็บนี้ ข้อมูลเดิมยังอยู่');}finally{e.target.value='';}};
-$('install').onclick=()=>$('install-dialog').showModal();$('close-dialog').onclick=()=>$('install-dialog').close();render();
+$('install').onclick=$('install-app').onclick=()=>$('install-dialog').showModal();$('close-dialog').onclick=()=>$('install-dialog').close();render();
 const authMessage=document.getElementById('auth-message');
 const accountForm=document.getElementById('account-form');
 let signup=false;
@@ -87,7 +87,7 @@ function showAccount(me){
  label.append(chip);
 }
 async function boot(){
- try{const config=await fetch('/api/config').then(r=>r.json());if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('error');authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');showAccount(me);initTeams(me);document.getElementById('account-logout').hidden=false;document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
+ try{const config=await fetch('/api/config').then(r=>r.json());if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('error');authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');showAccount(me);initTeams(me);document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
  catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
 }
 await boot();
