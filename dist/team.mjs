@@ -1,5 +1,5 @@
 import {api} from './account.js?v=2';
-import {createBodyViewer} from './body.mjs?v=7';
+import {createBodyViewer} from './body.mjs?v=8';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button';b.onclick=onclick;return b;};

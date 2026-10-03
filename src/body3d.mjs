@@ -16,7 +16,7 @@ const GIRTHS = ['chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=1`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=2`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -30,7 +30,20 @@ function loadModel(sex) {
       const deltas = new Int16Array(buf, o, c * 3); o += pad(c * 6);
       targets.push({m, w, ids, deltas});
     }
-    return {n, base, segments, indices, targets};
+    // Local per-segment targets (BMB2): muscle/fat per limb, torso, stomach, girth measures.
+    const locals = new Map();
+    if (view.getUint8(3) === 50) {
+      const nl = view.getUint32(o, true); o += 4;
+      for (let t = 0; t < nl; t++) {
+        const len = view.getUint32(o, true); o += 4;
+        const name = String.fromCharCode(...new Uint8Array(buf, o, len)); o += pad(len);
+        const c = view.getUint32(o, true); o += 4;
+        const ids = new Uint16Array(buf, o, c); o += pad(c * 2);
+        const deltas = new Int16Array(buf, o, c * 3); o += pad(c * 6);
+        locals.set(name, {ids, deltas});
+      }
+    }
+    return {n, base, segments, indices, targets, locals};
   }).catch(error => { delete models[sex]; throw error; });
 }
 
@@ -68,54 +81,92 @@ export function segmentLevel(r, seg, mode) {
 }
 
 const split = v => v < 0.5 ? [(0.5 - v) * 2, 1 - (0.5 - v) * 2, 0] : [0, 1 - (v - 0.5) * 2, (v - 0.5) * 2];
+const median = (...v) => v.sort((a, b) => a - b)[v.length >> 1];
 const perimeter = (a, b) => Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
 
+// Segment muscle level (-1..1) relative to the person's own average, so the global muscle
+// macro handles overall muscularity and local targets show the distribution between parts.
+function segmentDeviation(r, prefix, scale) {
+  const segs = ['la', 'ra', 'trunk', 'll', 'rl'], vals = segs.map(s => r[prefix + s]);
+  const known = vals.filter(v => v != null);
+  if (!known.length) return null;
+  const mean = known.reduce((a, b) => a + b) / known.length;
+  return Object.fromEntries(segs.map((s, i) => [s, vals[i] == null ? 0 : clamp((vals[i] - mean) / scale, -1, 1)]));
+}
+
 function shapeBody(model, r) {
-  const {n, base, segments, targets} = model, {weight, muscle} = macros(r);
+  const {n, base, segments, targets, locals} = model, {sex, weight, muscle} = macros(r), ref = REF[sex];
   const pos = Float32Array.from(base), wm = split(muscle), ww = split(weight);
   for (const t of targets) {
     const k = wm[t.m] * ww[t.w] / 1000; if (!k) continue;
     for (let i = 0; i < t.ids.length; i++) { const v = t.ids[i] * 3; pos[v] += t.deltas[i * 3] * k; pos[v + 1] += t.deltas[i * 3 + 1] * k; pos[v + 2] += t.deltas[i * 3 + 2] * k; }
   }
+  // Apply a local target pair: positive weight uses '-incr', negative uses '-decr'.
+  const apply = (into, name, w, scale = 1) => {
+    if (!w) return;
+    const t = locals.get(name + (w > 0 ? '-incr' : '-decr')); if (!t) return;
+    const k = Math.abs(w) * scale / 1000;
+    for (let i = 0; i < t.ids.length; i++) { const v = t.ids[i] * 3; into[v] += t.deltas[i * 3] * k; into[v + 1] += t.deltas[i * 3 + 1] * k; into[v + 2] += t.deltas[i * 3 + 2] * k; }
+  };
+  // Per-segment muscle (InBody segmental lean %, or kg vs. reference) and fat (% of standard).
+  const musPct = segmentDeviation(r, 'musp_', 12);
+  const musKg = musPct ? null : segmentDeviation(Object.fromEntries(['la', 'ra', 'trunk', 'll', 'rl'].map(s => ['m_' + s, r['mus_' + s] == null ? null : r['mus_' + s] / ref.mus[s] * 100])), 'm_', 12);
+  const mus = musPct || musKg, fat = segmentDeviation(r, 'fat_', 40);
+  for (const [side, arm, leg] of [['l', 'la', 'll'], ['r', 'ra', 'rl']]) {
+    if (mus) {
+      for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-muscle`, mus[arm]);
+      apply(pos, `${side}-upperarm-shoulder-muscle`, mus[arm]);
+      for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-muscle`, mus[leg]);
+    }
+    if (fat) {
+      for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-fat`, fat[arm]);
+      for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-fat`, fat[leg]);
+    }
+  }
+  if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
+  // Belly from visceral fat level (1-9 normal) and trunk fat; abdominal tone from body fat.
+  // The 'pregnant' target is strong, so keep it subtle: level 16 -> ~0.35.
+  const belly = (r.visceral != null ? clamp((r.visceral - 9) / 20, -0.2, 0.5) : 0) + (fat ? fat.trunk * 0.25 : 0);
+  apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
+  if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
+
   // Scale to the person's height (metres), feet on the ground.
   let minY = Infinity, maxY = -Infinity;
   for (let i = 1; i < pos.length; i += 3) { minY = Math.min(minY, pos[i]); maxY = Math.max(maxY, pos[i]); }
-  const H = (r.height || (r.sex === 'female' ? 160 : 172)) / 100, s = H / (maxY - minY);
+  const H = (r.height || (sex === 'female' ? 160 : 172)) / 100, s = H / (maxY - minY);
   for (let i = 0; i < pos.length; i += 3) { pos[i] *= s; pos[i + 1] = (pos[i + 1] - minY) * s; pos[i + 2] *= s; }
 
-  // Slice helpers: per segment, 1%-of-height bins with centroid and x/z extents.
-  const BINS = 100, bin = y => clamp(Math.floor(y / H * BINS), 0, BINS - 1);
-  const slices = Array.from({length: 5}, () => Array.from({length: BINS}, () => ({n: 0, x: 0, z: 0, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity})));
-  for (let i = 0; i < n; i++) {
-    const seg = segments[i]; if (seg > 4) continue;
-    const b = slices[seg][bin(pos[i * 3 + 1])], x = pos[i * 3], z = pos[i * 3 + 2];
-    b.n++; b.x += x; b.z += z; b.x0 = Math.min(b.x0, x); b.x1 = Math.max(b.x1, x); b.z0 = Math.min(b.z0, z); b.z1 = Math.max(b.z1, z);
-  }
-  for (const seg of slices) for (const b of seg) if (b.n) { b.x /= b.n; b.z /= b.n; }
-  const girthAt = (seg, i) => { const b = slices[seg][i]; return b.n > 3 ? perimeter((b.x1 - b.x0) / 2, (b.z1 - b.z0) / 2) * 100 : 0; };
-  const widest = (seg, from, to) => { let best = 0, at = from; for (let i = from; i <= to; i++) { const g = girthAt(seg, i); if (g > best) { best = g; at = i; } } return [best, at]; };
-  const narrowest = (seg, from, to) => { let best = Infinity, at = from; for (let i = from; i <= to; i++) { const g = girthAt(seg, i); if (g && g < best) { best = g; at = i; } } return [best === Infinity ? 0 : best, at]; };
-
-  const factor = (target, measured) => target && measured ? clamp(target / measured, 0.7, 1.45) : 1;
-  // Trunk anchors: hip (widest 45-55%), waist (narrowest 56-67%), chest (widest 68-76%).
-  const [hipG, hipB] = widest(0, 45, 55), [waistG, waistB] = narrowest(0, 56, 67), [chestG, chestB] = widest(0, 68, 76);
-  const anchors = [[hipB - 6, 1], [hipB, factor(r.hip, hipG)], [waistB, factor(r.waist, waistG)], [chestB, factor(r.chest, chestG)], [chestB + 7, 1]];
-  const trunkFactor = b => {
-    if (b <= anchors[0][0]) return anchors[0][1];
-    for (let k = 1; k < anchors.length; k++) if (b <= anchors[k][0]) { const [b0, f0] = anchors[k - 1], [b1, f1] = anchors[k]; return f0 + (f1 - f0) * (b - b0) / Math.max(1, b1 - b0); }
-    return 1;
+  // Girth measurement on 1%-of-height slices of one or more segments (cm).
+  // Arms hang at an angle, so their horizontal slices are stretched in x: use depth (z) only.
+  const girth = (p, segs, from, to, pick, depthOnly = false) => {
+    const BINS = 100, ext = segs.map(() => Array.from({length: BINS}, () => [Infinity, -Infinity, Infinity, -Infinity, 0]));
+    for (let i = 0; i < n; i++) {
+      const k = segs.indexOf(segments[i]); if (k < 0) continue;
+      const b = Math.floor(p[i * 3 + 1] / H * BINS); if (b < from || b > to) continue;
+      const e = ext[k][b], x = p[i * 3], z = p[i * 3 + 2];
+      e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); e[2] = Math.min(e[2], z); e[3] = Math.max(e[3], z); e[4]++;
+    }
+    const per = ext.map(bins => { const g = bins.slice(from, to + 1).filter(e => e[4] > 3).map(e => (depthOnly ? perimeter((e[3] - e[2]) / 2, (e[3] - e[2]) / 2) : perimeter((e[1] - e[0]) / 2, (e[3] - e[2]) / 2)) * 100); return g.length ? pick(...g) : 0; });
+    return per.reduce((a, b) => a + b) / per.length;
   };
-  const armF = [1, 2].map(seg => factor(r.arm, widest(seg, 62, 76)[0]));
-  const thighF = [3, 4].map(seg => factor(r.thigh, widest(seg, 38, 47)[0]));
-  const calfF = [3, 4].map(seg => factor(r.calf, widest(seg, 12, 26)[0]));
-  for (let i = 0; i < n; i++) {
-    const seg = segments[i]; if (seg > 4) continue;
-    const b = bin(pos[i * 3 + 1]), c = slices[seg][b];
-    let f = 1;
-    if (seg === 0) f = trunkFactor(b);
-    else if (seg <= 2) f = b > 48 ? armF[seg - 1] : 1 + (armF[seg - 1] - 1) * 0.5;
-    else { const t = clamp((b - 26) / 6, 0, 1); f = calfF[seg - 3] + (thighF[seg - 3] - calfF[seg - 3]) * t; }
-    if (f !== 1) { pos[i * 3] = c.x + (pos[i * 3] - c.x) * f; pos[i * 3 + 2] = c.z + (pos[i * 3 + 2] - c.z) * f; }
+  // Fit each entered tape measurement with MakeHuman's measure targets (deltas scaled to metres).
+  const fits = [
+    ['hip', 'measure-hips-circ', [0], 45, 55, Math.max],
+    ['waist', 'measure-waist-circ', [0], 56, 67, Math.min],
+    ['chest', 'measure-bust-circ', [0], 68, 76, Math.max],
+    ['arm', 'measure-upperarm-circ', [1, 2], 69, 73, median],
+    ['thigh', 'measure-thigh-circ', [3, 4], 38, 47, Math.max],
+    ['calf', 'measure-calf-circ', [3, 4], 12, 26, Math.max],
+  ];
+  // Two passes: neighbouring measures (waist/hip/bust) affect each other.
+  for (let pass = 0; pass < 2; pass++) for (const [key, name, segs, from, to, pick] of fits) {
+    const target = r[key]; if (!target) continue;
+    const depthOnly = key === 'arm', g0 = girth(pos, segs, from, to, pick, depthOnly); if (!g0 || Math.abs(target - g0) < 0.5) continue;
+    const dir = target > g0 ? 1 : -1, probe = Float32Array.from(pos);
+    apply(probe, name, dir, s);
+    const g1 = girth(probe, segs, from, to, pick, depthOnly);
+    if (Math.abs(g1 - g0) < 0.1) continue;
+    apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 4), s);
   }
   return {pos, H};
 }

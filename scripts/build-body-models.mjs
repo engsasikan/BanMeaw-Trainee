@@ -3,15 +3,22 @@
 //   3dobjs/base.obj
 //   targets/macrodetails/{caucasian,african,asian}-{male,female}-young.target
 //   targets/macrodetails/universal-{male,female}-young-{min,average,max}muscle-{min,average,max}weight.target
+//   targets/armslegs/{l,r}-{upperarm,lowerarm,upperleg,lowerleg}-{fat,muscle}-{decr,incr}.target
+//   targets/armslegs/{l,r}-upperarm-shoulder-muscle-{decr,incr}.target
+//   targets/torso/torso-muscle-{dorsi,pectoral}-{decr,incr}.target
+//   targets/stomach/stomach-{pregnant,tone}-{decr,incr}.target
+//   targets/measure/measure-{bust,waist,hips,upperarm,thigh,calf}-circ-{decr,incr}.target
 // Usage: node scripts/build-body-models.mjs <folder with those files>
 //
 // Output format (little endian, 4-byte aligned):
-//   'BMB1', vertexCount u32, indexCount u32, targetCount u32
+//   'BMB2', vertexCount u32, indexCount u32, targetCount u32
 //   positions f32[n*3] (base mesh with the sex/age macro applied, MakeHuman units)
 //   segments u8[n] (0 trunk, 1 left arm, 2 right arm, 3 left leg, 4 right leg, 5 head)
 //   indices u16[indexCount]
 //   per target: muscle u32 (0 min, 2 max), weight u32 (0 min, 2 max), count u32,
 //               vertex u16[count], delta i16[count*3] (units of 0.001)
+//   localCount u32, then per local target: nameLength u32, name (ASCII, padded), count u32,
+//               vertex u16[count], delta i16[count*3]
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 
@@ -88,12 +95,29 @@ for (const sex of ['male', 'female']) {
       targets.push({m, w, ids, deltas});
     }
 
+  // Local shape targets (same for both sexes), applied per body segment at runtime.
+  const locals = [];
+  for (const side of ['l', 'r']) {
+    for (const part of ['upperarm', 'lowerarm', 'upperleg', 'lowerleg']) for (const kind of ['fat', 'muscle']) for (const dir of ['decr', 'incr']) locals.push(`${side}-${part}-${kind}-${dir}`);
+    for (const dir of ['decr', 'incr']) locals.push(`${side}-upperarm-shoulder-muscle-${dir}`);
+  }
+  for (const m of ['dorsi', 'pectoral']) for (const dir of ['decr', 'incr']) locals.push(`torso-muscle-${m}-${dir}`);
+  for (const m of ['pregnant', 'tone']) for (const dir of ['decr', 'incr']) locals.push(`stomach-${m}-${dir}`);
+  for (const m of ['bust', 'waist', 'hips', 'upperarm', 'thigh', 'calf']) for (const dir of ['decr', 'incr']) locals.push(`measure-${m}-circ-${dir}`);
+  const localTargets = locals.map(name => {
+    const ids = [], deltas = [];
+    for (const [i, d] of readTarget(name + '.target')) if (remap.has(i)) { ids.push(remap.get(i)); deltas.push(...d.map(x => Math.round(x * 1000))); }
+    return {name, ids, deltas};
+  });
+
   const pad = len => (len + 3) & ~3;
   let size = 16 + n * 12 + pad(n) + pad(indices.length * 2);
   for (const t of targets) size += 12 + pad(t.ids.length * 2) + pad(t.deltas.length * 2);
+  size += 4;
+  for (const t of localTargets) size += 8 + pad(t.name.length) + pad(t.ids.length * 2) + pad(t.deltas.length * 2);
   const buf = new ArrayBuffer(size), view = new DataView(buf);
   let o = 0;
-  new Uint8Array(buf, 0, 4).set([66, 77, 66, 49]); o = 4;
+  new Uint8Array(buf, 0, 4).set([66, 77, 66, 50]); o = 4; // 'BMB2'
   for (const v of [n, indices.length, targets.length]) { view.setUint32(o, v, true); o += 4; }
   new Float32Array(buf, o, n * 3).set(positions); o += n * 12;
   new Uint8Array(buf, o, n).set(segments); o += pad(n);
@@ -103,8 +127,17 @@ for (const sex of ['male', 'female']) {
     new Uint16Array(buf, o, t.ids.length).set(t.ids); o += pad(t.ids.length * 2);
     new Int16Array(buf, o, t.deltas.length).set(t.deltas); o += pad(t.deltas.length * 2);
   }
+  view.setUint32(o, localTargets.length, true); o += 4;
+  for (const t of localTargets) {
+    view.setUint32(o, t.name.length, true); o += 4;
+    new Uint8Array(buf, o, t.name.length).set([...t.name].map(c => c.charCodeAt(0))); o += pad(t.name.length);
+    view.setUint32(o, t.ids.length, true); o += 4;
+    new Uint16Array(buf, o, t.ids.length).set(t.ids); o += pad(t.ids.length * 2);
+    new Int16Array(buf, o, t.deltas.length).set(t.deltas); o += pad(t.deltas.length * 2);
+  }
+  if (o !== size) throw Error(`size mismatch ${o} != ${size}`);
   mkdirSync('dist/models', {recursive: true});
   writeFileSync(`dist/models/body-${sex}.bin`, new Uint8Array(buf));
   const counts = [0, 0, 0, 0, 0, 0]; for (const s of segments) counts[s]++;
-  console.log(sex, {vertices: n, triangles: indices.length / 3, targets: targets.length, bytes: size, segments: counts});
+  console.log(sex, {vertices: n, triangles: indices.length / 3, targets: targets.length, locals: localTargets.length, bytes: size, segments: counts});
 }
