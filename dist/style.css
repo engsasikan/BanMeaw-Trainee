@@ -6,3 +6,5 @@
 .brand-icon.mascot-icon{display:block;object-fit:cover;background:#171717;border:1px solid #555;border-radius:14px}
 
 [hidden]{display:none!important}.account-panel{max-width:480px;margin:50px auto;padding:32px}.account-panel h1{font-size:32px}.account-panel .quiet{margin-top:20px}#auth-message{line-height:1.6;color:#f9a66c}#account-label{margin-left:auto}
+
+#workout-form [hidden]{display:none!important}#training-type{margin-bottom:8px}#workout-form .input-hint{margin:8px 0 18px}#workout-form .form-row{gap:14px}#workout-form .workout-save{margin-top:20px}#workout-entries .entry{margin-top:16px}#workout-form .exercise-dropdown{max-height:260px;overflow:auto}
