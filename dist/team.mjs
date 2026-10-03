@@ -1,5 +1,5 @@
 import {api} from './account.js?v=2';
-import {createBodyViewer} from './body.mjs?v=15';
+import {createBodyViewer} from './body.mjs?v=18';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button';b.onclick=onclick;return b;};
@@ -40,9 +40,16 @@ export async function loadTeams(){
 }
 
 // ---- Team detail ----
+const localDayTeam=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+// Daily report badge for trainees: has today's food log been sent?
+function reportBadge(m){
+ if(m.team_role!=='trainee'||m.status!=='active')return null;
+ return m.report_sent_at?node('span','✓ ส่งสรุปวันนี้แล้ว '+new Date(m.report_sent_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.','report-badge sent'):node('span','ยังไม่ส่งสรุปวันนี้','report-badge');
+}
 function memberRow(team,m,myRole){
  const row=node('div',undefined,'team-row'),info=node('div'),self=m.id===myId;
  info.append(node('strong',m.display_name+(self?' (คุณ)':'')),node('span',m.member_code+(m.is_owner?' · ผู้สร้างทีม':'')+(m.status==='invited'?' · รอตอบรับ':''),'muted'));
+ const badge=reportBadge(m);if(badge)info.append(badge);
  const actions=node('div',undefined,'team-actions'),owner=myRole==='owner';
  if(!self&&m.status==='active'&&((owner&&!m.is_owner)||(myRole==='trainer'&&m.team_role==='trainee')))actions.append(button('ดูบันทึก','primary',()=>viewMember(team,m)));
  if(owner){
@@ -56,7 +63,7 @@ function memberRow(team,m,myRole){
  row.append(avatar,info,actions);return row;
 }
 async function showTeam(id){
- const {team,my_role,members}=await api('/api/teams/'+id);openTeam=id;
+ const {team,my_role,members}=await api('/api/teams/'+id+'?day='+localDayTeam());openTeam=id;
  const view=$('team-detail-view');$('team-list-view').hidden=true;view.hidden=false;
  const head=node('div',undefined,'team-detail-head'),title=node('div');
  title.append(node('p','YOUR TRAINING SPACE','eyebrow'),node('h2',team.name),node('p','สร้างโดย '+team.owner.display_name+' · '+team.owner.member_code,'muted'));

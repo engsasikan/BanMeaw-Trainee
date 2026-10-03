@@ -54,3 +54,15 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .weight-card .quiet{justify-self:start;width:auto;margin:4px 0 0}
 @media(min-width:1151px){.overview-grid .calendar-card{grid-row:1 / 5}}
 @media(max-width:370px){.weight-card{grid-column:1/-1}}
+/* Overview: "Your day" routine card */
+.today-card h2{margin-bottom:14px}.today-steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;position:relative;z-index:1;max-width:calc(100% - 110px)}
+.today-step{display:flex;gap:12px;align-items:flex-start;background:#ffffff26;border-radius:16px;padding:12px 14px}.today-step.done{background:#ffffff40}
+.step-no{flex-shrink:0;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#1d1714;color:#fff;font-weight:800;font-size:13px}.today-step.done .step-no{background:#1d1714;color:#7fd6a0;font-size:0}.today-step.done .step-no:before{content:'✓';font-size:15px}
+.step-body{display:grid;gap:8px;min-width:0;flex:1}.step-body strong{font-size:14px;color:#1d1714}.step-body small{font-weight:600;opacity:.75;margin-left:4px}
+.step-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.step-row input{width:110px;margin:0;min-height:40px;background:#fff8f2;color:#1d1714;border:0;border-radius:12px;padding:0 12px;font-size:15px}.step-row input::placeholder{color:#8a6b57}
+.today-card .step-row button,.meal-chip{width:auto;margin:0;min-height:38px;padding:0 14px;border-radius:12px;border:0;background:#1d1714;color:#fff;font-size:13px;font-weight:700}.today-card .step-row button.ghost{background:transparent;color:#1d1714;border:1.5px solid #1d1714}
+.meal-chips{display:flex;flex-wrap:wrap;gap:6px}.meal-chip{background:#ffffff59;color:#1d1714;min-height:34px;padding:0 12px}.meal-chip.done{background:#1d1714;color:#ffd7bd}
+.step-done{margin:0;font-size:13px;font-weight:700;color:#1d1714;background:none;border:0;padding:0;text-align:left;width:auto;min-height:0}button.step-done{cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.today-message:empty{display:none}.today-message{position:relative;z-index:1;margin:10px 0 0;font-size:13px;font-weight:600;color:#1d1714}
+.report-badge{font-size:12px;color:#a7a9ab}.report-badge.sent{color:#7fd6a0}
+@media(max-width:700px){.today-steps{max-width:none}.today-card .welcome-mini-cat{opacity:.35}}

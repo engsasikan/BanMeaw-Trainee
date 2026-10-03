@@ -67,4 +67,12 @@ CREATE TABLE IF NOT EXISTS body_measurements (
   PRIMARY KEY (user_id, id)
 );
 CREATE INDEX IF NOT EXISTS body_measurements_member_day ON body_measurements(user_id, day DESC);
+
+-- daily_reports: a member marked that day's food log as sent to their trainers.
+CREATE TABLE IF NOT EXISTS daily_reports (
+  user_id text NOT NULL REFERENCES members(id),
+  day date NOT NULL,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, day)
+);
 COMMIT;

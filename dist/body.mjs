@@ -151,6 +151,7 @@ function renderWeightCard(){
 }
 async function loadBody(selectedId){
  ({records}=await api('/api/body'));
+ window.dispatchEvent(new CustomEvent('body-records',{detail:records}));
  if(profileSex&&records.some(r=>r.sex!==profileSex)){
   // Older measurements saved before the sex setting: show and store them with it.
   records=records.map(r=>({...r,sex:profileSex}));
@@ -159,6 +160,14 @@ async function loadBody(selectedId){
  viewer.show([],undefined,profileSex);renderWeightCard();
  const selected=records.find(r=>r.id===selectedId)??records.find(r=>r.id===editing);
  if(selected)openRecord(selected);else startDay();
+}
+// Morning weigh-in from the overview: updates today's record or starts one from the latest.
+export async function quickWeigh(kg){
+ const day=localDay(),existing=records.find(r=>r.day===day),base=existing||records[0];
+ const row=existing?{...existing,weight:kg}:{id:crypto.randomUUID(),day,sex:profileSex??base?.sex??'male',note:'',height:base?.height??null,weight:kg};
+ const valid=validateBody(row);
+ await api('/api/body/'+encodeURIComponent(valid.id),{method:'PUT',body:JSON.stringify(valid)});
+ await loadBody(valid.id);
 }
 export function initBody(me={}){
  profileSex=me.sex??null;

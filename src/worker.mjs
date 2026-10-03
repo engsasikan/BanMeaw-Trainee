@@ -61,6 +61,7 @@ export async function handleApi(request, env) {
   if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex FROM members WHERE id=${user.sub}`;return json(me);}
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);
+  if (url.pathname === '/api/reports') return handleReports(request,sql,user);
   return handleEntries(request,sql,user);
 }
 const teamId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -102,8 +103,11 @@ export async function handleTeams(request,sql,user) {
   const ownerOnly=()=>json({error:'เฉพาะผู้สร้างทีมเท่านั้น'},403);
   if (!action && method==='GET') {
     if(!active) return json({error:'คุณยังไม่ได้อยู่ในทีมนี้'},403);
-    const rows=await sql`SELECT u.id,u.member_code,u.display_name,m.status,m.team_role FROM team_members m JOIN members u ON u.id=m.user_id WHERE m.team_id=${id} ORDER BY m.status,m.team_role,u.display_name`;
-    return json({team:{id:team.id,name:team.name,owner:{id:team.owner_id,display_name:team.owner_name,member_code:team.owner_code,team_role:team.owner_role}},my_role:owner?'owner':mine.team_role,members:owner?rows:rows.filter(r=>r.status==='active')});
+    // ?day=YYYY-MM-DD adds each person's daily report time for that day (null = not sent).
+    const day=validDay(new URL(request.url).searchParams.get('day'));
+    const rows=await sql`SELECT u.id,u.member_code,u.display_name,m.status,m.team_role,dr.sent_at AS report_sent_at FROM team_members m JOIN members u ON u.id=m.user_id LEFT JOIN daily_reports dr ON dr.user_id=u.id AND dr.day=${day}::date WHERE m.team_id=${id} ORDER BY m.status,m.team_role,u.display_name`;
+    const [ownerReport]=day?await sql`SELECT sent_at FROM daily_reports WHERE user_id=${team.owner_id} AND day=${day}::date`:[];
+    return json({team:{id:team.id,name:team.name,owner:{id:team.owner_id,display_name:team.owner_name,member_code:team.owner_code,team_role:team.owner_role,report_sent_at:ownerReport?.sent_at??null}},my_role:owner?'owner':mine.team_role,members:owner?rows:rows.filter(r=>r.status==='active')});
   }
   if (!action && method==='DELETE') {
     if(!owner) return ownerOnly();
@@ -154,6 +158,23 @@ export async function handleTeams(request,sql,user) {
       if(!owner && member.team_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
       return json({member,records:await records()});
     }
+  }
+  return json({error:'ไม่พบ API'},404);
+}
+const validDay=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00Z'))?value:null;
+// Daily reports: a trainee marks a day's food log as sent to their trainers.
+export async function handleReports(request,sql,user) {
+  if (request.method==='GET') {
+    const day=validDay(new URL(request.url).searchParams.get('day'));
+    if(!day) return json({error:'วันที่ไม่ถูกต้อง'},400);
+    const [row]=await sql`SELECT sent_at FROM daily_reports WHERE user_id=${user.sub} AND day=${day}::date`;
+    return json({day,sent_at:row?.sent_at??null});
+  }
+  if (request.method==='POST') {
+    const day=validDay((await readJson(request)).day);
+    if(!day) return json({error:'วันที่ไม่ถูกต้อง'},400);
+    const [row]=await sql`INSERT INTO daily_reports (user_id,day) VALUES (${user.sub},${day}::date) ON CONFLICT (user_id,day) DO UPDATE SET sent_at=now() RETURNING sent_at`;
+    return json({day,sent_at:row.sent_at});
   }
   return json({error:'ไม่พบ API'},404);
 }
