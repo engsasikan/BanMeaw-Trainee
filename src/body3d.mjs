@@ -237,22 +237,25 @@ function anatomyMaterial() {
         vec3 nrm = normalize(vObjNormal);
         vec3 fdir = vFiber - nrm * dot(vFiber, nrm);
         fdir = length(fdir) > 0.001 ? normalize(fdir) : vec3(0.0, 1.0, 0.0);
-        vec3 perp = normalize(cross(fdir, nrm));
-        float phase = dot(vObjPos, perp) * 1300.0 + noise(vObjPos * 40.0) * 6.0;
-        float aa = clamp(1.0 - fwidth(phase) / 2.5, 0.0, 1.0); // fade fibres when too fine for the pixel
-        float shade = 0.62 + 0.2 * sin(phase) * aa + 0.12 * (noise(vObjPos * 70.0) - 0.5) + (vTone - 0.5) * 0.16;
-        shade *= 1.0 - 0.35 * smoothstep(0.1, 0.8, vAnat.x); // muscle edges sink in a little
-        vec3 muscleCol = mix(vec3(0.34, 0.03, 0.04), vec3(0.86, 0.15, 0.14), shade);
-        vec3 tendonCol = mix(vec3(0.84, 0.78, 0.78), vec3(0.97, 0.94, 0.93), 0.5 + 0.3 * sin(phase * 0.6) * aa);
-        muscleCol = mix(muscleCol, tendonCol, smoothstep(0.4, 0.6, vAnat.y));
+        vec3 crossDir = cross(fdir, nrm);
+        vec3 perp = crossDir / max(length(crossDir), 0.001);
+        float phase = dot(vObjPos, perp) * 650.0 + noise(vObjPos * 12.0) * 1.4;
+        float footprint = fwidth(phase);
+        float aa = 1.0 - smoothstep(0.6, 3.0, footprint);
+        float fibres = sin(phase) * aa;
+        float shade = 0.67 + 0.085 * fibres + 0.025 * (noise(vObjPos * 22.0) - 0.5) + (vTone - 0.5) * 0.10;
+        shade *= 1.0 - 0.16 * smoothstep(0.15, 0.9, vAnat.x);
+        vec3 muscleCol = mix(vec3(0.40, 0.075, 0.085), vec3(0.85, 0.29, 0.28), shade);
+        vec3 tendonCol = mix(vec3(0.80, 0.68, 0.65), vec3(0.95, 0.88, 0.84), 0.6 + 0.07 * fibres);
+        muscleCol = mix(muscleCol, tendonCol, smoothstep(0.15, 0.85, vAnat.y));
         muscleCol = mix(muscleCol, vec3(0.9, 0.76, 0.74), smoothstep(0.4, 0.6, vAnat.z));
-        muscleCol = mix(muscleCol, vec3(0.93, 0.88, 0.87), smoothstep(0.82, 0.98, vAnat.x) * 0.8); // fascia lines
-        vec2 v = voronoi(vObjPos * 95.0);
-        vec3 fatCol = mix(vec3(1.0, 0.88, 0.48), vec3(0.78, 0.55, 0.16), smoothstep(0.15, 0.8, v.x));
-        fatCol *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.09, v.y - v.x));
-        float fatMask = smoothstep(0.46, 0.54, vFat + (noise(vObjPos * 16.0) - 0.5) * 0.4);
+        muscleCol = mix(muscleCol, vec3(0.84, 0.66, 0.62), smoothstep(0.55, 1.0, vAnat.x) * 0.25);
+        // Broad, soft variation instead of high-contrast cellular speckling.
+        float fatTone = 0.5 + 0.16 * (noise(vObjPos * 9.0) - 0.5);
+        vec3 fatCol = mix(vec3(0.84, 0.65, 0.34), vec3(1.0, 0.88, 0.57), fatTone);
+        float fatMask = smoothstep(0.30, 0.70, vFat + (noise(vObjPos * 6.0) - 0.5) * 0.035);
         diffuseColor.rgb = mix(muscleCol, fatCol, fatMask);`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.42, 0.7, smoothstep(0.46, 0.54, vFat));');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.52, 0.68, smoothstep(0.30, 0.70, vFat));');
   };
   return material;
 }
