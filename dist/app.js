@@ -1,3 +1,4 @@
+import {auth,api} from './account.js';
 import {localDay,read,write,validateRecords,mergeRecords} from './store.mjs';
 import {attachExercisePicker} from './exercise-picker.mjs';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs';
@@ -5,9 +6,22 @@ const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditi
 attachExercisePicker();
 attachNavigation();
 function tell(message){$('status').textContent=message;}
-try{records=read(localStorage);}catch{storageOK=false;tell('อ่านข้อมูลไม่ได้ กรุณาอย่าล้างข้อมูลเว็บไซต์ ลองเปิดใหม่หรือสำรองข้อมูลเดิมก่อน');}
+const legacyRecords=(()=>{try{return read(localStorage);}catch{return [];}})();storageOK=false;
 $('day').value=localDay();$('time').value=new Date().toTimeString().slice(0,5);
-function saveRecords(next){if(!storageOK){tell('ยังบันทึกไม่ได้ เพราะอ่านข้อมูลเดิมไม่สำเร็จ กรุณาลองเปิดใหม่');return false;}try{records=write(localStorage,next);return true;}catch{tell('บันทึกไม่สำเร็จ พื้นที่อาจเต็มหรือเบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล กรุณาสำรองข้อมูล');return false;}}
+let saving=false;
+async function loadRecords(){const result=await api('/api/entries');records=result.records;storageOK=true;render();}
+async function saveRecords(next){
+ if(!storageOK||saving){tell('กรุณารอให้โหลดหรือบันทึกข้อมูลเสร็จ');return false;}
+ saving=true;document.querySelectorAll('#meal-form button,#workout-form button,.entry-actions button,#import,#migrate-local').forEach(b=>b.disabled=true);
+ try{
+  const valid=validateRecords(next),old=new Map(records.map(r=>[r.id,r]));
+  for(const row of valid){const previous=old.get(row.id);if(previous&&JSON.stringify(validateRecords([previous])[0])===JSON.stringify(row))continue;await api('/api/entries/'+encodeURIComponent(row.id),{method:'PUT',headers:{'If-Match':String(previous?._revision||0)},body:JSON.stringify(row)});}
+  for(const previous of records)if(!valid.some(r=>r.id===previous.id))await api('/api/entries/'+encodeURIComponent(previous.id),{method:'DELETE',headers:{'If-Match':String(previous._revision)}});
+  await loadRecords();return true;
+ }catch(error){tell(error.message);try{await loadRecords();}catch{}return false;}
+ finally{saving=false;document.querySelectorAll('#meal-form button,#workout-form button,.entry-actions button,#import,#migrate-local').forEach(b=>b.disabled=false);}
+}
+
 function reset(){editing=null;$('meal-form').reset();$('time').value=new Date().toTimeString().slice(0,5);$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('cancel').hidden=true;$('count').textContent='0 / 3,000';resetWorkout();}
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 function renderMeals(){
@@ -16,7 +30,7 @@ function renderMeals(){
  const meals=records.filter(r=>r.day===day&&r.kind!=='workout').sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  $('total').textContent=meals.length+' รายการ';$('entries').replaceChildren();
  if(!meals.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีมื้อที่บันทึก'),node('p','เริ่มจดมื้อแรกของวันนี้ได้เลย'));$('entries').append(box);return;}
- for(const r of meals){const card=node('article',undefined,'entry'),top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top,node('p',r.text,'entry-text'));const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';$('cancel').hidden=false;count();$('details').focus();$('meal-form').scrollIntoView({behavior:'smooth',block:'center'});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
+ for(const r of meals){const card=node('article',undefined,'entry'),top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top,node('p',r.text,'entry-text'));const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';$('cancel').hidden=false;count();$('details').focus();$('meal-form').scrollIntoView({behavior:'smooth',block:'center'});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=async()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(await saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
 }
 function count(){$('count').textContent=$('details').value.length.toLocaleString('en-US')+' / 3,000';}
 function resetWorkout(){workoutEditing=null;$('workout-form').reset();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
@@ -31,25 +45,39 @@ function renderWorkouts(){
   const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of [['น้ำหนัก',r.weight===null?'ไม่ระบุ':r.weight===0?'น้ำหนักตัว':r.weight+' กก.'],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]]){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.notes)card.append(node('p',r.notes,'entry-text'));
   const actions=node('div',undefined,'entry-actions'),edit=node('button','แก้ไข'),del=node('button','ลบ','delete');edit.type=del.type='button';edit.setAttribute('aria-label','แก้ไขท่า '+r.exercise);del.setAttribute('aria-label','ลบท่า '+r.exercise);
   edit.onclick=()=>{workoutEditing=r.id;$('exercise').value=r.exercise;$('weight').value=r.weight??'';$('sets').value=r.sets??'';$('reps').value=r.reps??'';$('workout-notes').value=r.notes;$('workout-form-title').textContent='แก้ไขท่าออกกำลังกาย';$('workout-save').textContent='บันทึกการแก้ไข';$('workout-cancel').hidden=false;$('exercise').focus();$('workout-form').scrollIntoView({behavior:'smooth',block:'center'});};
-  del.onclick=()=>{if(confirm('ลบท่า '+r.exercise+' นี้ไหม?')&&saveRecords(records.filter(x=>x.id!==r.id))){if(workoutEditing===r.id)resetWorkout();render();tell('ลบรายการออกกำลังกายแล้ว');}};actions.append(edit,del);card.append(actions);$('workout-entries').append(card);
+  del.onclick=async()=>{if(confirm('ลบท่า '+r.exercise+' นี้ไหม?')&&await saveRecords(records.filter(x=>x.id!==r.id))){if(workoutEditing===r.id)resetWorkout();render();tell('ลบรายการออกกำลังกายแล้ว');}};actions.append(edit,del);card.append(actions);$('workout-entries').append(card);
  }
 }
 function switchPanel(workout){switchView(workout?'workout':'food');}
 $('food-tab').onclick=()=>switchPanel(false);$('workout-tab').onclick=()=>switchPanel(true);$('workout-cancel').onclick=resetWorkout;
 $('exercise').addEventListener('input',()=>$('exercise').setCustomValidity(''));
-$('workout-form').addEventListener('submit',e=>{
+$('workout-form').addEventListener('submit',async e=>{
  e.preventDefault();const exercise=$('exercise').value.trim(),day=$('day').value;if(!exercise){$('exercise').setCustomValidity('กรุณาใส่ชื่อท่า');$('exercise').reportValidity();return;}if(!day){$('day').reportValidity();return;}
  const number=id=>$(id).value===''?null:Number($(id).value);
  const row={id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,weight:number('weight'),sets:number('sets'),reps:number('reps'),notes:$('workout-notes').value.trim()};
- const next=workoutEditing?records.map(r=>r.id===workoutEditing?row:r):[...records,row];if(saveRecords(next)){resetWorkout();render();tell('บันทึกท่าออกกำลังกายแล้ว');}
+ const next=workoutEditing?records.map(r=>r.id===workoutEditing?row:r):[...records,row];if(await saveRecords(next)){resetWorkout();render();tell('บันทึกท่าออกกำลังกายแล้ว');}
 });
 $('details').addEventListener('input',count);
-$('meal-form').addEventListener('submit',e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text};const next=editing?records.map(r=>r.id===editing?row:r):[...records,row];if(saveRecords(next)){reset();render();tell('บันทึกเรียบร้อยแล้ว');}});
+$('meal-form').addEventListener('submit',async e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text};const next=editing?records.map(r=>r.id===editing?row:r):[...records,row];if(await saveRecords(next)){reset();render();tell('บันทึกเรียบร้อยแล้ว');}});
 $('details').addEventListener('input',()=>$('details').setCustomValidity(''));
 $('cancel').onclick=reset;$('day').onchange=()=>{reset();render();};
 function moveDay(offset){const d=new Date(($('day').value||localDay())+'T12:00:00');d.setDate(d.getDate()+offset);$('day').value=localDay(d);reset();render();}
 $('prev').onclick=()=>moveDay(-1);$('next').onclick=()=>moveDay(1);$('today').onclick=()=>{$('day').value=localDay();reset();render();};
 $('export').onclick=()=>{if(!storageOK){tell('อ่านข้อมูลเดิมไม่ได้ จึงยังสำรองไม่ได้ กรุณาลองเปิดใหม่');return;}const blob=new Blob([JSON.stringify({version:2,records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='meal-diary-'+localDay()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);tell('ส่งออกข้อมูลแล้ว เก็บไฟล์นี้ไว้สำหรับนำเข้าภายหลัง');};
-$('import').onclick=()=>$('import-file').click();$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>15000000)throw new Error('ไฟล์ใหญ่เกินไป');const payload=JSON.parse(await file.text());if(![1,2].includes(payload.version))throw new Error('ไม่รองรับไฟล์นี้');const incoming=validateRecords(payload.records);if(!confirm('นำเข้า '+incoming.length+' รายการ? ข้อมูลเดิมจะยังอยู่ และรายการที่ซ้ำจะไม่ถูกเพิ่ม'))return;if(saveRecords(mergeRecords(records,incoming))){render();tell('นำเข้าข้อมูลเรียบร้อยแล้ว');}}catch{tell('นำเข้าไม่สำเร็จ กรุณาเลือกไฟล์สำรองจากเว็บนี้ ข้อมูลเดิมยังอยู่');}finally{e.target.value='';}};
-$('install').onclick=()=>$('install-dialog').showModal();$('close-dialog').onclick=()=>$('install-dialog').close();window.addEventListener('storage',()=>{try{records=read(localStorage);storageOK=true;reset();render();}catch{storageOK=false;tell('อ่านข้อมูลที่เปลี่ยนแปลงไม่ได้ กรุณาเปิดใหม่');}});render();
-
+$('import').onclick=()=>$('import-file').click();$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>15000000)throw new Error('ไฟล์ใหญ่เกินไป');const payload=JSON.parse(await file.text());if(![1,2].includes(payload.version))throw new Error('ไม่รองรับไฟล์นี้');const incoming=validateRecords(payload.records);if(!confirm('นำเข้า '+incoming.length+' รายการ? ข้อมูลเดิมจะยังอยู่ และรายการที่ซ้ำจะไม่ถูกเพิ่ม'))return;if(await saveRecords(mergeRecords(records,incoming))){render();tell('นำเข้าข้อมูลเรียบร้อยแล้ว');}}catch{tell('นำเข้าไม่สำเร็จ กรุณาเลือกไฟล์สำรองจากเว็บนี้ ข้อมูลเดิมยังอยู่');}finally{e.target.value='';}};
+$('install').onclick=()=>$('install-dialog').showModal();$('close-dialog').onclick=()=>$('install-dialog').close();render();
+const authMessage=document.getElementById('auth-message');
+const accountForm=document.getElementById('account-form');
+let signup=false;
+document.getElementById('account-toggle').onclick=()=>{signup=!signup;document.getElementById('account-name-field').hidden=!signup;document.getElementById('account-name').required=signup;document.getElementById('account-title').textContent=signup?'สมัครสมาชิก':'เข้าสู่ระบบ';document.getElementById('account-submit').textContent=signup?'สมัครสมาชิก':'เข้าสู่ระบบ';document.getElementById('account-toggle').textContent=signup?'มีบัญชีแล้ว เข้าสู่ระบบ':'ยังไม่มีบัญชี? สมัครสมาชิก';document.getElementById('account-password').autocomplete=signup?'new-password':'current-password';};
+accountForm.onsubmit=async event=>{event.preventDefault();const button=document.getElementById('account-submit');button.disabled=true;authMessage.textContent='กำลังดำเนินการ…';try{const email=document.getElementById('account-email').value.trim(),password=document.getElementById('account-password').value;const result=signup?await auth.signUp.email({email,password,name:document.getElementById('account-name').value.trim()}):await auth.signIn.email({email,password});if(result.error)throw Error(result.error.message);const session=await auth.getSession();if(session.data?.user)location.reload();else authMessage.textContent='สมัครแล้ว กรุณาตรวจอีเมลเพื่อยืนยันบัญชี แล้วเข้าสู่ระบบ';}catch(error){authMessage.textContent=error.message||'เข้าสู่ระบบไม่สำเร็จ';}finally{button.disabled=false;}};
+document.getElementById('account-logout').onclick=async()=>{if(saving)return;try{const result=await auth.signOut();if(result.error)throw Error(result.error.message);location.reload();}catch(error){tell(error.message);}};
+document.getElementById('refresh-data').onclick=async()=>{if(saving)return;try{await loadRecords();tell('โหลดข้อมูลล่าสุดแล้ว');}catch(error){tell(error.message);}};
+document.getElementById('migrate-local').onclick=async()=>{if(!legacyRecords.length||!confirm('นำ '+legacyRecords.length+' รายการจากเครื่องนี้เข้าในบัญชีปัจจุบัน?'))return;if(await saveRecords(mergeRecords(records,legacyRecords)))tell('นำข้อมูลในเครื่องเข้าบัญชีแล้ว ข้อมูลเดิมในเครื่องยังอยู่');};
+document.getElementById('send-code').onclick=async()=>{const email=document.getElementById('account-email').value.trim();if(!email||!document.getElementById('account-email').reportValidity())return;const button=document.getElementById('send-code');button.disabled=true;try{const result=await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'});if(result.error)throw Error(result.error.message);document.getElementById('verify-form').hidden=false;authMessage.textContent='กรอกรหัสจากอีเมลเพื่อยืนยันบัญชี';}catch(error){authMessage.textContent=error.message;}finally{button.disabled=false;}};
+document.getElementById('verify-form').onsubmit=async event=>{event.preventDefault();const button=document.getElementById('verify-submit');button.disabled=true;try{const result=await auth.emailOtp.verifyEmail({email:document.getElementById('account-email').value.trim(),otp:document.getElementById('verify-code').value.trim()});if(result.error)throw Error(result.error.message);document.getElementById('verify-form').hidden=true;authMessage.textContent='ยืนยันอีเมลแล้ว กรุณาเข้าสู่ระบบ';}catch(error){authMessage.textContent=error.message;}finally{button.disabled=false;}};
+async function boot(){
+ try{const config=await fetch('/api/config').then(r=>r.json());if(!config.ready)throw Error('กำลังตั้งค่าระบบสมาชิก กรุณาเพิ่ม DATABASE_URL และ NEON_AUTH_BASE_URL ใน Cloudflare Worker');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){authMessage.textContent='เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');document.getElementById('account-label').textContent=me.display_name;document.getElementById('account-logout').hidden=false;document.getElementById('account-panel').hidden=true;document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
+ catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
+}
+await boot();
