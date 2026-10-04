@@ -1,3 +1,4 @@
+import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=5';
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
 // It follows the page's selected date (date bar / calendar), like the rest of the overview.
@@ -11,7 +12,8 @@ const clock=iso=>new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute
 const MAIN_MEALS=[['มื้อเช้า','เช้า'],['มื้อกลางวัน','กลางวัน'],['มื้อเย็น','เย็น'],['ของว่าง','ของว่าง']];
 const TIMING={'pre-workout':' (ก่อนฝึก)','post-workout':' (หลังฝึก)'};
 
-let diary=[],body=[],me={},reportSentAt=null,quickWeigh=null,shownDay=null,lastToday=localDay();
+let bodyReady=false;
+let diary=[],body=[],me={},reportSentAt=null,reportVisible=false,quickWeigh=null,shownDay=null,lastToday=localDay();
 const today=()=>document.getElementById('day')?.value||localDay(); // the selected day
 const isToday=()=>today()===localDay();
 const todayMeals=()=>diary.filter(r=>r.day===today()&&r.kind!=='workout').sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
@@ -22,6 +24,7 @@ const say=text=>{$('today-message').textContent=text;};
 
 function render(){
  if(!$('today-card'))return;
+ $('share-report').disabled=!bodyReady;
  $('today-date').textContent=thaiDate(today());
  $('today-title').textContent=isToday()?'วันนี้ของคุณ':'บันทึกของวันนั้น';
  if(!$('dashboard-panel').hidden)$('view-heading').textContent=isToday()?'ภาพรวมของวันนี้':'ภาพรวมวันที่ '+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(today()+'T12:00:00'));
@@ -41,7 +44,7 @@ function render(){
  $('step-meals').classList.toggle('done',mainDone===3);$('meals-progress').textContent=mainDone+'/3 มื้อหลัก'+(meals.length?' · '+meals.length+' รายการ':'');
  // 3. Send to trainers
  $('step-send').classList.toggle('done',!!reportSentAt);
- $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว'+(new Date(reportSentAt).toDateString()===new Date(today()+'T12:00:00').toDateString()?' ':' ('+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(reportSentAt))+') ')+clock(reportSentAt)+' น. · เทรนเนอร์ในทีมเห็นแล้ว';
+ $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว'+(new Date(reportSentAt).toDateString()===new Date(today()+'T12:00:00').toDateString()?' ':' ('+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(reportSentAt))+') ')+clock(reportSentAt)+' น. · '+(reportVisible?'ทุกคนในทีมเห็นอาหารและการฝึกแล้ว':'ส่งให้เทรนเนอร์แล้ว · ส่งอีกครั้งเพื่อร่วมคะแนนทีม');
  $('send-report').textContent=reportSentAt?'ส่งอีกครั้ง':'ส่งในแอป';
 }
 function openMeal(meal){
@@ -51,36 +54,23 @@ function openMeal(meal){
  $('details').focus();$('meal-form').scrollIntoView({behavior:'smooth',block:'start'});
 }
 // Plain-text summary for LINE / chat.
-function summary(){
- const lines=['BanMeaw · สรุป'+thaiDate(today()),(me.display_name||'')+(me.member_code?' ('+me.member_code+')':''),''];
- const w=todayWeight(),prev=previousWeight();
- if(w){const diff=prev?Math.round((w.weight-prev.weight)*10)/10:null;lines.push('⚖️ น้ำหนักเช้า '+w.weight+' กก.'+(diff?' ('+(diff<0?'▼':'▲')+Math.abs(diff)+')':''),'');}
- const meals=todayMeals();
- lines.push('🍽️ อาหาร');
- if(!meals.length)lines.push('• ยังไม่ได้บันทึกอาหาร');
- // Each meal: a heading line, then the food on its own line(s), keeping the user's line breaks.
- for(const r of meals){
-  lines.push('• '+r.meal+(r.time?' '+r.time:'')+(TIMING[r.workoutTiming]||''));
-  for(const food of r.text.split(/\n+/).map(x=>x.trim()).filter(Boolean))lines.push('   ◦ '+food.replace(/^[-•◦*]\s*/,''));
- }
- const workouts=todayWorkouts();
- if(workouts.length){lines.push('','💪 การฝึก');for(const r of workouts)lines.push('• '+r.exercise+[r.weight===null?'':(r.weight===0?' น้ำหนักตัว':' '+r.weight+' กก.'),r.sets&&r.reps?' '+r.sets+'×'+r.reps:r.sets?' '+r.sets+' เซ็ต':''].join(''));}
- return lines.join('\n');
-}
+function summary(){return traineeCopyText(me,traineeSnapshot(body,diary,today()),today());}
 async function markSent(){
- const day=today(),{sent_at}=await api('/api/reports',{method:'POST',body:JSON.stringify({day})});if(day===today())reportSentAt=sent_at;render();
+ const day=today(),{sent_at}=await api('/api/reports',{method:'POST',body:JSON.stringify({day})});if(day===today()){reportSentAt=sent_at;reportVisible=true;}render();
 }
 async function loadReport(){
- const day=today();shownDay=day;reportSentAt=null;
- try{const {sent_at}=await api('/api/reports?day='+day);if(day===today())reportSentAt=sent_at;}catch{}
+ const day=today();shownDay=day;reportSentAt=null;reportVisible=false;
+ try{const {sent_at,team_visible}=await api('/api/reports?day='+day);if(day===today()){reportSentAt=sent_at;reportVisible=Boolean(team_visible);}}catch{}
  render();
 }
 
 export function initToday(account,{weigh}){
- me=account;quickWeigh=weigh;
+ me=account;quickWeigh=weigh;window.addEventListener('training-report-sent',loadReport);
  // diary-records fires on every render of the page, including date changes.
  window.addEventListener('diary-records',e=>{diary=e.detail||[];if(today()!==shownDay){say('');loadReport();}else render();});
- window.addEventListener('body-records',e=>{body=e.detail||[];render();});
+ window.addEventListener('body-records',e=>{body=e.detail||[];bodyReady=true;render();});
+ window.addEventListener('body-loading',()=>{bodyReady=false;render();});
+ window.addEventListener('body-load-error',e=>{bodyReady=false;render();say('โหลดข้อมูลร่างกายไม่สำเร็จ จึงยังแชร์สรุปไม่ได้: '+e.detail);});
  $('quick-weight').onsubmit=async e=>{
   e.preventDefault();const input=$('quick-weight-input'),kg=Number(input.value),btn=e.submitter||$('quick-weight').querySelector('button');
   if(!(kg>=10&&kg<=400)){say('กรุณาใส่น้ำหนัก 10–400 กก.');return;}
@@ -93,6 +83,7 @@ export function initToday(account,{weigh}){
   try{await markSent();say('ส่งสรุป'+(isToday()?'วันนี้':'วันที่เลือก')+'ให้เทรนเนอร์ในแอปแล้ว');}catch(error){say(error.message);}
  };
  $('share-report').onclick=async()=>{
+  if(!bodyReady){say('รอโหลดข้อมูลร่างกายให้ครบก่อนแชร์');return;}
   const text=summary();
   try{
    if(navigator.share)await navigator.share({title:'สรุปอาหารวันนี้',text});

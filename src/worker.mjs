@@ -1,3 +1,7 @@
+import {handleGoogleLogin,googleLoginReady,verifyGoogleSession,resolveGoogleMember,checkGoogleMember,storeGoogleSession,revokeGoogleSession} from './google-login.mjs';
+import {handleTeamGame} from './team-game.mjs';
+import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
+import {handleFeedback,handleMemberProgress,handleOwnFeedback,handleBackup} from './coach.mjs';
 import {handlePlans} from './plans.mjs';
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -12,6 +16,8 @@ const authPaths = new Set(['sign-up/email','sign-in/email','sign-in/social','sig
 export async function identity(request, env) {
   const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
   if (!token) throw Object.assign(new Error('กรุณาเข้าสู่ระบบ'), {status:401});
+  const origin=new URL(request.url).origin;
+  try{const user=await verifyGoogleSession(token,env,origin);await checkGoogleMember(neon(env.DATABASE_URL),user);return user;}catch{}
   const base = env.NEON_AUTH_BASE_URL.replace(/\/$/, '');
   if (!keys.has(base)) keys.set(base, createRemoteJWKSet(new URL(base + '/.well-known/jwks.json')));
   let payload;
@@ -42,8 +48,9 @@ async function authProxy(request, env, url) {
 export async function handleApi(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin) return json({error:'คำขอจากเว็บไซต์อื่นไม่ได้รับอนุญาต'},403);
-  if (Number(request.headers.get('Content-Length') || 0) > 16000) return json({error:'ข้อมูลใหญ่เกินไป'},413);
-  if (url.pathname === '/api/config') return json({ready:Boolean(env.DATABASE_URL && env.NEON_AUTH_BASE_URL)});
+  if (Number(request.headers.get('Content-Length') || 0) > (url.pathname==='/api/me/avatar'?65536:url.pathname==='/api/backup'?262144:16000)) return json({error:'ข้อมูลใหญ่เกินไป'},413);
+  if (url.pathname === '/api/config') return json({ready:Boolean(env.DATABASE_URL && env.NEON_AUTH_BASE_URL),googleLoginReady:googleLoginReady(env)});
+  if(url.pathname.startsWith('/api/google/')){const response=await handleGoogleLogin(request,env,{resolveMember:profile=>resolveGoogleMember(neon(env.DATABASE_URL),profile),checkMember:user=>checkGoogleMember(neon(env.DATABASE_URL),user),storeSession:user=>storeGoogleSession(neon(env.DATABASE_URL),user),revokeSession:user=>revokeGoogleSession(neon(env.DATABASE_URL),user)});if(response)return response;}
   if (!env.DATABASE_URL || !env.NEON_AUTH_BASE_URL) return json({error:'ยังไม่ได้ตั้งค่า DATABASE_URL และ NEON_AUTH_BASE_URL ใน Worker'},503);
   if (url.pathname.startsWith('/api/auth/')) return authProxy(request,env,url);
   const user = await identity(request,env);
@@ -51,6 +58,10 @@ export async function handleApi(request, env) {
   await initialize(sql);
   const role = user.emailVerified === true && env.ADMIN_EMAIL?.toLowerCase() === user.email?.toLowerCase() ? 'admin' : 'trainee';
   await sql`INSERT INTO members (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
+  if(url.pathname==='/api/backup')return handleBackup(request,sql,user);
+  if(url.pathname==='/api/nutrition')return handleOwnNutrition(request,sql,user);
+  if(url.pathname==='/api/feedback')return handleOwnFeedback(request,sql,user);
+  if(url.pathname==='/api/me/avatar')return handleAvatar(request,sql,user);
   if (url.pathname === '/api/me' && request.method === 'PATCH') {
     const {sex}=await readJson(request);
     if(sex!==null && sex!=='male' && sex!=='female') return json({error:'ข้อมูลเพศไม่ถูกต้อง'},400);
@@ -59,12 +70,24 @@ export async function handleApi(request, env) {
     if(sex) await sql`UPDATE body_measurements SET payload=jsonb_set(payload,'{sex}',to_jsonb(${sex}::text)),updated_at=now() WHERE user_id=${user.sub} AND payload->>'sex' IS DISTINCT FROM ${sex}`;
     return json({ok:true});
   }
-  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex FROM members WHERE id=${user.sub}`;return json(me);}
+  if (url.pathname === '/api/me') {const [me]=await sql`SELECT id,member_code,display_name,role,sex,avatar FROM members WHERE id=${user.sub}`;return json(me);}
   if(url.pathname==='/api/plans'&&request.method==='GET'){const day=url.searchParams.get('day');if(!/^\d{4}-\d{2}-\d{2}$/.test(day||''))return json({error:'วันที่ไม่ถูกต้อง'},400);return json({plans:await sql`SELECT p.id,p.day,p.exercises,t.name AS team_name FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE p.user_id=${user.sub} AND p.day=${day}::date AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${user.sub} AND m.status='active')) ORDER BY p.created_at`});}
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);
   if (url.pathname === '/api/reports') return handleReports(request,sql,user);
   return handleEntries(request,sql,user);
+}
+export async function handleAvatar(request,sql,user){
+ if(request.method==='DELETE'){await sql`UPDATE members SET avatar=NULL WHERE id=${user.sub}`;return json({ok:true,avatar:null});}
+ if(request.method!=='PUT')return json({error:'ไม่พบ API'},405);
+ if(request.headers.get('Content-Type')?.split(';')[0]!=='image/jpeg')return json({error:'รูปต้องเป็น JPEG'},400);
+ const bytes=new Uint8Array(await request.arrayBuffer());
+ if(bytes.length>65536)return json({error:'รูปใหญ่เกินไป'},413);
+ if(bytes.length<4||bytes[0]!==255||bytes[1]!==216||bytes[bytes.length-2]!==255||bytes[bytes.length-1]!==217)return json({error:'รูปไม่ถูกต้อง'},400);
+ let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+ const avatar='data:image/jpeg;base64,'+btoa(binary);
+ await sql`UPDATE members SET avatar=${avatar} WHERE id=${user.sub}`;
+ return json({ok:true,avatar});
 }
 const teamId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function readJson(request) {
@@ -96,13 +119,17 @@ export async function handleTeams(request,sql,user) {
     await sql`UPDATE members SET role='trainer' WHERE id=${me} AND role='trainee'`;
     return json({team});
   }
-  if (!id || !teamId.test(id) || (extra!==undefined && !(extra==='body' && action==='members' && method==='GET'))) return json({error:'ไม่พบ API'},404);
+  if (!id || !teamId.test(id) || (extra!==undefined && !(['body','progress'].includes(extra) && action==='members' && method==='GET'))) return json({error:'ไม่พบ API'},404);
   const [team]=await sql`SELECT t.id,t.name,t.owner_id,t.owner_role,o.display_name AS owner_name,o.member_code AS owner_code FROM trainer_teams t JOIN members o ON o.id=t.owner_id WHERE t.id=${id}`;
   if (!team) return json({error:'ไม่พบทีมนี้'},404);
   const owner=team.owner_id===me;
   const [mine]=owner?[]:await sql`SELECT status,team_role FROM team_members WHERE team_id=${id} AND user_id=${me}`;
   const active=owner||mine?.status==='active';
+  if(action==='game')return handleTeamGame(request,sql,user,team,mine,memberId);
+  if(action==='nutrition'&&memberId)return handleNutrition(request,sql,user,team,mine,memberId);
   if(action==='plans'&&memberId)return handlePlans(request,sql,user,team,mine,memberId);
+  if(action==='feedback'&&memberId)return handleFeedback(request,sql,user,team,mine,memberId);
+  if(action==='members'&&memberId&&extra==='progress')return handleMemberProgress(request,sql,user,team,mine,memberId);
   const ownerOnly=()=>json({error:'เฉพาะผู้สร้างทีมเท่านั้น'},403);
   if (!action && method==='GET') {
     if(!active) return json({error:'คุณยังไม่ได้อยู่ในทีมนี้'},403);
@@ -149,8 +176,12 @@ export async function handleTeams(request,sql,user) {
     }
     if (method==='GET') {
       if(!owner && !(mine?.status==='active' && mine.team_role==='trainer')) return json({error:'เฉพาะเทรนเนอร์ของทีมเท่านั้น'},403);
+      const requestedDay=new URL(request.url).searchParams.get('day');
+      const selectedDay=requestedDay===null?null:validDay(requestedDay);
+      if(requestedDay!==null&&!selectedDay)return json({error:'วันที่ไม่ถูกต้อง'},400);
       const records=async()=>(extra==='body'
         ? await sql`SELECT payload FROM body_measurements WHERE user_id=${memberId} ORDER BY day DESC,updated_at DESC LIMIT 500`
+        : selectedDay ? await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} AND day=${selectedDay}::date ORDER BY created_at DESC LIMIT 1000`
         : await sql`SELECT payload FROM daily_logs WHERE user_id=${memberId} ORDER BY day DESC,created_at DESC LIMIT 1000`).map(r=>r.payload);
       if(memberId===team.owner_id){
         if(owner || team.owner_role!=='trainee') return json({error:'ดูได้เฉพาะบันทึกของลูกเทรน'},403);
@@ -170,14 +201,14 @@ export async function handleReports(request,sql,user) {
   if (request.method==='GET') {
     const day=validDay(new URL(request.url).searchParams.get('day'));
     if(!day) return json({error:'วันที่ไม่ถูกต้อง'},400);
-    const [row]=await sql`SELECT sent_at FROM daily_reports WHERE user_id=${user.sub} AND day=${day}::date`;
-    return json({day,sent_at:row?.sent_at??null});
+    const [row]=await sql`SELECT sent_at,team_visible FROM daily_reports WHERE user_id=${user.sub} AND day=${day}::date`;
+    return json({day,sent_at:row?.sent_at??null,team_visible:row?.team_visible??false});
   }
   if (request.method==='POST') {
     const day=validDay((await readJson(request)).day);
     if(!day) return json({error:'วันที่ไม่ถูกต้อง'},400);
-    const [row]=await sql`INSERT INTO daily_reports (user_id,day) VALUES (${user.sub},${day}::date) ON CONFLICT (user_id,day) DO UPDATE SET sent_at=now() RETURNING sent_at`;
-    return json({day,sent_at:row.sent_at});
+    const [row]=await sql`INSERT INTO daily_reports (user_id,day,team_visible) VALUES (${user.sub},${day}::date,true) ON CONFLICT (user_id,day) DO UPDATE SET sent_at=now(),team_visible=true RETURNING sent_at`;
+    return json({day,sent_at:row.sent_at,team_visible:true});
   }
   return json({error:'ไม่พบ API'},404);
 }
@@ -225,6 +256,10 @@ export async function handleEntries(request,sql,user) {
     let row;
     try {const text=await request.text();if(text.length>16000) return json({error:'ข้อมูลใหญ่เกินไป'},413);[row]=validateRecords([JSON.parse(text)]);if(row.id!==id) throw Error();}
     catch {return json({error:'ข้อมูลบันทึกไม่ถูกต้อง'},400);}
+    if(row.planId){
+      const [plan]=await sql`SELECT p.day::text,p.exercises FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE p.id=${row.planId} AND p.user_id=${user.sub} AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${user.sub} AND m.status='active'))`;
+      if(!plan||row.trainingType!=='strength'||plan.day!==row.day||plan.exercises[row.planExerciseIndex]?.exercise!==row.exercise)return json({error:'ท่าในแผนไม่ตรงกับบันทึกหรือคุณไม่มีสิทธิ์ใช้แผนนี้'},400);
+    }
     const kind=row.kind==='workout'?'workout':'meal';
     const rows=revision===0
       ? await sql`INSERT INTO daily_logs (user_id,id,day,kind,payload) VALUES (${user.sub},${id},${row.day},${kind},${JSON.stringify(row)}::jsonb) ON CONFLICT DO NOTHING RETURNING revision`

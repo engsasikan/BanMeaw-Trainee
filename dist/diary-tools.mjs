@@ -1,0 +1,29 @@
+const $=id=>document.getElementById(id);
+const normalize=s=>s.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');
+export function previousExercise(records,exercise,type,day,exclude){return records.filter(r=>r.kind==='workout'&&r.id!==exclude&&r.day<day&&(r.trainingType||'strength')===type&&normalize(r.exercise)===normalize(exercise)).sort((a,b)=>b.day.localeCompare(a.day))[0]||null;}
+export function recentChoices(records,workout,day){const seen=new Set();return [...records].reverse().filter(r=>r.day<=day&&(r.kind==='workout')===workout).sort((a,b)=>b.day.localeCompare(a.day)).filter(r=>{const key=workout?normalize(r.exercise)+'|'+(r.trainingType||'strength'):normalize(r.text)+'|'+r.meal;if(seen.has(key))return false;seen.add(key);return true;}).slice(0,12);}
+export function remainingSeconds(deadline,now=Date.now()){return Math.max(0,Math.ceil((deadline-now)/1000));}
+function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;}
+export function initDiaryTools({getRecords,getEditing,reuseMeal,reuseWorkout}){
+ const choices=[];
+ for(const [workout,formId] of [[false,'meal-form'],[true,'workout-form']]){
+  const fold=el('details'),title=el('summary','ใช้รายการเดิม'),list=el('div');fold.className='reuse-list';fold.append(title,list);$(formId).prepend(fold);choices.push({workout,list});
+ }
+ const previous=el('p');previous.className='input-hint';previous.setAttribute('role','status');$('exercise-picker').after(previous);
+ function updatePrevious(){const r=previousExercise(getRecords(),$('exercise').value,$('training-type').value,$('day').value,getEditing());previous.textContent=r?'ครั้งก่อน ('+r.day+'): '+(r.trainingType==='cardio'?r.duration+' นาที'+(r.distance==null?'':' · '+r.distance+' กม.')+(r.incline==null?'':' · ชัน '+r.incline+'%'):(r.weight==null?'น้ำหนักไม่ระบุ':r.weight===0?'น้ำหนักตัว':r.weight+' กก.')+' · '+(r.sets??'–')+' เซ็ต · '+(r.reps??'–')+' ครั้ง'):($('exercise').value.trim()?'ยังไม่มีผลครั้งก่อนของท่านี้':'เลือกท่าเพื่อดูผลครั้งก่อน');}
+ function refresh(){for(const {workout,list} of choices){list.replaceChildren();const rows=recentChoices(getRecords(),workout,$('day').value);if(!rows.length)list.append(el('p','ยังไม่มีรายการเดิม'));for(const r of rows){const b=el('button',(workout?r.exercise:r.meal+' · '+r.text.slice(0,70))+' ('+r.day+')');b.type='button';b.className='quiet';b.onclick=()=>{(workout?reuseWorkout:reuseMeal)(r);list.parentElement.open=false;updatePrevious();};list.append(b);}}updatePrevious();}
+ $('exercise').addEventListener('input',updatePrevious);$('exercise').addEventListener('change',updatePrevious);$('training-type').addEventListener('change',updatePrevious);window.addEventListener('diary-records',refresh);
+ for(const id of ['meal-form','workout-form'])$(id).addEventListener('reset',()=>queueMicrotask(updatePrevious));
+ const box=el('section');box.className='rest-timer';box.setAttribute('aria-label','จับเวลาพักระหว่างเซ็ต');const label=el('label','พักระหว่างเซ็ต (วินาที)'),seconds=el('input');seconds.type='number';seconds.min=0;seconds.max=3600;seconds.step=1;seconds.value=60;seconds.id='rest-seconds';label.htmlFor=seconds.id;const clock=el('strong','01:00'),notice=el('p');notice.setAttribute('role','status');const start=el('button','เริ่มพัก'),pause=el('button','พักเวลา'),clear=el('button','รีเซ็ต');for(const b of [start,pause,clear])b.type='button';box.append(label,seconds,clock,start,pause,clear,notice);$('workout-form').after(box);
+ let deadline=null,left=60,interval=null,audioContext=null;
+ function stop(){clearInterval(interval);interval=null;deadline=null;}
+ function display(){clock.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');pause.disabled=deadline===null;start.disabled=deadline!==null;seconds.disabled=deadline!==null;}
+ function tick(){if(deadline===null)return;left=remainingSeconds(deadline);if(!left){stop();notice.textContent='ครบเวลาพักแล้ว เริ่มเซ็ตถัดไปได้';navigator.vibrate?.([200,100,200]);try{if(audioContext?.state==='running'){const osc=audioContext.createOscillator(),gain=audioContext.createGain();gain.gain.value=.12;osc.connect(gain);gain.connect(audioContext.destination);osc.start();osc.stop(audioContext.currentTime+.3);}}catch{}}display();}
+ start.onclick=()=>{if(!seconds.reportValidity())return;if(left===0){notice.textContent='ตั้งเวลาพักมากกว่า 0 วินาทีเพื่อเริ่มจับเวลา';return;}try{const Audio=window.AudioContext||window.webkitAudioContext;if(Audio){audioContext??=new Audio();audioContext.resume().catch(()=>{});}}catch{}notice.textContent='กำลังพัก';deadline=Date.now()+left*1000;interval=setInterval(tick,250);tick();};
+ pause.onclick=()=>{tick();if(deadline!==null){stop();notice.textContent='หยุดเวลาไว้ กดเริ่มพักเพื่อทำต่อ';display();}};
+ function setRest(value){stop();const n=Number(value);seconds.value=left=Number.isInteger(n)&&n>=0&&n<=3600?n:60;notice.textContent=left===0?'แผนกำหนดให้ทำท่าต่อเนื่อง ไม่ต้องพัก':'';display();}
+ seconds.onchange=()=>{if(seconds.checkValidity())setRest(seconds.value);};clear.onclick=()=>setRest(seconds.value);document.addEventListener('visibilitychange',tick);window.addEventListener('pagehide',stop);display();refresh();
+ const statuses=new Map();for(const id of ['meal-form','workout-form']){const wrap=el('div'),text=el('p'),retry=el('button','ลองบันทึกอีกครั้ง');text.setAttribute('role','status');text.setAttribute('aria-live','polite');retry.type='button';retry.hidden=true;retry.onclick=()=>$(id).requestSubmit();wrap.className='save-feedback';wrap.append(text,retry);$(id).append(wrap);statuses.set(id,{text,retry});$(id).addEventListener('reset',()=>setStatus(id,'',''));}
+ function setStatus(id,state,message){const entry=statuses.get(id);if(!entry)return;entry.text.textContent=message;entry.retry.hidden=state!=='error';entry.text.dataset.state=state;}
+ return {refresh,updatePrevious,setRest,setStatus};
+}

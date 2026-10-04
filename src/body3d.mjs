@@ -19,7 +19,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
-function loadModel(sex) {
+export function loadModel(sex) {
   return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=6`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
@@ -139,7 +139,19 @@ function segmentDeviation(r, prefix, scale) {
   return Object.fromEntries(segs.map((s, i) => [s, vals[i] == null ? 0 : clamp((vals[i] - mean) / scale, -1, 1)]));
 }
 
-function shapeBody(model, r, lean = false) {
+// The muscle view uses a lean reference frame: total weight, fat and tape girths
+// describe the skin silhouette and must not inflate this view.
+export function muscleOnlyRecord(record) {
+  const sex = record.sex === 'female' ? 'female' : 'male';
+  const height = record.height || (sex === 'female' ? 160 : 172);
+  const r = {sex, height, weight: 22 * (height / 100) ** 2, muscle: record.muscle};
+  for (const seg of ['la', 'ra', 'trunk', 'll', 'rl']) {
+    if (record['mus_' + seg] != null) r['mus_' + seg] = record['mus_' + seg];
+    if (record['musp_' + seg] != null) r['musp_' + seg] = record['musp_' + seg];
+  }
+  return r;
+}
+export function shapeBody(model, r, lean = false) {
   const {n, base, segments, targets, locals} = model, {sex, muscle} = macros(r), ref = REF[sex];
   const weight = lean ? Math.min(macros(r).weight, 0.15) : macros(r).weight;
   const pos = Float32Array.from(base), wm = split(muscle), ww = split(weight);
@@ -174,7 +186,8 @@ function shapeBody(model, r, lean = false) {
   // The 'pregnant' target is strong, so keep it subtle: level 16 -> ~0.35.
   const belly = (r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0);
   if (!lean) apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
-  if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
+  if (lean) apply(pos, 'stomach-tone', 1);
+  else if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
 
   // Scale to the person's height (metres), feet on the ground.
   let minY = Infinity, maxY = -Infinity;
@@ -320,10 +333,10 @@ export function mountBody(container) {
   let mesh = null, frame = 0, request = 0;
 
   async function update(record = {}, mode = 'shape') {
-    const r = record, sex = r.sex === 'female' ? 'female' : 'male', ticket = ++request;
+    const r = mode === 'muscle' ? muscleOnlyRecord(record) : record, sex = r.sex === 'female' ? 'female' : 'male', ticket = ++request;
     const model = await loadModel(sex);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
-    const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
+    const {pos, H} = shapeBody(model, r, mode === 'muscle'), geometry = new THREE.BufferGeometry();
     if (mode === 'composition' || mode === 'muscle' || mode === 'focus') {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
       // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).

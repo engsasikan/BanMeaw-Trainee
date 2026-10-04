@@ -15,7 +15,7 @@ export function attachExercisePicker(){
  let matches=[],active=-1,buttons=[];
  function close(){dropdown.hidden=true;input.setAttribute('aria-expanded','false');toggle.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;}
  function highlight(){buttons.forEach((b,i)=>b.setAttribute('aria-selected',String(i===active)));if(active>=0){input.setAttribute('aria-activedescendant',buttons[active].id);buttons[active].scrollIntoView({block:'nearest'});}else input.removeAttribute('aria-activedescendant');}
- function choose(index){input.value=matches[index].name;input.setCustomValidity('');close();input.focus();close();}
+ function choose(index){input.value=matches[index].name;input.setCustomValidity('');close();input.dispatchEvent(new Event('change'));input.focus();close();}
  function open(all=false){matches=searchExercises(all?'':input.value);active=-1;list.replaceChildren();buttons=[];matches.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.tabIndex=-1;b.id='exercise-option-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const name=document.createElement('span'),group=document.createElement('small');name.textContent=x.name;group.textContent=x.group;b.append(name,group);b.addEventListener('pointerdown',e=>e.preventDefault());b.onclick=()=>choose(i);buttons.push(b);list.append(b);});empty.hidden=matches.length>0;dropdown.hidden=false;input.setAttribute('aria-expanded','true');toggle.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');}
  input.addEventListener('focus',()=>open());input.addEventListener('input',()=>open());
  toggle.onclick=()=>{if(dropdown.hidden){input.focus();open(true);}else close();};

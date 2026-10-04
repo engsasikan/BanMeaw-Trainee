@@ -77,3 +77,16 @@ export function validateBody(r){
  if(!any)throw new Error('กรุณากรอกค่าร่างกายอย่างน้อย 1 ช่อง');
  return out;
 }
+
+// Carry each last measured value forward without using future measurements.
+export function resolveBodyRecords(records){
+ const values={};
+ const resolved=new Map();
+ for(const record of [...records].sort((a,b)=>a.day.localeCompare(b.day))){
+  for(const key of Object.keys(FIELDS)){
+   if(record[key]!=null)values[key]=record[key];
+  }
+  resolved.set(record,{...record,...values});
+ }
+ return records.map(record=>resolved.get(record));
+}

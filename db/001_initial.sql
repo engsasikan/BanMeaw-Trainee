@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS members (
 ALTER TABLE members ADD COLUMN IF NOT EXISTS sex text CHECK (sex IN ('male', 'female'));
 ALTER TABLE members ADD COLUMN IF NOT EXISTS member_code text NOT NULL UNIQUE DEFAULT ('BM-' || upper(substr(md5(gen_random_uuid()::text), 1, 6)));
 
+ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar text;
+
 -- daily_logs: meal and workout entries per member and day (kind = meal | workout).
 CREATE TABLE IF NOT EXISTS daily_logs (
   user_id text NOT NULL REFERENCES members(id),
@@ -87,3 +89,65 @@ CREATE TABLE IF NOT EXISTS training_plans (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS training_plans_user_day ON training_plans(user_id,day);
+
+CREATE TABLE IF NOT EXISTS trainer_feedback (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id),
+ day date NOT NULL,
+ author_id text NOT NULL REFERENCES members(id),
+ text text NOT NULL CHECK (length(text)<=2000),
+ reviewed boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS trainer_feedback_team_day ON trainer_feedback(team_id,user_id,day);
+
+CREATE TABLE IF NOT EXISTS nutrition_targets (
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+ calories numeric NOT NULL CHECK (calories > 0 AND calories <= 20000),
+ protein numeric NOT NULL CHECK (protein > 0 AND protein <= 1000),
+ updated_by text NOT NULL REFERENCES members(id),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY (team_id,user_id)
+);
+
+CREATE TABLE IF NOT EXISTS team_point_wallets (
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id),
+ balance integer NOT NULL DEFAULT 0 CHECK (balance>=0),
+ earned integer NOT NULL DEFAULT 0 CHECK (earned>=0),
+ PRIMARY KEY (team_id,user_id)
+);
+CREATE TABLE IF NOT EXISTS team_point_awards (
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id),
+ day date NOT NULL,
+ points integer NOT NULL CHECK (points BETWEEN 1 AND 20),
+ rest_day boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY (team_id,user_id,day)
+);
+CREATE TABLE IF NOT EXISTS team_rewards (
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ code text NOT NULL CHECK (code IN ('bbq','shabu','drink')),
+ cost integer NOT NULL CHECK (cost BETWEEN 1 AND 100000),
+ enabled boolean NOT NULL DEFAULT true,
+ PRIMARY KEY (team_id,code)
+);
+CREATE TABLE IF NOT EXISTS team_redemptions (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ team_id uuid NOT NULL REFERENCES trainer_teams(id) ON DELETE CASCADE,
+ user_id text NOT NULL REFERENCES members(id),
+ reward text NOT NULL CHECK (reward IN ('bbq','shabu','drink')),
+ cost integer NOT NULL CHECK (cost>0),
+ status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','fulfilled','rejected','cancelled')),
+ resolved_by text REFERENCES members(id),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ resolved_at timestamptz,
+ request_id uuid NOT NULL,
+ UNIQUE (team_id,user_id,request_id)
+);
+CREATE INDEX IF NOT EXISTS team_redemptions_team ON team_redemptions(team_id,created_at DESC);
+
+ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS team_visible boolean NOT NULL DEFAULT false;
