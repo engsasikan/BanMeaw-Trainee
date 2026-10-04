@@ -104,6 +104,25 @@ const perimeter = (a, b) => Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a 
 
 // Segment muscle level (-1..1) relative to the person's own average, so the global muscle
 // macro handles overall muscularity and local targets show the distribution between parts.
+// Where fat usually collects first, so the yellow overlay lands where people actually carry it:
+// men on the lower belly then the flanks; women on hips/thighs and the lower belly. A higher
+// visceral fat level weights the belly more. Returns a per-vertex multiplier for fat thickness.
+function fatPrior(model, pos, H, r) {
+  const n = model.n, female = r.sex === 'female', prior = new Float32Array(n).fill(1);
+  // Trunk centre depth per 2% height band, to tell the front of the belly from the back.
+  const zSum = new Float32Array(50), zCnt = new Float32Array(50), band = y => Math.min(49, Math.max(0, Math.floor(y / H * 50)));
+  for (let i = 0; i < n; i++) if (model.segments[i] === 0) { const b = band(pos[i * 3 + 1]); zSum[b] += pos[i * 3 + 2]; zCnt[b]++; }
+  const belly = 1 + clamp(((r.visceral ?? 8) - 6) / 12, 0, 0.8);
+  for (let i = 0; i < n; i++) {
+    const seg = model.segments[i], y = pos[i * 3 + 1] / H, b = band(pos[i * 3 + 1]);
+    const front = zCnt[b] && pos[i * 3 + 2] > zSum[b] / zCnt[b];
+    if (seg === 0 && y >= 0.47 && y < 0.62) prior[i] = front ? (female ? 1.5 : 2.1) * belly : (female ? 1.2 : 1.5);
+    else if (seg === 0 && y >= 0.62 && y < 0.70 && front) prior[i] = female ? 1.1 : 1.4;
+    else if ((seg === 3 || seg === 4) && y >= 0.34 && y < 0.50) prior[i] = female ? 1.35 : 0.9;
+  }
+  return prior;
+}
+
 function segmentDeviation(r, prefix, scale) {
   const segs = ['la', 'ra', 'trunk', 'll', 'rl'], vals = segs.map(s => r[prefix + s]);
   const known = vals.filter(v => v != null);
@@ -303,6 +322,7 @@ export function mountBody(container) {
       const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
       const skin = model.anatomy?.anat.array; // hands/feet/head have dense vertices: keep them out of the fat share
       for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 || skin?.[i * 3 + 2] ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
+      const prior = fatPrior(model, pos, H, r); for (let i = 0; i < model.n; i++) thick[i] *= prior[i];
       const sorted = Array.from(thick).filter(t => t > 0).sort((a, b) => a - b), q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))] ?? 0;
       const fatPct = r.body_fat ?? (macros(r).weight * 40 + 5), cover = clamp((fatPct - (r.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
       const from = Math.max(q(1 - cover), 0.006), full = Math.max(q(1 - cover * 0.35), from + 0.004);
