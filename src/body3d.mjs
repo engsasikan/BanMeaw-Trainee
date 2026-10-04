@@ -12,13 +12,15 @@ const REF = {
 const SEG = ['trunk', 'la', 'ra', 'll', 'rl', null];
 // Muscle per segment: diverging around the standard (100%) - blue below, neutral at, orange above.
 const BELOW = new THREE.Color('#4f8dff'), STANDARD = new THREE.Color('#aaa49c'), ABOVE = new THREE.Color('#ff7028');
+// Exercise focus: muscles the exercise works (primary / secondary) against neutral idle muscle.
+const FOCUS_PRIMARY = new THREE.Color('#ff4d1f'), FOCUS_SECONDARY = new THREE.Color('#ffae73'), FOCUS_IDLE = new THREE.Color('#9b958e');
 const CLAY = new THREE.Color('#d8d2c8'), FAT = new THREE.Color('#ff6a1f'), LEAN = new THREE.Color('#f3e2c9'), MUSCLE = new THREE.Color('#4f8dff'), LOW = new THREE.Color('#b9b4ad');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=5`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=6`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -59,7 +61,13 @@ function loadModel(sex) {
         anat[i * 3] = edge ? edge[i] / 10 : (flags[i] & 1 ? 0.2 : 3); anat[i * 3 + 1] = (flags[i] >> 1) & 1; anat[i * 3 + 2] = (flags[i] >> 2) & 1;
         tone[i] = ((region[i] * 2654435761) >>> 0) % 1000 / 1000; // stable per-region shade
       }
-      anatomy = {fiber: new THREE.BufferAttribute(fiber, 3, true), anat: new THREE.BufferAttribute(anat, 3), tone: new THREE.BufferAttribute(tone, 1)};
+      anatomy = {fiber: new THREE.BufferAttribute(fiber, 3, true), anat: new THREE.BufferAttribute(anat, 3), tone: new THREE.BufferAttribute(tone, 1), region};
+      // Region names (RGNS): base muscle name per region id, e.g. 'pec-l' -> 'pec', 'abs2-r' -> 'abs'.
+      if (o + 8 <= buf.byteLength && String.fromCharCode(...new Uint8Array(buf, o, 4)) === 'RGNS') {
+        const len = view.getUint32(o + 4, true), names = new TextDecoder().decode(new Uint8Array(buf, o + 8, len)).split('\n');
+        anatomy.muscleOf = ['', ...names.map(name => name.replace(/-[lr]$/, '').replace(/^abs\d$/, 'abs'))];
+        o += 8 + pad(len);
+      }
     }
     return {n, base, segments, indices, targets, locals, anatomy};
   }).catch(error => { delete models[sex]; throw error; });
@@ -316,7 +324,7 @@ export function mountBody(container) {
     const model = await loadModel(sex);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
-    if (mode === 'composition' || mode === 'muscle') {
+    if (mode === 'composition' || mode === 'muscle' || mode === 'focus') {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
       // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
       const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
@@ -332,6 +340,16 @@ export function mountBody(container) {
       geometry.setAttribute('aFiber', a?.fiber ?? zero3);
       geometry.setAttribute('aAnat', a?.anat ?? zero3);
       geometry.setAttribute('aTone', a?.tone ?? new THREE.BufferAttribute(new Float32Array(model.n), 1));
+      if (mode === 'focus') {
+        // r.focus = {primary: ['quad', ...], secondary: [...]} in base muscle names.
+        const primary = new Set(r.focus?.primary || []), secondary = new Set(r.focus?.secondary || []), muscleOf = a?.muscleOf || [];
+        const tint = new Float32Array(model.n * 3);
+        for (let i = 0; i < model.n; i++) {
+          const name = muscleOf[a?.region[i]] || '', c = primary.has(name) ? FOCUS_PRIMARY : secondary.has(name) ? FOCUS_SECONDARY : FOCUS_IDLE;
+          tint[i * 3] = c.r; tint[i * 3 + 1] = c.g; tint[i * 3 + 2] = c.b;
+        }
+        geometry.setAttribute('aTint', new THREE.BufferAttribute(tint, 3));
+      }
       if (mode === 'muscle') {
         const tint = new Float32Array(model.n * 3), segTint = SEG.map(seg => {
           const level = seg ? segmentLevel(r, seg, 'muscle') : null;
@@ -349,7 +367,7 @@ export function mountBody(container) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
-    mesh = new THREE.Mesh(geometry, mode === 'composition' ? anatomy : mode === 'muscle' ? anatomyTint : material); scene.add(mesh);
+    mesh = new THREE.Mesh(geometry, mode === 'composition' ? anatomy : mode === 'muscle' || mode === 'focus' ? anatomyTint : material); scene.add(mesh);
     controls.target.set(0, H * 0.53, 0);
     if (!camera.userData.placed) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
     controls.update();

@@ -121,5 +121,5 @@ export function muscleMap({positions, indices, segments, J}) {
     for (const j of nb[i]) { const nd = d + len(i, j); if (nd < dist[j]) { dist[j] = nd; push(nd, j); } }
   }
   const edge = new Uint8Array(n); for (let i = 0; i < n; i++) edge[i] = Math.min(255, Math.round((dist[i] === Infinity ? 25.5 : dist[i]) * 10)); // 1 = 1 mm
-  return {region, fiber, flags, edge, regions: ids.size};
+  return {region, fiber, flags, edge, regions: ids.size, names: [...ids.keys()]}; // names[id - 1]
 }
