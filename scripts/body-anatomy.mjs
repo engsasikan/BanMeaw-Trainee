@@ -28,7 +28,7 @@ export function muscleMap({positions, indices, segments, J}) {
   const hipY = (J('l-upper-leg')[1] + J('r-upper-leg')[1]) / 2, waistY = J('spine-3')[1], shoulderX = Math.abs(J('l-shoulder')[0]);
   const chestBottom = S - 1.15, navel = waistY - 0.25;
   const ids = new Map(), regionId = name => { if (!ids.has(name)) ids.set(name, ids.size + 1); return ids.get(name); };
-  const region = new Uint8Array(n), fiber = new Int8Array(n * 3), flags = new Uint8Array(n);
+  const region = new Uint8Array(n), fiber = new Int8Array(n * 3), flags = new Uint8Array(n), kindOf = new Map();
 
   for (let i = 0; i < n; i++) {
     const p = P(i), nr = N(i), seg = segments[i], s = p[0] >= 0 ? 1 : -1, side = s > 0 ? 'l' : 'r', ax = Math.abs(p[0]);
@@ -85,13 +85,41 @@ export function muscleMap({positions, indices, segments, J}) {
     }
     region[i] = regionId(name);
     flags[i] = kind === 'tendon' ? FLAG_TENDON : kind === 'skin' ? FLAG_SKIN : 0;
+    kindOf.set(region[i], flags[i]);
     const d = norm(dir); for (let k = 0; k < 3; k++) fiber[i * 3 + k] = Math.round(d[k] * 127);
   }
-  // Border vertices (drawn as thin white fascia lines): on triangles that span two regions,
-  // flag only the vertices of the lower region id so the line is one edge wide.
+  // Mesh neighbours.
+  const nb = Array.from({length: n}, () => new Set());
+  for (let f = 0; f < indices.length; f += 3) for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) nb[indices[f + a]].add(indices[f + b]);
+  // Smooth the region boundaries: a few majority-vote passes remove single-vertex zigzags.
+  for (let pass = 0; pass < 4; pass++) {
+    const next = Uint8Array.from(region);
+    for (let i = 0; i < n; i++) {
+      if (segments[i] === 5) continue;
+      const votes = new Map([[region[i], 1.5]]);
+      for (const j of nb[i]) if (segments[j] === segments[i]) votes.set(region[j], (votes.get(region[j]) || 0) + 1);
+      let best = region[i], bestV = 0; for (const [r, v] of votes) if (v > bestV) { best = r; bestV = v; }
+      next[i] = best;
+    }
+    region.set(next);
+  }
+  for (let i = 0; i < n; i++) flags[i] = kindOf.get(region[i]) ?? flags[i];
+  // Border vertices (kept for older clients): triangles spanning two regions, lower id side.
   for (let f = 0; f < indices.length; f += 3) {
     const tri = [indices[f], indices[f + 1], indices[f + 2]], low = Math.min(...tri.map(v => region[v]));
     if (tri.some(v => region[v] !== low) && !tri.every(v => flags[v] & FLAG_SKIN)) for (const v of tri) if (region[v] === low) flags[v] |= FLAG_BORDER;
   }
-  return {region, fiber, flags, regions: ids.size};
+  // Distance (cm) along the surface to the nearest muscle boundary: Dijkstra from the border
+  // vertices (one side of each boundary). The shader uses it for grooves and rounded muscle bellies.
+  const dist = new Float32Array(n).fill(Infinity), len = (i, j) => Math.hypot(...sub(P(i), P(j))) * 10; // dm -> cm
+  for (let i = 0; i < n; i++) if (flags[i] & FLAG_BORDER) dist[i] = 0; // the fascia line runs along these
+  const heap = [], push = (d, i) => { heap.push([d, i]); let k = heap.length - 1; while (k) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return top; };
+  for (let i = 0; i < n; i++) if (dist[i] < Infinity) push(dist[i], i);
+  while (heap.length) {
+    const [d, i] = pop(); if (d > dist[i]) continue;
+    for (const j of nb[i]) { const nd = d + len(i, j); if (nd < dist[j]) { dist[j] = nd; push(nd, j); } }
+  }
+  const edge = new Uint8Array(n); for (let i = 0; i < n; i++) edge[i] = Math.min(255, Math.round((dist[i] === Infinity ? 25.5 : dist[i]) * 10)); // 1 = 1 mm
+  return {region, fiber, flags, edge, regions: ids.size};
 }

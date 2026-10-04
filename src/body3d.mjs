@@ -16,7 +16,7 @@ const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=4`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=5`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -50,9 +50,11 @@ function loadModel(sex) {
       const region = new Uint8Array(buf, o, n); o += pad(n);
       const fiber = new Int8Array(buf, o, n * 3); o += pad(n * 3);
       const flags = new Uint8Array(buf, o, n); o += pad(n);
+      // Distance to the nearest muscle boundary (mm, newer files); x of aAnat carries it in cm.
+      const edge = o + n <= buf.byteLength ? new Uint8Array(buf, o, n) : null; if (edge) o += pad(n);
       const anat = new Float32Array(n * 3), tone = new Float32Array(n);
       for (let i = 0; i < n; i++) {
-        anat[i * 3] = flags[i] & 1; anat[i * 3 + 1] = (flags[i] >> 1) & 1; anat[i * 3 + 2] = (flags[i] >> 2) & 1;
+        anat[i * 3] = edge ? edge[i] / 10 : (flags[i] & 1 ? 0.2 : 3); anat[i * 3 + 1] = (flags[i] >> 1) & 1; anat[i * 3 + 2] = (flags[i] >> 2) & 1;
         tone[i] = ((region[i] * 2654435761) >>> 0) % 1000 / 1000; // stable per-region shade
       }
       anatomy = {fiber: new THREE.BufferAttribute(fiber, 3, true), anat: new THREE.BufferAttribute(anat, 3), tone: new THREE.BufferAttribute(tone, 1)};
@@ -239,23 +241,27 @@ function anatomyMaterial() {
         fdir = length(fdir) > 0.001 ? normalize(fdir) : vec3(0.0, 1.0, 0.0);
         vec3 crossDir = cross(fdir, nrm);
         vec3 perp = crossDir / max(length(crossDir), 0.001);
-        float phase = dot(vObjPos, perp) * 650.0 + noise(vObjPos * 12.0) * 1.4;
+        float phase = dot(vObjPos, perp) * 900.0 + noise(vObjPos * 14.0) * 2.0;
         float footprint = fwidth(phase);
         float aa = 1.0 - smoothstep(0.6, 3.0, footprint);
         float fibres = sin(phase) * aa;
-        float shade = 0.67 + 0.085 * fibres + 0.025 * (noise(vObjPos * 22.0) - 0.5) + (vTone - 0.5) * 0.10;
-        shade *= 1.0 - 0.16 * smoothstep(0.15, 0.9, vAnat.x);
-        vec3 muscleCol = mix(vec3(0.40, 0.075, 0.085), vec3(0.85, 0.29, 0.28), shade);
-        vec3 tendonCol = mix(vec3(0.80, 0.68, 0.65), vec3(0.95, 0.88, 0.84), 0.6 + 0.07 * fibres);
+        // vAnat.x = distance (cm) to the muscle's edge: rounded bellies, darker grooves, thin fascia line.
+        float edgeCm = vAnat.x, edgeW = fwidth(edgeCm);
+        float belly = smoothstep(0.2, 4.0, edgeCm);
+        float shade = 0.40 + 0.26 * belly + 0.13 * fibres * smoothstep(0.3, 1.5, edgeCm) + 0.03 * (noise(vObjPos * 22.0) - 0.5) + (vTone - 0.5) * 0.08;
+        vec3 muscleCol = mix(vec3(0.38, 0.03, 0.04), vec3(0.86, 0.17, 0.16), shade);
+        vec3 tendonCol = mix(vec3(0.82, 0.72, 0.70), vec3(0.96, 0.91, 0.88), 0.6 + 0.07 * fibres);
         muscleCol = mix(muscleCol, tendonCol, smoothstep(0.15, 0.85, vAnat.y));
         muscleCol = mix(muscleCol, vec3(0.9, 0.76, 0.74), smoothstep(0.4, 0.6, vAnat.z));
-        muscleCol = mix(muscleCol, vec3(0.84, 0.66, 0.62), smoothstep(0.55, 1.0, vAnat.x) * 0.25);
+        float fascia = 1.0 - smoothstep(0.02, 0.30 + edgeW, edgeCm);
+        muscleCol = mix(muscleCol, vec3(0.93, 0.86, 0.84), fascia * 0.75 * (1.0 - smoothstep(0.4, 0.6, vAnat.z)));
         // Broad, soft variation instead of high-contrast cellular speckling.
         float fatTone = 0.5 + 0.16 * (noise(vObjPos * 9.0) - 0.5);
         vec3 fatCol = mix(vec3(0.84, 0.65, 0.34), vec3(1.0, 0.88, 0.57), fatTone);
         float fatMask = smoothstep(0.30, 0.70, vFat + (noise(vObjPos * 6.0) - 0.5) * 0.035);
         diffuseColor.rgb = mix(muscleCol, fatCol, fatMask);`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.52, 0.68, smoothstep(0.30, 0.70, vFat));');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(0.62, 0.40, smoothstep(0.5, 3.0, vAnat.x)), 0.68, smoothstep(0.30, 0.70, vFat));');
+
   };
   return material;
 }

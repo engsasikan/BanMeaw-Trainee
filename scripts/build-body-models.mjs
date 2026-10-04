@@ -20,7 +20,7 @@
 //               vertex u16[count], delta i16[count*3] (units of 0.001)
 //   localCount u32, then per local target: nameLength u32, name (ASCII, padded), count u32,
 //               vertex u16[count], delta i16[count*3]
-//   'ANAT', region u8[n], fibre direction i8[n*3], flags u8[n] (see scripts/body-anatomy.mjs)
+//   'ANAT', region u8[n], fibre direction i8[n*3], flags u8[n], edge distance u8[n] in mm (see scripts/body-anatomy.mjs)
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {muscleMap} from './body-anatomy.mjs';
@@ -120,7 +120,7 @@ for (const sex of ['male', 'female']) {
   const anatomy = muscleMap({positions, indices, segments, J});
   size += 4;
   for (const t of localTargets) size += 8 + pad(t.name.length) + pad(t.ids.length * 2) + pad(t.deltas.length * 2);
-  size += 4 + pad(n) + pad(n * 3) + pad(n);
+  size += 4 + pad(n) + pad(n * 3) + pad(n) + pad(n);
   const buf = new ArrayBuffer(size), view = new DataView(buf);
   let o = 0;
   new Uint8Array(buf, 0, 4).set([66, 77, 66, 50]); o = 4; // 'BMB2'
@@ -145,6 +145,7 @@ for (const sex of ['male', 'female']) {
   new Uint8Array(buf, o, n).set(anatomy.region); o += pad(n);
   new Int8Array(buf, o, n * 3).set(anatomy.fiber); o += pad(n * 3);
   new Uint8Array(buf, o, n).set(anatomy.flags); o += pad(n);
+  new Uint8Array(buf, o, n).set(anatomy.edge); o += pad(n);
   if (o !== size) throw Error(`size mismatch ${o} != ${size}`);
   mkdirSync('dist/models', {recursive: true});
   writeFileSync(`dist/models/body-${sex}.bin`, new Uint8Array(buf));
