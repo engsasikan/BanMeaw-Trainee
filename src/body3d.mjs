@@ -10,6 +10,8 @@ const REF = {
   female: {fat: 28, smm: 0.36, smmRange: 0.16, mus: {la: 2.0, ra: 2.0, trunk: 19, ll: 7.0, rl: 7.0}},
 };
 const SEG = ['trunk', 'la', 'ra', 'll', 'rl', null];
+// Muscle per segment: diverging around the standard (100%) - blue below, neutral at, orange above.
+const BELOW = new THREE.Color('#4f8dff'), STANDARD = new THREE.Color('#aaa49c'), ABOVE = new THREE.Color('#ff7028');
 const CLAY = new THREE.Color('#d8d2c8'), FAT = new THREE.Color('#ff6a1f'), LEAN = new THREE.Color('#f3e2c9'), MUSCLE = new THREE.Color('#4f8dff'), LOW = new THREE.Color('#b9b4ad');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
@@ -210,6 +212,7 @@ varying vec3 vFiber;
 varying vec3 vAnat;
 varying float vTone;
 varying vec3 vObjNormal;
+varying vec3 vTint;
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 vec3 hash3(vec3 p) { return vec3(hash(p), hash(p + 17.13), hash(p + 31.71)); }
 float noise(vec3 x) {
@@ -226,12 +229,14 @@ vec2 voronoi(vec3 x) {
   return vec2(sqrt(d1), sqrt(d2));
 }
 `;
-function anatomyMaterial() {
+// tint: per-segment colour instead of muscle red (the 'muscle per segment' view).
+function anatomyMaterial(tint = false) {
   const material = new THREE.MeshStandardMaterial({roughness: 0.5, metalness: 0});
+  if (tint) material.defines = {SEGMENT_TINT: ''};
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float fatAmt;\nattribute vec3 aFiber;\nattribute vec3 aAnat;\nattribute float aTone;\nvarying float vFat;\nvarying vec3 vObjPos;\nvarying vec3 vFiber;\nvarying vec3 vAnat;\nvarying float vTone;\nvarying vec3 vObjNormal;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFat = fatAmt;\nvObjPos = position;\nvFiber = aFiber;\nvAnat = aAnat;\nvTone = aTone;\nvObjNormal = normal;');
+      .replace('#include <common>', '#include <common>\nattribute float fatAmt;\nattribute vec3 aFiber;\nattribute vec3 aAnat;\nattribute float aTone;\nattribute vec3 aTint;\nvarying vec3 vTint;\nvarying float vFat;\nvarying vec3 vObjPos;\nvarying vec3 vFiber;\nvarying vec3 vAnat;\nvarying float vTone;\nvarying vec3 vObjNormal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFat = fatAmt;\nvObjPos = position;\nvFiber = aFiber;\nvAnat = aAnat;\nvTone = aTone;\nvTint = aTint;\nvObjNormal = normal;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\n' + ANATOMY_NOISE)
       .replace('#include <color_fragment>', `#include <color_fragment>
@@ -250,6 +255,9 @@ function anatomyMaterial() {
         float belly = smoothstep(0.2, 4.0, edgeCm);
         float shade = 0.40 + 0.26 * belly + 0.13 * fibres * smoothstep(0.3, 1.5, edgeCm) + 0.03 * (noise(vObjPos * 22.0) - 0.5) + (vTone - 0.5) * 0.08;
         vec3 muscleCol = mix(vec3(0.38, 0.03, 0.04), vec3(0.86, 0.17, 0.16), shade);
+        #ifdef SEGMENT_TINT
+        muscleCol = mix(vTint * 0.42, min(vTint * 1.12, vec3(1.0)), shade);
+        #endif
         vec3 tendonCol = mix(vec3(0.82, 0.72, 0.70), vec3(0.96, 0.91, 0.88), 0.6 + 0.07 * fibres);
         muscleCol = mix(muscleCol, tendonCol, smoothstep(0.15, 0.85, vAnat.y));
         muscleCol = mix(muscleCol, vec3(0.9, 0.76, 0.74), smoothstep(0.4, 0.6, vAnat.z));
@@ -281,7 +289,7 @@ export function mountBody(container) {
   const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
-  const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0}), anatomy = anatomyMaterial();
+  const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0}), anatomy = anatomyMaterial(), anatomyTint = anatomyMaterial(true);
   let mesh = null, frame = 0, request = 0;
 
   async function update(record = {}, mode = 'shape') {
@@ -289,7 +297,7 @@ export function mountBody(container) {
     const model = await loadModel(sex);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r), geometry = new THREE.BufferGeometry();
-    if (mode === 'composition') {
+    if (mode === 'composition' || mode === 'muscle') {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
       // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
       const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
@@ -298,12 +306,20 @@ export function mountBody(container) {
       const sorted = Array.from(thick).filter(t => t > 0).sort((a, b) => a - b), q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))] ?? 0;
       const fatPct = r.body_fat ?? (macros(r).weight * 40 + 5), cover = clamp((fatPct - (r.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
       const from = Math.max(q(1 - cover), 0.006), full = Math.max(q(1 - cover * 0.35), from + 0.004);
-      for (let i = 0; i < model.n; i++) fatAmt[i] = clamp((thick[i] - from) / (full - from), 0, 1);
+      if (mode === 'composition') for (let i = 0; i < model.n; i++) fatAmt[i] = clamp((thick[i] - from) / (full - from), 0, 1);
       geometry.setAttribute('fatAmt', new THREE.BufferAttribute(fatAmt, 1));
       const a = model.anatomy, zero3 = new THREE.BufferAttribute(new Float32Array(model.n * 3), 3);
       geometry.setAttribute('aFiber', a?.fiber ?? zero3);
       geometry.setAttribute('aAnat', a?.anat ?? zero3);
       geometry.setAttribute('aTone', a?.tone ?? new THREE.BufferAttribute(new Float32Array(model.n), 1));
+      if (mode === 'muscle') {
+        const tint = new Float32Array(model.n * 3), segTint = SEG.map(seg => {
+          const level = seg ? segmentLevel(r, seg, 'muscle') : null;
+          return level == null ? STANDARD : level < 0.5 ? BELOW.clone().lerp(STANDARD, level * 2) : STANDARD.clone().lerp(ABOVE, (level - 0.5) * 2);
+        });
+        for (let i = 0; i < model.n; i++) { const c = segTint[model.segments[i]]; tint[i * 3] = c.r; tint[i * 3 + 1] = c.g; tint[i * 3 + 2] = c.b; }
+        geometry.setAttribute('aTint', new THREE.BufferAttribute(tint, 3));
+      }
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geometry.setIndex(new THREE.BufferAttribute(model.indices, 1));
@@ -313,7 +329,7 @@ export function mountBody(container) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
-    mesh = new THREE.Mesh(geometry, mode === 'composition' ? anatomy : material); scene.add(mesh);
+    mesh = new THREE.Mesh(geometry, mode === 'composition' ? anatomy : mode === 'muscle' ? anatomyTint : material); scene.add(mesh);
     controls.target.set(0, H * 0.53, 0);
     if (!camera.userData.placed) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
     controls.update();
@@ -326,6 +342,6 @@ export function mountBody(container) {
   loop();
   return {
     update,
-    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); renderer.dispose(); renderer.domElement.remove(); },
+    dispose() { cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); anatomyTint.dispose(); renderer.dispose(); renderer.domElement.remove(); },
   };
 }

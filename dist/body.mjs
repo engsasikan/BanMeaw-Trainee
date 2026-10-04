@@ -34,7 +34,7 @@ export function createBodyViewer(root,{onSelect}={}){
    if(!figure){figure=three.mountBody(stage);}
    const shape=await figure.update({...current,sex:current?.sex||fallbackSex},mode);
    if(!current){legend.textContent='กรอกค่าร่างกายเพื่อดูหุ่น 3D';return;}
-   legend.textContent=mode==='composition'?'สีแดง = กล้ามเนื้อ · สีเหลือง = ภาพประมาณไขมันสะสม':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'สีฟ้าเข้ม = กล้ามเนื้อเกินมาตรฐาน · สีเทา = ต่ำกว่ามาตรฐาน (100%)':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
+   legend.textContent=mode==='composition'?'สีแดง = กล้ามเนื้อ · สีเหลือง = ภาพประมาณไขมันสะสม':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'🟦 ต่ำกว่ามาตรฐาน · ⬜ มาตรฐาน (100%) · 🟧 สูงกว่ามาตรฐาน — ดู % แต่ละส่วนในตารางด้านล่าง':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
    if(shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
    if(mode==='composition')note.textContent='ภาพจำลองตามเพศและค่าร่างกายที่กรอก ไม่ใช่ภาพตรวจวัดตำแหน่งกล้ามเนื้อหรือไขมันจริง';
    if(mode==='fat'&&SEGMENTS.every(([s])=>current['fat_'+s]==null))note.textContent='ไม่มีค่าไขมันแต่ละส่วน (InBody 380 ไม่วัดค่านี้) จึงใช้ % ไขมันรวมทั้งตัว';
