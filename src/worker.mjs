@@ -258,7 +258,7 @@ export async function handleEntries(request,sql,user) {
     catch {return json({error:'ข้อมูลบันทึกไม่ถูกต้อง'},400);}
     if(row.planId){
       const [plan]=await sql`SELECT p.day::text,p.exercises FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE p.id=${row.planId} AND p.user_id=${user.sub} AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${user.sub} AND m.status='active'))`;
-      if(!plan||row.trainingType!=='strength'||plan.day!==row.day||plan.exercises[row.planExerciseIndex]?.exercise!==row.exercise)return json({error:'ท่าในแผนไม่ตรงกับบันทึกหรือคุณไม่มีสิทธิ์ใช้แผนนี้'},400);
+      if(!plan||(row.trainingType??'strength')!==(plan.exercises[row.planExerciseIndex]?.trainingType??'strength')||plan.day!==row.day||plan.exercises[row.planExerciseIndex]?.exercise!==row.exercise)return json({error:'ท่าในแผนไม่ตรงกับบันทึกหรือคุณไม่มีสิทธิ์ใช้แผนนี้'},400);
     }
     const kind=row.kind==='workout'?'workout':'meal';
     const rows=revision===0

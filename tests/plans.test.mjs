@@ -33,3 +33,7 @@ test('saved plan API returns a date-only string which can be rendered on the pla
  const sql=async(strings,...values)=>{let query=strings[0];for(let i=0;i<values.length;i++)query+='$'+(i+1)+strings[i+1];return (await db.query(query,values)).rows;};
  try{const response=await handlePlans(new Request('https://example.com/api'),sql,{sub:'owner'},{id:'team',owner_id:'owner',owner_role:'trainee'},null,'owner');assert.equal(response.status,200);const {plans}=await response.json();assert.equal(plans[0].day,'2026-10-04');assert.doesNotThrow(()=>new Intl.DateTimeFormat('th-TH').format(new Date(plans[0].day+'T12:00:00')));}finally{await db.close();}
 });
+test('cardio plan items carry time, incline and speed instead of sets',()=>{
+ assert.deepEqual(planExercises({exercises:[{trainingType:'cardio',exercise:'เดินชัน',duration:30,incline:12,speed:5,distance:null,sets:3}]}),[{trainingType:'cardio',exercise:'เดินชัน',duration:30,incline:12,speed:5}]);
+ for(const r of [{duration:0},{duration:30,incline:101},{duration:30,speed:-1},{duration:'30'}])assert.throws(()=>planExercises({exercises:[{trainingType:'cardio',exercise:'เดินชัน',...r}]}));
+});

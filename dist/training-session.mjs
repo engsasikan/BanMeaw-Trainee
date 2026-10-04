@@ -24,6 +24,39 @@ export function initTrainingSession({getRecords,saveRecords}){
  }
  function start(){if(!plans.length)return;items=rows();current=Math.max(0,items.findIndex(x=>!done(x)));summary=items.every(done);active=true;session.hidden=false;document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return;stop();active=false;session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');}
+ function navigation(finished,last){
+  const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();};
+  const nav=el('div',undefined,'training-actions');
+  nav.append(current>0?button('← ท่าก่อนหน้า',()=>{if(busy)return;stop();current--;render();}):el('span'));
+  if(!last)nav.append(button(finished?'ท่าถัดไป →':'ข้ามท่านี้ →',next));
+  session.append(nav,button('จบการฝึกวันนี้ · ดูสรุป',()=>{if(busy)return;stop();summary=true;render();},'ts-finish'));
+  return next;
+ }
+ // Cardio: one result (time, incline, speed, distance), prefilled with the trainer's target.
+ function cardioStep(item,saved,last){
+  const target=item.target,finished=!!saved;
+  const form=el('form',undefined,'ts-log'),fields={};
+  const field=(key,label,min,max,step,required)=>{const box=el('label',label),i=el('input');i.type='number';i.min=min;i.max=max;i.step=step;i.inputMode='decimal';i.required=required;i.placeholder='ไม่ระบุ';i.value=saved?.[key]??target[key]??'';box.append(i);fields[key]=i;return box;};
+  const metrics=el('div',undefined,'training-live-metrics');
+  metrics.append(field('duration','เวลาที่ทำจริง (นาที)',1,1440,'any',true),field('incline','ความชัน (%)',0,100,'any',false),field('speed','ความเร็ว (กม./ชม.)',0,50,'any',false),field('distance','ระยะทาง (กม.)',0,1000,'any',false));
+  const notice=el('p',undefined,'muted');notice.setAttribute('role','status');
+  const save=el('button',finished?'บันทึกการแก้ไข':'✓ ทำเสร็จแล้ว · บันทึกผล',finished?'quiet':'primary');save.type='submit';save.disabled=busy;
+  let next;
+  if(finished){const doneBox=el('div',undefined,'ts-done');doneBox.append(el('strong','บันทึกแล้ว: '+workoutDescription(saved)),button(last?'ดูสรุปการฝึก →':'ไปท่าถัดไป →',()=>next(),'primary'));session.append(doneBox);}
+  form.append(el('p',finished?'แก้ผลได้ถ้ากรอกผิด':'ทำตามเป้าแล้วกรอกค่าที่ทำได้จริง (ดูจากหน้าจอลู่วิ่ง/เครื่อง)','ts-label'),metrics,save);
+  session.append(form,notice);
+  const previous=previousExercise(getRecords(),target.exercise,'cardio',day);
+  session.append(el('p',previous?'ครั้งก่อน ('+previous.day+'): '+workoutDescription(previous):'ยังไม่มีผลครั้งก่อนของท่านี้','ts-prev'));
+  form.onsubmit=async e=>{
+   e.preventDefault();if(busy||selected()!==day)return;busy=true;save.disabled=true;notice.textContent='กำลังบันทึก…';
+   const value=k=>fields[k].value===''?null:Number(fields[k].value),latest=draft(item);
+   const row={id:latest?.id||crypto.randomUUID(),kind:'workout',day,trainingType:'cardio',exercise:target.exercise,planId:item.plan.id,planExerciseIndex:item.index,duration:value('duration'),incline:value('incline'),speed:value('speed'),distance:value('distance'),weight:null,sets:null,reps:null,notes:latest?.notes||''};
+   try{const ok=await saveRecords([...getRecords().filter(r=>r.id!==row.id),row]);if(!ok){notice.textContent='บันทึกไม่สำเร็จ ลองกดอีกครั้ง';return;}render();overview();}
+   catch(error){notice.textContent=error.message;}finally{busy=false;save.disabled=false;}
+  };
+  focus.show(target.exercise);session.append(focus.el);
+  next=navigation(finished,last);
+ }
  function render(){
   if(!active)return;
   session.replaceChildren();
@@ -36,7 +69,13 @@ export function initTrainingSession({getRecords,saveRecords}){
   session.append(steps,el('p','ท่าที่ '+(current+1)+' จาก '+items.length+' · '+(item.plan.team_name||'แผนจากเทรนเนอร์'),'ts-sub'),el('h2',target.exercise,'ts-name'));
   // 2. What the trainer asked for.
   const goal=el('div',undefined,'ts-goal'),chip=(label,value)=>{const c=el('span',undefined,'ts-chip');c.append(el('small',label),el('b',value));return c;};
-  if(target.trainingType==='cardio')goal.append(chip('เป้าหมาย',workoutDescription(target)));
+  if(target.trainingType==='cardio'){
+   goal.append(chip('เวลา',target.duration+' นาที'));
+   if(target.incline!=null)goal.append(chip('ความชัน',target.incline+'%'));
+   if(target.speed!=null)goal.append(chip('ความเร็ว',target.speed+' กม./ชม.'));
+   if(target.distance!=null)goal.append(chip('ระยะทาง',target.distance+' กม.'));
+   session.append(el('p','เทรนเนอร์ให้ทำ','ts-label'),goal);cardioStep(item,saved,last);return;
+  }
   else goal.append(chip('จำนวน',sets+' เซ็ต'),chip('เซ็ตละ',(target.reps??'-')+' ครั้ง'),chip('น้ำหนัก',target.weight==null?'ตามไหว':target.weight===0?'น้ำหนักตัว':target.weight+' กก.'),chip('พักระหว่างเซ็ต',(target.rest_seconds??60)+' วิ'));
   session.append(el('p','เทรนเนอร์ให้ทำ','ts-label'),goal);
   if(target.superset)session.append(el('p','Super set '+target.superset+' · ทำสลับกับท่าในกลุ่มเดียวกันตามลำดับ','muted'));

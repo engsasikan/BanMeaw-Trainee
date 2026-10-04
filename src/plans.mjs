@@ -8,6 +8,11 @@ export function planDays(body){
 export function planExercises(body){
  if(!Array.isArray(body.exercises)||!body.exercises.length||body.exercises.length>30)throw Error('เพิ่มท่า 1–30 ท่า');
  const exercises=body.exercises.map(r=>{
+  if(r?.trainingType==='cardio'){
+   const ok=(v,max)=>v==null||(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=max);
+   if(typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||typeof r.duration!=='number'||!ok(r.duration,600)||r.duration<=0||!ok(r.incline,100)||!ok(r.speed,50)||!ok(r.distance,1000))throw Error('ตรวจชื่อท่า เวลา ความชัน และความเร็วของคาร์ดิโอ');
+   const out={trainingType:'cardio',exercise:r.exercise.trim(),duration:r.duration};for(const k of ['incline','speed','distance'])if(r[k]!=null)out[k]=r[k];return out;
+  }
   if(!r||typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||!Number.isInteger(r.sets)||r.sets<1||r.sets>100||!Number.isInteger(r.reps)||r.reps<1||r.reps>1000||!(r.weight===null||(typeof r.weight==='number'&&Number.isFinite(r.weight)&&r.weight>=0&&r.weight<=2000)))throw Error('ตรวจชื่อท่า น้ำหนัก จำนวนครั้ง และเซ็ต');
   const out={exercise:r.exercise.trim(),weight:r.weight,sets:r.sets,reps:r.reps};
   if(r.rest_seconds!=null){if(!Number.isInteger(r.rest_seconds)||r.rest_seconds<0||r.rest_seconds>3600)throw Error('เวลาพักต้องเป็น 0–3600 วินาที');out.rest_seconds=r.rest_seconds;}

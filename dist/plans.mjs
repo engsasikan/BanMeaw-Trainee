@@ -4,18 +4,19 @@ import {api} from './account.js?v=2';
 import {localDay} from './store.mjs';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
 const input=(label,type,value)=>{const box=el('label',label),i=el('input');i.type=type;i.value=value??'';box.append(i);return {box,i};};
-const prescription=r=>r.sets+' เซ็ต · '+r.reps+' ครั้ง'+(r.weight==null?'':' · '+r.weight+' กก.')+(r.rest_seconds==null?'':' · พัก '+r.rest_seconds+' วินาที');
+const cardioText=r=>[r.duration+' นาที',r.incline!=null?'ความชัน '+r.incline+'%':'',r.speed!=null?'ความเร็ว '+r.speed+' กม./ชม.':'',r.distance!=null?r.distance+' กม.':''].filter(Boolean).join(' · ');
+const prescription=r=>r.trainingType==='cardio'?cardioText(r):r.sets+' เซ็ต · '+r.reps+' ครั้ง'+(r.weight==null?'':' · '+r.weight+' กก.')+(r.rest_seconds==null?'':' · พัก '+r.rest_seconds+' วินาที');
 function appendPlanExercise(card,r){
  const item=el('div',undefined,'plan-saved-exercise');
  if(r.superset)item.append(el('span','Super set '+r.superset,'plan-superset-badge'));
  item.append(el('strong',r.exercise),el('span',prescription(r),'muted'));card.append(item);
 }
-function planExercisePicker(){
+function planExercisePicker(onChoose){
  const box=el('div',undefined,'plan-name'),details=el('details',undefined,'plan-picker'),summary=el('summary','เลือกหรือค้นหาท่าฝึก'),label=el('span','ท่าฝึก'),i=el('input');
  i.type='hidden';const search=el('input');search.type='search';search.placeholder='ค้นหาชื่อท่าหรือกล้ามเนื้อ';search.setAttribute('aria-label','ค้นหาท่าฝึก');search.autocomplete='off';
  const panel=el('div',undefined,'plan-picker-panel'),options=el('div',undefined,'plan-picker-options'),status=el('p',undefined,'muted');status.setAttribute('role','status');
  panel.append(search,options,status);details.append(summary,panel);box.append(label,details,i);
- function choose(exercise){i.value=exercise.name;summary.textContent=exercise.name;details.open=false;summary.focus();}
+ function choose(exercise){i.value=exercise.name;summary.textContent=exercise.name;details.open=false;summary.focus();onChoose?.(exercise);}
  function render(){
   const matches=searchExercises(search.value);options.replaceChildren();
   for(const exercise of matches){
@@ -58,7 +59,9 @@ export async function trainerPlanner(root,team,member,{day=localDay()}={}){
  function add(){
   const row=el('div',undefined,'plan-exercise'),top=el('div',undefined,'plan-exercise-top'),number=el('strong'),remove=el('button','นำออก','quiet plan-remove');
   remove.type='button';top.append(number,remove);
-  const name=planExercisePicker();
+  const type={box:el('label','ประเภท'),i:el('select')};type.box.append(type.i);
+  for(const [v,t] of [['strength','เวทเทรนนิ่ง (เซ็ต/ครั้ง)'],['cardio','คาร์ดิโอ (เวลา/ความชัน)']]){const o=el('option',t);o.value=v;type.i.append(o);}
+  const name=planExercisePicker(exercise=>{type.i.value=exercise.group==='คาร์ดิโอ'?'cardio':'strength';applyType();});
   const weight=input('น้ำหนัก (กก.)','number',''),sets=input('เซ็ต','number',3),reps=input('ครั้ง / เซ็ต','number',12);
   weight.i.min=0;weight.i.max=2000;weight.i.step='.01';weight.i.placeholder='ไม่ระบุ';
   for(const f of [sets,reps]){f.i.required=true;f.i.min=1;f.i.step=1;}sets.i.max=100;reps.i.max=1000;
@@ -68,9 +71,15 @@ export async function trainerPlanner(root,team,member,{day=localDay()}={}){
   const solo=el('option','ท่าเดี่ยว');solo.value='';superset.i.append(solo);
   for(const group of 'ABCDEFGHIJKLMNO'){const option=el('option','กลุ่ม '+group);option.value=group;superset.i.append(option);}
   const advanced=el('div',undefined,'plan-advanced');advanced.append(superset.box,rest.box);
-  const entry={row,name,weight,sets,reps,number,rest,superset};entries.push(entry);
+  const duration=input('เวลา (นาที)','number',30),incline=input('ความชัน (%)','number',''),speed=input('ความเร็ว (กม./ชม.)','number',''),distance=input('ระยะทาง (กม.)','number','');
+  duration.i.min=1;duration.i.max=600;duration.i.step=1;duration.i.required=true;incline.i.min=0;incline.i.max=100;incline.i.step='.5';incline.i.placeholder='เช่น 12';
+  speed.i.min=0;speed.i.max=50;speed.i.step='.1';speed.i.placeholder='เช่น 5';distance.i.min=0;distance.i.max=1000;distance.i.step='.01';distance.i.placeholder='ไม่ระบุ';
+  for(const f of [duration,incline,speed,distance])f.i.inputMode='decimal';
+  const cardio=el('div',undefined,'plan-metrics plan-cardio');cardio.append(duration.box,incline.box,speed.box,distance.box);
+  function applyType(){const c=type.i.value==='cardio';metrics.hidden=advanced.hidden=c;cardio.hidden=!c;for(const f of [weight,sets,reps,rest])f.i.disabled=c;superset.i.disabled=c;for(const f of [duration,incline,speed,distance])f.i.disabled=!c;}
+  const entry={row,name,weight,sets,reps,number,rest,superset,type,duration,incline,speed,distance};entries.push(entry);
   remove.onclick=()=>{entries.splice(entries.indexOf(entry),1);row.remove();refresh();};
-  row.append(top,name.box,metrics,advanced);rows.append(row);refresh();
+  row.append(top,name.box,type.box,metrics,advanced,cardio);applyType();rows.append(row);refresh();
  }
  const more=el('button','+ เพิ่มท่าฝึก','quiet plan-add');more.type='button';more.onclick=()=>{if(entries.length<30){add();entries.at(-1).name.focus();}};
  const save=el('button','บันทึกแผน','primary');save.type='submit';form.append(rows,more,save,message);section.append(form);
@@ -89,9 +98,10 @@ export async function trainerPlanner(root,team,member,{day=localDay()}={}){
   e.preventDefault();if(!entries.length){message.textContent='เพิ่มท่าฝึกอย่างน้อย 1 ท่าก่อนบันทึก';more.focus();return;}
   const missing=entries.find(x=>!x.name.i.value);if(missing){message.textContent='เลือกท่าฝึกก่อนบันทึก';missing.name.focus();return;}
   if(period.value!=='day'&&!checks.some(c=>c.checked)){message.textContent='เลือกวันฝึกอย่างน้อย 1 วัน';checks[0].focus();return;}
-  for(const group of new Set(entries.map(x=>x.superset.i.value).filter(Boolean))){if(entries.filter(x=>x.superset.i.value===group).length<2){message.textContent='Super set '+group+' ต้องมีอย่างน้อย 2 ท่า';return;}}
+  const groupOf=x=>x.type.i.value==='cardio'?'':x.superset.i.value;
+  for(const group of new Set(entries.map(groupOf).filter(Boolean))){if(entries.filter(x=>groupOf(x)===group).length<2){message.textContent='Super set '+group+' ต้องมีอย่างน้อย 2 ท่า';return;}}
   save.disabled=true;save.textContent='กำลังบันทึก…';
-  try{const result=await api(path,{method:'POST',body:JSON.stringify({start:date.i.value,period:period.value,weekdays:checks.filter(c=>c.checked).map(c=>Number(c.value)),exercises:entries.map(x=>({exercise:x.name.i.value,weight:x.weight.i.value===''?null:Number(x.weight.i.value),sets:Number(x.sets.i.value),reps:Number(x.reps.i.value),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null}))})});message.textContent='บันทึกแผนแล้ว '+result.count+' วัน';await load();}
+  try{const result=await api(path,{method:'POST',body:JSON.stringify({start:date.i.value,period:period.value,weekdays:checks.filter(c=>c.checked).map(c=>Number(c.value)),exercises:entries.map(x=>x.type.i.value==='cardio'?{trainingType:'cardio',exercise:x.name.i.value,duration:Number(x.duration.i.value),...Object.fromEntries(['incline','speed','distance'].filter(k=>x[k].i.value!=='').map(k=>[k,Number(x[k].i.value)]))}:({exercise:x.name.i.value,weight:x.weight.i.value===''?null:Number(x.weight.i.value),sets:Number(x.sets.i.value),reps:Number(x.reps.i.value),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null}))})});message.textContent='บันทึกแผนแล้ว '+result.count+' วัน';await load();}
   catch(e){message.textContent=e.message;}finally{save.disabled=false;save.textContent='บันทึกแผน';}
  };
  await load();section.scrollIntoView({behavior:'smooth',block:'start'});
