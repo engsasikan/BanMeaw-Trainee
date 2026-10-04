@@ -1,4 +1,4 @@
-import {initTrainingSession} from './training-session.mjs?v=1';
+import {initTrainingSession} from './training-session.mjs?v=2';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=1';
 import {initNutrition} from './nutrition.mjs?v=1';

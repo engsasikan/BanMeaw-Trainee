@@ -18,7 +18,7 @@ test('guided training saves each set, resumes, retries failures and handles supe
  const nodes=new Map(['dashboard-panel','workout-panel','day'].map(id=>[id,new Element('div')]));nodes.get('day').value='2026-10-04';
  const doc=new EventTarget();doc.createElement=tag=>new Element(tag);doc.getElementById=id=>nodes.get(id);doc.hidden=false;
  globalThis.document=doc;globalThis.window=new EventTarget();
- const built=await build({entryPoints:['dist/training-session.mjs'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'test-adapters',setup(b){b.onResolve({filter:/dashboard\.mjs|account\.js/},args=>({path:args.path,namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export function switchView(){}; export async function api(){return {ok:true}};',loader:'js'}));}}]});
+ const built=await build({entryPoints:['dist/training-session.mjs'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'test-adapters',setup(b){b.onResolve({filter:/dashboard\.mjs|account\.js|exercise-preview\.mjs/},args=>({path:args.path,namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export function switchView(){}; export async function api(){return {ok:true}}; export function createMuscleFocus(){return {el:document.createElement("section"),show(){}}};',loader:'js'}));}}]});
  const {initTrainingSession}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
  let records=[],fail=false,writes=0;
  initTrainingSession({getRecords:()=>records,saveRecords:async next=>{writes++;if(fail)return false;records=next;window.dispatchEvent(new CustomEvent('diary-records'));return true;}});
@@ -30,8 +30,8 @@ test('guided training saves each set, resumes, retries failures and handles supe
  await submit();assert.equal(records[0].setLogs.length,1);assert.equal(records[0].sessionComplete,false);assert.ok(session.textContent.includes('Row'));
  fail=true;await submit();assert.equal(records.length,1);assert.ok(session.textContent.includes('บันทึกไม่สำเร็จ'));fail=false;
  await submit();assert.equal(records.length,2);assert.ok(session.textContent.includes('Squat'));
- click('กลับไปดูแผน');window.dispatchEvent(new CustomEvent('training-start'));assert.ok(session.textContent.includes('บันทึกแล้ว 1 / 2 เซ็ต'));
+ click('✕ ออกจากโหมดฝึก');window.dispatchEvent(new CustomEvent('training-start'));assert.ok(session.textContent.includes('ทำเซ็ต 2 เสร็จแล้ว'));
  await submit();assert.equal(records.find(r=>r.exercise==='Squat').sessionComplete,true);await submit();assert.equal(records.find(r=>r.exercise==='Row').sessionComplete,true);
- click('จบการฝึก · ดูสรุป');assert.ok(session.textContent.includes('บันทึกครบ 2 / 2 ท่า'));assert.equal(writes,5);
+ click('จบการฝึกวันนี้ · ดูสรุป');assert.ok(session.textContent.includes('บันทึกครบ 2 / 2 ท่า'));assert.equal(writes,5);
  nodes.get('day').value='2026-10-05';nodes.get('day').dispatchEvent(new Event('change'));assert.equal(session.hidden,true);assert.equal(nodes.get('workout-panel').classes.has('training-mode'),false);
 });
