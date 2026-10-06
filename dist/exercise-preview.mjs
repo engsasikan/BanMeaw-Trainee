@@ -16,16 +16,18 @@ export function createMuscleFocus(){
  const chips=node('div',undefined,'ex-focus-chips'),stage=node('div',undefined,'ex-focus-stage');
  const legend=node('p',undefined,'ex-focus-legend');legend.innerHTML='<i class="p"></i>ทำงานหลัก <i class="s"></i>ช่วยเสริม';
  box.append(head,chips,stage,legend);
- let figure=null,shown='',focus=null,motion=null,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+ let figure=null,mounting=null,shown='',focus=null,motion=null,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches;
  const label=()=>{play.textContent=playing?'หยุดท่า':'เล่นท่า';play.setAttribute('aria-pressed',String(!playing));};
  play.onclick=()=>{playing=!playing;label();figure?.setPlaying(playing);};
  async function draw(){
   try{
-   figure??=(await import('./body3d.js?v=16')).mountBody(stage);
+   // One figure per card: draws that start while body3d is still loading share the same mount.
+   mounting??=import('./body3d.js?v=16').then(m=>m.mountBody(stage));
+   figure=await mounting;
    figure.setPlaying(playing);
    await figure.update({...body,focus,motion},'focus');
    play.hidden=!figure.hasMotion();label();
-  }catch{stage.replaceChildren(node('p','อุปกรณ์นี้แสดง 3D ไม่ได้ ดูชื่อกล้ามเนื้อด้านบนแทน','muted'));}
+  }catch{mounting=null;figure=null;stage.replaceChildren(node('p','อุปกรณ์นี้แสดง 3D ไม่ได้ ดูชื่อกล้ามเนื้อด้านบนแทน','muted'));}
  }
  const view={el:box,
   show(name){
