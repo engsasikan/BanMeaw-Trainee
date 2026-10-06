@@ -2,6 +2,15 @@
 // First match wins, so narrower patterns (stretches, split squat, pushdown) come before broader ones.
 const RULES = [
  // Stretches first: 'Calf Stretch' is not a calf raise, 'Triceps Stretch' is not an extension.
+ ['lyingFigure4', /lying.*piriformis|piriformis.*lying|figure.?(4|four)|ยืดสะโพกนอน/i],
+ ['kneeToChest', /(lying glutes?|knee to chest|roller hip) stretch|knee.?to.?chest|กอดเข่า/i],
+ ['seatedFigure4', /(glute|gluteus|piriformis).*stretch|ยืดก้น/i],
+ ['seatedHamstring', /chair leg extended|seated.*hamstring.*stretch/i],
+ ['ironCross', /iron cross/i],
+ ['rockingFrog', /frog/i],
+ ['worldGreatest', /world.?s? greatest/i],
+ ['kneeCircles', /knee circles|circles knee/i],
+ ['rollerBack', /roller back/i],
  ['quadStretch', /(quad|rectus femoris|hip flexor).*stretch|ยืดต้นขาหน้า/i],
  ['hamstringStretch', /(hamstring|runners|lower back|spine|toe touch).*stretch|stretch.*hamstring|ยืดต้นขาหลัง|ยืดหลังขา/i],
  ['calfStretch', /(calf|calves|peroneals|tibialis|achilles).*stretch|ยืดน่อง/i],

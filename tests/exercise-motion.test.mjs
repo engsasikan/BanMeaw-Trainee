@@ -17,11 +17,15 @@ test('exercise names map to demonstrations', () => {
     ['Hamstring Stretch', 'hamstringStretch'], ['All Fours Squad Stretch', 'quadStretch'], ['Calf Stretch With Hands Against Wall', 'calfStretch'],
     ['Chest And Front Of Shoulder Stretch', 'chestStretch'], ['Rear Deltoid Stretch', 'shoulderStretch'], ['Overhead Triceps Stretch', 'tricepsStretch'],
     ['Standing Lateral Stretch', 'sideStretch'], ['Neck Side Stretch', 'neckStretch'],
+    ['Assisted Lying Glutes Stretch', 'kneeToChest'], ['Assisted Lying Gluteus And Piriformis Stretch', 'lyingFigure4'],
+    ['Seated Glute Stretch', 'seatedFigure4'], ['Seated Piriformis Stretch', 'seatedFigure4'], ['Chair Leg Extended Stretch', 'seatedHamstring'],
+    ['Exercise Ball Seated Hamstring Stretch', 'seatedHamstring'], ['Iron Cross Stretch', 'ironCross'], ['Rocking Frog Stretch', 'rockingFrog'],
+    ['World Greatest Stretch', 'worldGreatest'], ['Circles Knee Stretch', 'kneeCircles'], ['Roller Back Stretch', 'rollerBack'], ['Roller Hip Stretch', 'kneeToChest'],
   ]) assert.equal(motionFor(name), motion, name);
 });
 
 test('look-alike names get no demonstration', () => {
-  for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', 'Dips', 'Calf Raise', 'Seated Glute Stretch', 'Single Leg Bridge With Outstretched Leg', '', null])
+  for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', 'Dips', 'Calf Raise', 'Single Leg Bridge With Outstretched Leg', '', null])
     assert.equal(motionFor(name), null, String(name));
 });
 

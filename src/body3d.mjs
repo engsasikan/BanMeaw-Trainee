@@ -98,9 +98,12 @@ export function loadRig() {
 // gives its own '<limb>R' direction. Spine bones take Euler angles in degrees (x > 0 bends
 // forward); 'foot' is an Euler angle against the shin, otherwise feet stay flat on the floor.
 // Anchors: feet (both planted), footL (front foot planted), lying (back on a surface),
-// hands (hanging from a fixed bar), plank (hands and toes on the floor).
+// hands (hanging from a fixed bar), plank (hands and toes on the floor), quadruped (hands and knees),
+// seated (on a box, seatFoot planted).
 const STAND = {upperarm: [0.1, -1, 0.02], lowerarm: [0.12, -1, 0.06], upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06]};
 const LEGS = {upperleg: STAND.upperleg, lowerleg: STAND.lowerleg};
+const LYING_KNEES = {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83]}; // lying on the back, feet flat
+const SITTING = {upperleg: [0.12, 0, 1], lowerleg: [0.08, -1, 0.02], upperarm: [0.1, -0.9, 0.4], lowerarm: [0.05, -0.3, 0.95], grip: 0.2};
 const MOTIONS = {
   squat: {anchor: 'feet', view: [55, 12, 0.5], keys: [
     {...STAND, upperleg: [0.2, -1, 0.02], lowerleg: [0.16, -1, -0.05], upperarm: [0.1, -1, 0.15], lowerarm: [0.1, -1, 0.2]},
@@ -164,7 +167,7 @@ const MOTIONS = {
     {...STAND},
     {hips: [82, 0, 0], spineLow: [14, 0, 0], chest: [10, 0, 0], upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06], upperarm: [0.06, -1, 0.08], lowerarm: [0.04, -1, 0.12]},
   ]},
-  quadStretch: {anchor: 'feet', hold: true, view: [70, 8, 0.5], reach: [{arm: 'R', to: 'foot.R', offset: [0, 0.02, -0.02], pole: [-0.2, -0.3, -1]}], keys: [
+  quadStretch: {anchor: 'footL', hold: true, view: [70, 8, 0.5], reach: [{arm: 'R', to: 'foot.R', offset: [0, 0.02, -0.02], pole: [-0.2, -0.3, -1]}], keys: [
     {...STAND},
     {upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06], upperlegR: [-0.06, -1, -0.08], lowerlegR: [-0.06, 0.72, -0.7], footR: [-50, 0, 0], upperarm: [0.85, -0.5, 0.15], lowerarm: [0.9, -0.3, 0.3], grip: 0.8},
   ]},
@@ -191,6 +194,51 @@ const MOTIONS = {
   neckStretch: {anchor: 'feet', hold: true, view: [10, 6, 0.75, 0.75], keys: [
     {...STAND},
     {...STAND, neck: [0, 0, 16], head: [0, 0, 18]},
+  ]},
+  // Glute and hip stretches. Lying ones use the lying frame: x = left, y = towards the head, z = up from the chest.
+  kneeToChest: {anchor: 'lying', surface: 0.01, hold: true, view: [70, 22, 0.18], props: ['mat'],
+    reach: [{arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.01, 0.03], pole: [1, -0.3, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.01, 0.03], pole: [-1, -0.3, 0]}], keys: [
+    {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
+    {chest: [14, 0, 0], neck: [10, 0, 0], upperleg: [0.15, 0.75, 0.65], lowerleg: [0.05, -0.95, 0.1], upperlegR: [-0.1, -1, 0.02], lowerlegR: [-0.1, -1, 0.02], upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1], grip: 0.7},
+  ]},
+  lyingFigure4: {anchor: 'lying', surface: 0.01, hold: true, view: [60, 24, 0.18], props: ['mat'],
+    reach: [{leg: 'R', to: 'lowerleg.L', offset: [-0.02, 0.025, 0], pole: [-1, 0.2, 0]},
+      {arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.02, -0.06], pole: [1, -0.3, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.02, -0.06], pole: [-1, -0.3, 0]}], keys: [
+    {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
+    {chest: [12, 0, 0], neck: [10, 0, 0], upperleg: [0.1, 0.55, 0.83], lowerleg: [0.05, -0.95, 0.3], upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1], grip: 0.7},
+  ]},
+  seatedFigure4: {anchor: 'seated', seatFoot: 'L', hold: true, view: [50, 10, 0.4], props: ['seat'],
+    reach: [{leg: 'R', to: 'lowerleg.L', offset: [-0.02, 0.03, 0], pole: [-0.7, 1, 0]},
+      {arm: 'R', to: 'lowerleg.R', offset: [0, 0.03, 0], pole: [-1, 0, -0.3]}, {arm: 'L', to: 'foot.R', offset: [0, 0.03, 0], pole: [1, 0, -0.3]}], keys: [
+    {...SITTING},
+    {...SITTING, hips: [24, 0, 0], grip: 0.6},
+  ]},
+  seatedHamstring: {anchor: 'seated', seatFoot: 'R', hold: true, view: [70, 10, 0.4], props: ['seat'],
+    reach: [{arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.02, 0.08], pole: [1, 0, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.02, 0.08], pole: [-1, 0, 0]}], keys: [
+    {...SITTING},
+    {...SITTING, hips: [34, 0, 0], upperleg: [0.12, -0.15, 0.98], lowerleg: [0.1, -0.45, 0.89], grip: 0.5},
+  ]},
+  ironCross: {anchor: 'lying', surface: 0.01, hold: true, view: [20, 40, 0.15], props: ['mat'], keys: [
+    {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperarm: [1, 0, 0], lowerarm: [1, 0, 0]},
+    {hips: [0, -32, 0], chest: [0, 26, 0], upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperlegR: [0.78, -0.55, -0.1], lowerlegR: [0.8, -0.55, -0.15], upperarm: [1, 0, 0], lowerarm: [1, 0, 0]},
+  ]},
+  rockingFrog: {anchor: 'quadruped', view: [75, 22, 0.18], keys: [
+    {upperleg: [0.75, -0.05, 0.65], lowerleg: [0.35, -0.94, 0], foot: [0, 0, 0], upperarm: [0.15, 0.05, 1], lowerarm: [0.1, 0.05, 1], hand: [0, 1, 0.1], grip: 0},
+    {upperleg: [0.7, 0.5, 0.5], lowerleg: [0.3, -0.95, -0.05], foot: [0, 0, 0], upperarm: [0.15, 0.75, 0.65], lowerarm: [0.1, 0.75, 0.65], hand: [0, 1, 0.1], grip: 0},
+  ]},
+  worldGreatest: {anchor: 'footL', backFoot: 0.42, hold: true, view: [35, 14, 0.38],
+    reach: [{arm: 'R', to: 'foot.L', offset: [-0.07, -0.02, 0.04], pole: [-0.5, 0, 1], w: 'always'}, {arm: 'L', to: 'foot.L', offset: [0.07, -0.02, 0.04], pole: [1, 0, 0.3], w: 'out'}], keys: [
+    {hips: [55, 0, 0], upperleg: [0.1, -0.3, 0.95], lowerleg: [0.08, -1, 0.04], upperarm: [0.2, 1, 0.1], lowerarm: [0.15, 1, 0.1], grip: 0},
+    {hips: [55, 0, 0], chest: [0, 38, 0], spineLow: [0, 12, 0], upperleg: [0.1, -0.3, 0.95], lowerleg: [0.08, -1, 0.04], upperarm: [0.2, 1, 0.1], lowerarm: [0.15, 1, 0.1], grip: 0},
+  ]},
+  kneeCircles: {anchor: 'feet', view: [20, 10, 0.4],
+    reach: [{arm: 'L', to: 'lowerleg.L', offset: [0, 0.01, 0.04], pole: [1, 0, -0.3], w: 'always'}, {arm: 'R', to: 'lowerleg.R', offset: [0, 0.01, 0.04], pole: [-1, 0, -0.3], w: 'always'}], keys: [
+    {hips: [46, 0, 0], head: [-26, 0, 0], upperleg: [0.32, -0.85, 0.4], lowerleg: [-0.12, -0.95, -0.25], upperlegR: [0.2, -0.88, 0.4], lowerlegR: [-0.25, -0.92, -0.25], grip: 0.3},
+    {hips: [46, 0, 0], head: [-26, 0, 0], upperleg: [-0.2, -0.88, 0.4], lowerleg: [0.25, -0.92, -0.25], upperlegR: [-0.32, -0.85, 0.4], lowerlegR: [0.12, -0.95, -0.25], grip: 0.3},
+  ]},
+  rollerBack: {anchor: 'lying', surface: 0.01, hold: true, view: [75, 20, 0.16], props: ['mat', 'roller'], keys: [
+    {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
+    {...LYING_KNEES, chest: [-14, 0, 0], neck: [-8, 0, 0], upperarm: [0.25, 0.95, -0.15], lowerarm: [0.2, 0.95, -0.2]},
   ]},
 };
 export const MOTION_IDS = Object.keys(MOTIONS);
@@ -240,7 +288,8 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
     curlAxis.set(`finger${f}-${k}.${side}`, new THREE.Vector3().crossVectors(b.sub(a).normalize(), f === 1 ? palm[side].along : palm[side].normal).normalize());
   }
   const anchor = motion.anchor, deg = Math.PI / 180;
-  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(anchor === 'lying' ? -Math.PI / 2 : anchor === 'plank' ? Math.PI / 2 : 0, 0, 0));
+  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(anchor === 'lying' ? -Math.PI / 2 : anchor === 'plank' || anchor === 'quadruped' ? Math.PI / 2 : 0, 0, 0));
+  const frameInv = frame.clone().invert();
   let backDepth = 0;
   if (anchor === 'lying') { let minZ = Infinity; for (let i = 0; i < segments.length; i++) if (segments[i] === 0) minZ = Math.min(minZ, pos[i * 3 + 2]); backDepth = heads[0][2] - minZ; }
   const restHips = V(heads[0]), restFeet = V(heads[id('foot.L')]).add(V(heads[id('foot.R')])).multiplyScalar(0.5), restFootL = V(heads[id('foot.L')]);
@@ -307,13 +356,18 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       const g = grips(), hold = g[0].clone().add(g[1]).multiplyScalar(0.5);
       if (!gripTarget) gripTarget = new THREE.Vector3(0, hold.y - avg('foot.L', 'foot.R').y + 0.18, 0);
       shiftAll(gripTarget.clone().sub(hold));
-    } else if (anchor === 'plank') {
-      // Pivot around the toes until the hands reach the floor (wrists ~4 cm up, ankles ~10 cm up).
-      const v = avg('hand.L', 'hand.R').sub(avg('foot.L', 'foot.R')), r = Math.hypot(v.y, v.z);
-      const wrap = x => Math.atan2(Math.sin(x), Math.cos(x)), c = Math.acos(clamp(-0.06 / r, -1, 1)), phi = Math.atan2(v.z, v.y);
+    } else if (anchor === 'plank' || anchor === 'quadruped') {
+      // Pivot around the toes (plank) or knees (all fours) until the hands reach the floor.
+      // Heights above the floor: wrists ~4 cm, ankles on the toes ~10 cm, knees ~6 cm.
+      const [j, dy, y0, z0] = anchor === 'plank' ? ['foot', -0.06, 0.1, -H * 0.5] : ['lowerleg', -0.02, 0.06, -H * 0.18];
+      const v = avg('hand.L', 'hand.R').sub(avg(j + '.L', j + '.R')), r = Math.hypot(v.y, v.z);
+      const wrap = x => Math.atan2(Math.sin(x), Math.cos(x)), c = Math.acos(clamp(dy / r, -1, 1)), phi = Math.atan2(v.z, v.y);
       const a = [wrap(c - phi), wrap(-c - phi)].sort((p, q) => Math.abs(p) - Math.abs(q))[0];
       fk(t, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), a).multiply(rootQ), restHips);
-      shiftAll(new THREE.Vector3(0, 0.1, -H * 0.5).sub(avg('foot.L', 'foot.R')));
+      shiftAll(new THREE.Vector3(0, y0, z0).sub(avg(j + '.L', j + '.R')));
+    } else if (anchor === 'seated') {
+      // Sitting: the planted foot's ankle rests ~8 cm above the floor; the seat sits under the thighs.
+      shiftAll(new THREE.Vector3(0, 0.08 - worldP[id('foot.' + motion.seatFoot)].y, 0));
     }
     // Two-bone IK, blended in by weight w: the back leg of a lunge, hands reaching a foot or elbow.
     const solved = {};
@@ -322,12 +376,19 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       const a = mid0.distanceTo(root), b = end0.distanceTo(mid0), u = target.clone().sub(root), d = Math.min(u.length(), (a + b) * 0.999); u.normalize();
       const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), p = pole.clone().addScaledVector(u, -pole.dot(u)).normalize();
       const mid = root.clone().addScaledVector(u, a * cosA).addScaledVector(p, a * Math.sqrt(1 - cosA * cosA)), tip = root.clone().addScaledVector(u, d);
-      const mix = (from, to) => from.normalize().lerp(to.normalize(), w).normalize().toArray();
+      const mix = (from, to) => from.normalize().lerp(to.normalize(), w).normalize().applyQuaternion(frameInv).toArray();
       solved[upper] = mix(mid0.clone().sub(root), mid.clone().sub(root)); solved[lower] = mix(end0.clone().sub(mid0), tip.sub(mid));
     };
-    if (motion.backFoot) ik('upperleg.R', 'lowerleg.R', 'foot.R', new THREE.Vector3(heads[id('foot.R')][0], motion.backFootY ?? 0.11, restFootL.z - H * motion.backFoot), new THREE.Vector3(0, -0.4, 1));
-    for (const r of motion.reach || []) ik(`upperarm.${r.arm}`, `lowerarm.${r.arm}`, `hand.${r.arm}`, worldP[id(r.to)].clone().add(new THREE.Vector3(...r.offset).multiplyScalar(H)), new THREE.Vector3(...r.pole), t);
-    if (Object.keys(solved).length) { over = solved; fk(t, bones[0].quaternion.clone(), bones[0].position.clone()); over = null; }
+    // Solved in order, re-running FK after each so later targets see earlier results (a hand holding an IK'd ankle).
+    const rootQ1 = bones[0].quaternion.clone(), rootP1 = bones[0].position.clone(), V3 = a => new THREE.Vector3(...a);
+    const solve = (upper, lower, end, target, pole, w) => { ik(upper, lower, end, target, pole, w); over = solved; fk(t, rootQ1, rootP1); };
+    if (motion.backFoot) solve('upperleg.R', 'lowerleg.R', 'foot.R', V3([heads[id('foot.R')][0], motion.backFootY ?? 0.11, restFootL.z - H * motion.backFoot]), V3([0, -0.4, 1]), 1);
+    for (const r of motion.reach || []) {
+      // r.arm / r.leg: side; r.to: joint; r.offset: x height; r.w: 'in' (default, with the motion), 'out' or 'always'.
+      const side = r.arm || r.leg, [u, l, e] = r.arm ? ['upperarm', 'lowerarm', 'hand'] : ['upperleg', 'lowerleg', 'foot'];
+      solve(`${u}.${side}`, `${l}.${side}`, `${e}.${side}`, worldP[id(r.to)].clone().addScaledVector(V3(r.offset), H), V3(r.pole), r.w === 'always' ? 1 : r.w === 'out' ? 1 - t : t);
+    }
+    over = null;
     return grips();
   }
 
@@ -356,6 +417,14 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       const bar = cyl(0.017, 0.46, metal), wire = cyl(0.006, 1, metal), pulley = cyl(0.05, 0.03, metal), top = new THREE.Vector3(0, H * 1.18, H * 0.3);
       bar.rotation.z = Math.PI / 2; pulley.rotation.z = Math.PI / 2; pulley.position.copy(top); props.add(bar, wire, pulley);
       updates.push(grips => { const m = mid(grips), d = top.clone().sub(m); bar.position.copy(m); wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize()); });
+    }
+    if (p === 'seat') {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1, 0.4), pad); props.add(box);
+      updates.push(() => { if (box.userData.placed) return; box.userData.placed = true; const top = worldP[0].y - H * 0.06; box.scale.y = top; box.position.set(0, top / 2, worldP[0].z + 0.12); });
+    }
+    if (p === 'roller') {
+      const r = cyl(0.075, 0.9, new THREE.MeshStandardMaterial({color: '#3f6f8f', roughness: 0.7})); r.rotation.z = Math.PI / 2; props.add(r);
+      updates.push(() => { if (r.userData.placed) return; r.userData.placed = true; r.position.set(0, 0.075, worldP[id('chest')].z); });
     }
     if (p === 'wall') {
       const w = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 0.08), new THREE.MeshStandardMaterial({color: '#4a4744', roughness: 0.9})); props.add(w);
