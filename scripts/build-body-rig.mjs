@@ -1,4 +1,4 @@
-// Builds dist/models/body-rig.bin: a 17-bone skeleton and skin weights for the body models,
+// Builds dist/models/body-rig.bin: a 49-bone skeleton (body + three joints per finger) and skin weights for the body models,
 // reduced from MakeHuman's CC0 default rig (makehuman/data/rigs/default.mhskel + default_weights.mhw).
 // Usage: node scripts/build-body-rig.mjs <makehuman/data folder>
 //
@@ -34,6 +34,8 @@ const sides = s => [
   [`clavicle.${s}`, 'chest', `clavicle.${s}`], [`upperarm.${s}`, `clavicle.${s}`, `upperarm01.${s}`], [`lowerarm.${s}`, `upperarm.${s}`, `lowerarm01.${s}`],
   [`hand.${s}`, `lowerarm.${s}`, `wrist.${s}`], [`upperleg.${s}`, 'hips', `upperleg01.${s}`], [`lowerleg.${s}`, `upperleg.${s}`, `lowerleg01.${s}`],
   [`foot.${s}`, `lowerleg.${s}`, `foot.${s}`],
+  // Fingers 1 (thumb) to 5, three joints each, so hands can close around a handle.
+  ...[1, 2, 3, 4, 5].flatMap(f => [1, 2, 3].map(k => [`finger${f}-${k}.${s}`, k === 1 ? `hand.${s}` : `finger${f}-${k - 1}.${s}`, `finger${f}-${k}.${s}`])),
 ];
 const BONES = [['hips', null, 'root'], ['spineLow', 'hips', 'spine04'], ['chest', 'spineLow', 'spine02'], ['neck', 'chest', 'neck01'], ['head', 'neck', 'head'], ...sides('L'), ...sides('R')];
 const index = new Map(BONES.map(([name], i) => [name, i])), anchor = new Map(BONES.map(([name, , mh]) => [mh, name]));
@@ -41,10 +43,9 @@ const index = new Map(BONES.map(([name], i) => [name, i])), anchor = new Map(BON
 const reduced = mh => { for (let b = mh; b; b = skel.bones[b].parent) if (anchor.has(b)) return index.get(anchor.get(b)); return 0; };
 
 const jointPos = name => { const ids = skel.joints[name]; return [0, 1, 2].map(a => ids.reduce((s, i) => s + verts[i][a], 0) / ids.length); };
-const RING = 40;
 const bones = BONES.map(([name, parent, mh]) => {
-  const p = jointPos(skel.bones[mh].head);
-  const ring = used.map((v, i) => [i, Math.hypot(...verts[v].map((x, a) => x - p[a]))]).sort((a, b) => a[1] - b[1]).slice(0, RING).map(([i]) => i);
+  const p = jointPos(skel.bones[mh].head), ringSize = name.startsWith('finger') ? 10 : 40; // finger joints: only their own finger
+  const ring = used.map((v, i) => [i, Math.hypot(...verts[v].map((x, a) => x - p[a]))]).sort((a, b) => a[1] - b[1]).slice(0, ringSize).map(([i]) => i);
   const c = [0, 1, 2].map(a => ring.reduce((s, i) => s + verts[used[i]][a], 0) / ring.length);
   return {name, parent: parent == null ? -1 : index.get(parent), ring, offset: p.map((x, a) => (x - c[a]) / height)};
 });
@@ -85,4 +86,4 @@ new Uint8Array(buf, o, n * 4).set(boneIdx); o += n * 4;
 new Uint8Array(buf, o, n * 4).set(boneW);
 writeFileSync('dist/models/body-rig.bin', new Uint8Array(buf));
 console.log(`body-rig.bin: ${bones.length} bones, ${n} vertices, ${unweighted} unweighted, ${size} bytes`);
-for (const b of bones) console.log(b.name.padEnd(12), jointPos(skel.bones[BONES[index.get(b.name)][2]].head).map(x => x.toFixed(2)).join(' '));
+for (const b of bones.slice(0, 19)) console.log(b.name.padEnd(12), jointPos(skel.bones[BONES[index.get(b.name)][2]].head).map(x => x.toFixed(2)).join(' '));

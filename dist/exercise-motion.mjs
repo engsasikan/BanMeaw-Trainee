@@ -1,7 +1,17 @@
 // Which demonstration (see MOTIONS in src/body3d.mjs) to play for an exercise name, Thai or English.
-// First match wins, so narrower patterns (split squat, pushdown) come before broader ones.
+// First match wins, so narrower patterns (stretches, split squat, pushdown) come before broader ones.
 const RULES = [
+ // Stretches first: 'Calf Stretch' is not a calf raise, 'Triceps Stretch' is not an extension.
+ ['quadStretch', /(quad|rectus femoris|hip flexor).*stretch|ยืดต้นขาหน้า/i],
+ ['hamstringStretch', /(hamstring|runners|lower back|spine|toe touch).*stretch|stretch.*hamstring|ยืดต้นขาหลัง|ยืดหลังขา/i],
+ ['calfStretch', /(calf|calves|peroneals|tibialis|achilles).*stretch|ยืดน่อง/i],
+ ['tricepsStretch', /tricep.*stretch|ยืดหลังแขน/i],
+ ['chestStretch', /(chest|pec|pectoral).*stretch|ยืดอก/i],
+ ['shoulderStretch', /(rear delt|deltoid|shoulder|upper back|cross.?body).*stretch|ยืดไหล่/i],
+ ['neckStretch', /neck.*stretch|ยืดคอ/i],
+ ['sideStretch', /(lateral|side|lat|oblique).*stretch|ยืดข้างลำตัว|ยืดเอว/i],
  ['lunge', /lunge|split squat|ลันจ์|สปลิต/i],
+ ['kettlebellSwing', /swing|สวิง/i],
  ['deadlift', /deadlift|good morning|เดดลิฟ/i],
  ['squat', /squat|สควอ?[ตท]|กอบเล็ต/i],
  ['pushdown', /push.?down|พุชดาวน์/i],

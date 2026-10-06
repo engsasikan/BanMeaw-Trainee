@@ -1,4 +1,4 @@
-import {initTrainingSession} from './training-session.mjs?v=6';
+import {initTrainingSession} from './training-session.mjs?v=7';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=1';
 import {initNutrition} from './nutrition.mjs?v=1';
@@ -10,8 +10,8 @@ import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=14';
 import {attachExercisePicker} from './exercise-picker.mjs?v=10';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
-import {initTeams} from './team.mjs?v=29';
-import {initBody,quickWeigh} from './body.mjs?v=29';
+import {initTeams} from './team.mjs?v=30';
+import {initBody,quickWeigh} from './body.mjs?v=30';
 import {initToday} from './today.mjs?v=8';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();

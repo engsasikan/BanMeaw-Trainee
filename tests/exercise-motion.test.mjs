@@ -13,11 +13,15 @@ test('exercise names map to demonstrations', () => {
     ['Triceps Pushdown', 'pushdown'], ['Overhead Triceps Extension', 'overheadExtension'],
     ['Deadlift', 'deadlift'], ['Romanian Deadlift', 'deadlift'], ['Lunge', 'lunge'], ['Bulgarian Split Squat', 'lunge'],
     ['Push-up', 'pushup'], ['Pull-up', 'pullup'], ['Lat Pulldown', 'pullup'], ['Assisted Pull-up', 'pullup'],
+    ['Kettlebell Swing', 'kettlebellSwing'], ['Weighted Lunge With Swing', 'lunge'],
+    ['Hamstring Stretch', 'hamstringStretch'], ['All Fours Squad Stretch', 'quadStretch'], ['Calf Stretch With Hands Against Wall', 'calfStretch'],
+    ['Chest And Front Of Shoulder Stretch', 'chestStretch'], ['Rear Deltoid Stretch', 'shoulderStretch'], ['Overhead Triceps Stretch', 'tricepsStretch'],
+    ['Standing Lateral Stretch', 'sideStretch'], ['Neck Side Stretch', 'neckStretch'],
   ]) assert.equal(motionFor(name), motion, name);
 });
 
 test('look-alike names get no demonstration', () => {
-  for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', 'Dips', 'Calf Raise', '', null])
+  for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', 'Dips', 'Calf Raise', 'Seated Glute Stretch', 'Single Leg Bridge With Outstretched Leg', '', null])
     assert.equal(motionFor(name), null, String(name));
 });
 

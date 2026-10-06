@@ -76,7 +76,7 @@ export function loadModel(sex) {
 // Skeleton + skin weights (dist/models/body-rig.bin, built by scripts/build-body-rig.mjs).
 let rigPromise = null;
 export function loadRig() {
-  return rigPromise ??= fetch(new URL('./models/body-rig.bin?v=1', import.meta.url)).then(r => { if (!r.ok) throw Error('rig'); return r.arrayBuffer(); }).then(buf => {
+  return rigPromise ??= fetch(new URL('./models/body-rig.bin?v=2', import.meta.url)).then(r => { if (!r.ok) throw Error('rig'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3, nb = view.getUint32(4, true), n = view.getUint32(8, true), bones = [];
     let o = 12;
     for (let b = 0; b < nb; b++) {
@@ -107,42 +107,42 @@ const MOTIONS = {
     {hips: [38, 0, 0], spineLow: [-6, 0, 0], chest: [-4, 0, 0], head: [-22, 0, 0], upperleg: [0.36, -0.22, 0.9], lowerleg: [0.16, -0.93, -0.33], upperarm: [0.12, 0.08, 1], lowerarm: [0.04, 0.08, 1]},
   ]},
   bench: {anchor: 'lying', surface: 0.43, view: [38, 30, 0.3], props: ['bench', 'barbell'], keys: [
-    {upperleg: [0.28, -0.94, -0.18], lowerleg: [0.06, -0.12, -1], upperarm: [0.36, -0.22, 0.9], lowerarm: [0.03, -0.05, 1]},
-    {upperleg: [0.28, -0.94, -0.18], lowerleg: [0.06, -0.12, -1], upperarm: [0.8, -0.42, -0.36], lowerarm: [-0.12, -0.08, 1]},
+    {upperleg: [0.28, -0.94, -0.18], lowerleg: [0.06, -0.12, -1], upperarm: [0.36, -0.22, 0.9], lowerarm: [0.03, -0.05, 1], twist: 55},
+    {upperleg: [0.28, -0.94, -0.18], lowerleg: [0.06, -0.12, -1], upperarm: [0.8, -0.42, -0.36], lowerarm: [-0.12, -0.08, 1], twist: 42},
   ]},
-  row: {anchor: 'feet', view: [72, 10, 0.45], props: ['dumbbells'], grip: [0, 0, 1], keys: [
-    {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.06, -1, 0.1], lowerarm: [0.04, -1, 0.04]},
-    {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.16, -0.3, -0.94], lowerarm: [0.03, -1, 0.02]},
+  row: {anchor: 'feet', view: [72, 10, 0.45], props: ['dumbbells'], keys: [
+    {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.06, -1, 0.1], lowerarm: [0.04, -1, 0.04], twist: -16},
+    {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.16, -0.3, -0.94], lowerarm: [0.03, -1, 0.02], twist: 6},
   ]},
-  curl: {anchor: 'feet', view: [38, 8, 0.55], props: ['dumbbells'], grip: [1, 0, 0], keys: [
-    {...STAND, upperarm: [0.08, -1, 0], lowerarm: [0.1, -1, 0.06]},
-    {...STAND, upperarm: [0.08, -1, 0.08], lowerarm: [0.06, 0.78, 0.62]},
+  curl: {anchor: 'feet', view: [38, 8, 0.55], props: ['dumbbells'], keys: [
+    {...STAND, upperarm: [0.08, -1, 0], lowerarm: [0.1, -1, 0.06], twist: -73},
+    {...STAND, upperarm: [0.08, -1, 0.08], lowerarm: [0.06, 0.78, 0.62], twist: -93},
   ]},
   crunch: {anchor: 'lying', surface: 0.01, view: [70, 22, 0.18], props: ['mat'], keys: [
     {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.22, -0.9, 0.3], lowerarm: [0.12, -0.95, 0.25]},
     {spineLow: [9, 0, 0], chest: [17, 0, 0], neck: [12, 0, 0], upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.2, -0.85, 0.48], lowerarm: [0.1, -0.85, 0.5]},
   ]},
-  shoulderPress: {anchor: 'feet', view: [28, 6, 0.68, 1.15], props: ['dumbbells'], grip: [1, 0, 0], keys: [
-    {...LEGS, upperarm: [0.96, -0.12, 0.25], lowerarm: [0.04, 1, 0.08]},
-    {...LEGS, upperarm: [0.3, 1, 0.06], lowerarm: [0.12, 1, 0.04]},
+  shoulderPress: {anchor: 'feet', view: [28, 6, 0.68, 1.15], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.96, -0.12, 0.25], lowerarm: [0.04, 1, 0.08], twist: -5},
+    {...LEGS, upperarm: [0.3, 1, 0.06], lowerarm: [0.12, 1, 0.04], twist: -66},
   ]},
-  lateralRaise: {anchor: 'feet', view: [12, 6, 0.58, 1.1], props: ['dumbbells'], grip: [0, 0, 1], keys: [
-    {...LEGS, upperarm: [0.14, -1, 0.06], lowerarm: [0.2, -1, 0.12]},
-    {...LEGS, upperarm: [1, 0.04, 0.12], lowerarm: [1, -0.04, 0.2]},
+  lateralRaise: {anchor: 'feet', view: [12, 6, 0.58, 1.1], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.14, -1, 0.06], lowerarm: [0.2, -1, 0.12], twist: 16},
+    {...LEGS, upperarm: [1, 0.04, 0.12], lowerarm: [1, -0.04, 0.2], twist: 16},
   ]},
   pushdown: {anchor: 'feet', view: [62, 8, 0.62, 1.15], props: ['cable'], keys: [
-    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.12, 0.35, 0.93]},
-    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.04, -1, 0.1]},
+    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.12, 0.35, 0.93], twist: 97},
+    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.04, -1, 0.1], twist: 96},
   ]},
   overheadExtension: {anchor: 'feet', view: [75, 6, 0.66, 1.1], props: ['onedumbbell'], keys: [
     {...LEGS, upperarm: [0.14, 1, 0.12], lowerarm: [-0.2, -0.5, -0.84]},
     {...LEGS, upperarm: [0.14, 1, 0.12], lowerarm: [-0.08, 1, 0.06]},
   ]},
   deadlift: {anchor: 'feet', view: [70, 8, 0.45], props: ['barbell'], keys: [
-    {hips: [58, 0, 0], neck: [-10, 0, 0], head: [-26, 0, 0], upperleg: [0.14, -0.6, 0.79], lowerleg: [0.1, -0.95, -0.3], upperarm: [0.1, -1, 0.02], lowerarm: [0.06, -1, 0]},
-    {...STAND, upperarm: [0.1, -1, 0.04], lowerarm: [0.06, -1, 0.02]},
+    {hips: [58, 0, 0], neck: [-10, 0, 0], head: [-26, 0, 0], upperleg: [0.14, -0.6, 0.79], lowerleg: [0.1, -0.95, -0.3], upperarm: [0.1, -1, 0.02], lowerarm: [0.06, -1, 0], twist: 78},
+    {...STAND, upperarm: [0.1, -1, 0.04], lowerarm: [0.06, -1, 0.02], twist: 78},
   ]},
-  // Back (right) leg reaches a spot 0.36 x height behind the front foot, on the ball of the foot.
+  // Back (right) leg reaches a spot 0.36 x height behind the front foot, on the ball of the foot (IK).
   lunge: {anchor: 'footL', view: [80, 8, 0.42], backFoot: 0.36, keys: [
     {upperleg: [0.1, -0.85, 0.5], lowerleg: [0.1, -1, 0], footR: [-10, 0, 0], upperarm: [0.14, -1, 0.04], lowerarm: [0.14, -1, 0.08]},
     {upperleg: [0.1, -0.3, 0.95], lowerleg: [0.08, -1, 0.04], footR: [-25, 0, 0], upperarm: [0.14, -1, 0.04], lowerarm: [0.14, -1, 0.08]},
@@ -152,13 +152,52 @@ const MOTIONS = {
     {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.55, -0.5, -0.67], lowerarm: [0.02, 0.2, 1], hand: [0, 1, 0.1]},
   ]},
   pullup: {anchor: 'hands', view: [40, 4, 0.7, 1.3], props: ['pullbar'], keys: [
-    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.38, 1, 0.02], lowerarm: [0.22, 1, 0.02]},
-    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.94, -0.35, -0.04], lowerarm: [0.05, 1, 0.02]},
+    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.38, 1, 0.02], lowerarm: [0.22, 1, 0.02], twist: -71},
+    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.94, -0.35, -0.04], lowerarm: [0.05, 1, 0.02], twist: -17},
+  ]},
+  kettlebellSwing: {anchor: 'feet', view: [72, 8, 0.5, 1.15], props: ['kettlebell'], keys: [
+    {hips: [62, 0, 0], neck: [-8, 0, 0], head: [-22, 0, 0], upperleg: [0.2, -0.82, 0.54], lowerleg: [0.16, -0.97, -0.18], upperarm: [-0.3, -0.85, -0.45], lowerarm: [-0.26, -0.8, -0.55], twist: 80},
+    {upperleg: [0.2, -1, 0.02], lowerleg: [0.16, -1, -0.05], upperarm: [-0.3, 0.08, 1], lowerarm: [-0.26, 0.1, 1], twist: 80},
+  ]},
+  // Stretches: ease in, hold, release (hold: true). 'reach' bends an arm to hold a foot or elbow.
+  hamstringStretch: {anchor: 'feet', hold: true, view: [75, 8, 0.45], keys: [
+    {...STAND},
+    {hips: [82, 0, 0], spineLow: [14, 0, 0], chest: [10, 0, 0], upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06], upperarm: [0.06, -1, 0.08], lowerarm: [0.04, -1, 0.12]},
+  ]},
+  quadStretch: {anchor: 'feet', hold: true, view: [70, 8, 0.5], reach: [{arm: 'R', to: 'foot.R', offset: [0, 0.02, -0.02], pole: [-0.2, -0.3, -1]}], keys: [
+    {...STAND},
+    {upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06], upperlegR: [-0.06, -1, -0.08], lowerlegR: [-0.06, 0.72, -0.7], footR: [-50, 0, 0], upperarm: [0.85, -0.5, 0.15], lowerarm: [0.9, -0.3, 0.3], grip: 0.8},
+  ]},
+  calfStretch: {anchor: 'footL', hold: true, backFoot: 0.4, backFootY: 0.08, view: [80, 8, 0.48], props: ['wall'], keys: [
+    {hips: [18, 0, 0], upperleg: [0.1, -0.92, 0.38], lowerleg: [0.1, -1, 0.08], upperarm: [0.15, 0.2, 1], lowerarm: [0.1, 0.3, 1], hand: [0.05, 1, 0.1], grip: 0},
+    {hips: [24, 0, 0], upperleg: [0.1, -0.8, 0.6], lowerleg: [0.1, -1, 0.3], upperarm: [0.15, 0.25, 1], lowerarm: [0.1, 0.35, 1], hand: [0.05, 1, 0.1], grip: 0},
+  ]},
+  chestStretch: {anchor: 'feet', hold: true, view: [60, 8, 0.6], keys: [
+    {...STAND},
+    {...LEGS, chest: [-10, 0, 0], head: [-6, 0, 0], upperarm: [0.2, -0.8, -0.56], lowerarm: [-0.42, -0.75, -0.5], grip: 0.6},
+  ]},
+  shoulderStretch: {anchor: 'feet', hold: true, view: [25, 6, 0.65], reach: [{arm: 'R', to: 'lowerarm.L', offset: [0, -0.01, 0.03], pole: [-0.2, -1, 0.2]}], keys: [
+    {...STAND},
+    {...LEGS, upperarm: [-0.92, 0.05, 0.38], lowerarm: [-1, 0, 0.1], upperarmR: [-0.1, -1, 0.02], lowerarmR: [-0.12, -1, 0.06], grip: 0.6},
+  ]},
+  tricepsStretch: {anchor: 'feet', hold: true, view: [35, 6, 0.68, 1.1], reach: [{arm: 'R', to: 'lowerarm.L', offset: [-0.01, 0.01, 0], pole: [-1, 0.2, 0.3]}], keys: [
+    {...STAND},
+    {...LEGS, upperarm: [0.1, 1, -0.05], lowerarm: [-0.45, -0.85, -0.25], upperarmR: [-0.1, -1, 0.02], lowerarmR: [-0.12, -1, 0.06], grip: 0.5},
+  ]},
+  sideStretch: {anchor: 'feet', hold: true, view: [8, 6, 0.62, 1.2], keys: [
+    {...STAND},
+    {...LEGS, spineLow: [0, 0, 12], chest: [0, 0, 16], neck: [0, 0, 6], upperarm: [-0.35, 1, 0], lowerarm: [-0.65, 0.75, 0], upperarmR: [-0.12, -1, 0.04], lowerarmR: [-0.14, -1, 0.06]},
+  ]},
+  neckStretch: {anchor: 'feet', hold: true, view: [10, 6, 0.75, 0.75], keys: [
+    {...STAND},
+    {...STAND, neck: [0, 0, 16], head: [0, 0, 18]},
   ]},
 };
 export const MOTION_IDS = Object.keys(MOTIONS);
+// Closing the hand: degrees per joint at full grip; where a handle sits (fraction wrist -> knuckles, distance off the palm / height).
+const FINGER_CURL = [70, 95, 55], THUMB_CURL = [40, 30, 35], PALM_SIDE = 1, GRIP_ALONG = 0.95, GRIP_OUT = 0.018;
 const LIMBS = [['upperarm', 'lowerarm'], ['lowerarm', 'hand'], ['upperleg', 'lowerleg'], ['lowerleg', 'foot']];
-const SPINE = ['hips', 'spineLow', 'chest', 'neck', 'head'];
+const SPINE = ['hips', 'spineLow', 'chest', 'neck', 'head'], ZERO = [0, 0, 0];
 const ease = t => t * t * (3 - 2 * t);
 
 // Rigged figure for one motion: returns {mesh, props, tick(seconds)}.
@@ -183,7 +222,22 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const restDir = new Map();
   for (const side of ['L', 'R']) {
     for (const [a, b] of LIMBS) restDir.set(`${a}.${side}`, V(heads[id(`${b}.${side}`)]).sub(V(heads[id(`${a}.${side}`)])).normalize());
-    restDir.set(`hand.${side}`, restDir.get(`lowerarm.${side}`)); // the hand continues the forearm
+    restDir.set(`hand.${side}`, V(heads[id(`finger3-1.${side}`)]).sub(V(heads[id(`hand.${side}`)])).normalize());
+  }
+  // Hands: knuckle line (index -> little finger) and palm normal, from the left hand, mirrored for the right.
+  const palm = {};
+  {
+    const P = n => V(heads[id(n + '.L')]), across = P('finger2-1').sub(P('finger5-1')).normalize();
+    const along = P('finger2-1').add(P('finger5-1')).multiplyScalar(0.5).sub(P('hand')).normalize();
+    const normal = new THREE.Vector3().crossVectors(along, across).normalize().multiplyScalar(PALM_SIDE);
+    const m = v => new THREE.Vector3(-v.x, v.y, v.z);
+    palm.L = {across, along, normal}; palm.R = {across: m(across), along: m(along), normal: m(normal)};
+  }
+  // Finger curl axes: across each phalanx, so a positive angle closes the finger towards the palm.
+  const curlAxis = new Map();
+  for (const side of ['L', 'R']) for (let f = 1; f <= 5; f++) for (let k = 1; k <= 3; k++) {
+    const a = V(heads[id(`finger${f}-${Math.min(k, 2)}.${side}`)]), b = V(heads[id(`finger${f}-${Math.min(k, 2) + 1}.${side}`)]);
+    curlAxis.set(`finger${f}-${k}.${side}`, new THREE.Vector3().crossVectors(b.sub(a).normalize(), f === 1 ? palm[side].along : palm[side].normal).normalize());
   }
   const anchor = motion.anchor, deg = Math.PI / 180;
   const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(anchor === 'lying' ? -Math.PI / 2 : anchor === 'plank' ? Math.PI / 2 : 0, 0, 0));
@@ -192,7 +246,8 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const restHips = V(heads[0]), restFeet = V(heads[id('foot.L')]).add(V(heads[id('foot.R')])).multiplyScalar(0.5), restFootL = V(heads[id('foot.L')]);
   const worldQ = bones.map(() => new THREE.Quaternion()), worldP = bones.map(() => new THREE.Vector3());
   const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), euler = new THREE.Euler();
-  const lerp3 = (a = [0, 0, 0], b = a, t) => a.map((x, k) => x + (b[k] - x) * t);
+  const lerp3 = (a = [0, 0, 0], b = a, t) => a.map((x, k) => x + (b[k] - x) * t), lerpN = (a, b, t) => a + (b - a) * t;
+  const HELD = ['dumbbells', 'onedumbbell', 'barbell', 'cable', 'pullbar', 'kettlebell'], baseGrip = (motion.props || []).some(p => HELD.includes(p)) ? 1 : 0.2;
   const mirror = d => d && [-d[0], d[1], d[2]];
   let over = null; // limb directions solved by IK, by bone name
   const keyFor = (key, base, side) => over?.[`${base}.${side}`] ?? (side === 'R' ? key[base + 'R'] ?? (base === 'foot' ? key.foot : mirror(key[base])) : key[base]);
@@ -206,48 +261,52 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       if (b.parent < 0) { bone.quaternion.copy(rootQ); bone.position.copy(rootP); worldQ[0].copy(rootQ); worldP[0].copy(rootP); return; }
       const parentQ = worldQ[b.parent];
       if (SPINE.includes(base)) {
-        const e = lerp3(A[base], B[base], t);
+        const e = lerp3(A[base] ?? ZERO, B[base] ?? ZERO, t);
         bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg));
       } else if (base === 'foot') {
         const a = keyFor(A, 'foot', side);
         if (a) { const e = lerp3(a, keyFor(B, 'foot', side), t); bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)); }
         else bone.quaternion.copy(parentQ).invert(); // flat on the floor
+      } else if (base.startsWith('finger')) {
+        // Close the hand: grip 0 = relaxed, 1 = wrapped around a handle.
+        const g = lerpN(A.grip ?? baseGrip, B.grip ?? A.grip ?? baseGrip, t), f = +base[6], k = +base[8];
+        bone.quaternion.setFromAxisAngle(curlAxis.get(b.name), (f === 1 ? THUMB_CURL : FINGER_CURL)[k - 1] * g * deg);
       } else if (keyFor(A, base, side)) {
         const a = keyFor(A, base, side), d = lerp3(a, keyFor(B, base, side) ?? a, t);
         tmpV.set(...d).normalize().applyQuaternion(frame).applyQuaternion(tmpQ.copy(parentQ).invert());
         bone.quaternion.setFromUnitVectors(restDir.get(b.name), tmpV);
+        if (base === 'lowerarm') {
+          // Forearm twist (degrees, + turns the left palm outwards; mirrored on the right).
+          const tw = lerpN(A.twist ?? 0, B.twist ?? A.twist ?? 0, t) * deg * (side === 'R' ? -1 : 1);
+          if (tw) bone.quaternion.premultiply(tmpQ.setFromAxisAngle(tmpV, tw));
+        }
       } else bone.quaternion.identity();
       worldQ[i].copy(parentQ).multiply(bone.quaternion);
       worldP[i].copy(bone.position).applyQuaternion(parentQ).add(worldP[b.parent]);
     });
   }
+  // Where each hand holds a handle: in front of the palm by the knuckles; axis along the knuckle line.
+  function grips() {
+    return ['L', 'R'].map(s => {
+      const q = worldQ[id('hand.' + s)], knuckles = avg('finger2-1.' + s, 'finger5-1.' + s), wrist = worldP[id('hand.' + s)];
+      const p = wrist.clone().lerp(knuckles, GRIP_ALONG).addScaledVector(palm[s].normal.clone().applyQuaternion(q), H * GRIP_OUT);
+      p.axis = palm[s].across.clone().applyQuaternion(q); return p;
+    });
+  }
   const shiftAll = delta => { bones[0].position.add(delta); for (const p of worldP) p.add(delta); };
   let gripTarget = null;
   function pose(t) {
-    const e = lerp3(motion.keys[0].hips, motion.keys[1].hips, t);
+    const e = lerp3(motion.keys[0].hips ?? ZERO, motion.keys[1].hips ?? ZERO, t);
     const rootQ = frame.clone().multiply(tmpQ.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)));
     fk(t, rootQ, restHips);
     if (anchor === 'feet') shiftAll(restFeet.clone().sub(avg('foot.L', 'foot.R')));
-    else if (anchor === 'footL') {
-      shiftAll(restFootL.clone().sub(worldP[id('foot.L')]));
-      if (motion.backFoot) {
-        // Two-bone IK: the back knee bends down and forward towards the floor.
-        const hip = worldP[id('upperleg.R')], knee0 = worldP[id('lowerleg.R')], ankle0 = worldP[id('foot.R')];
-        const a = knee0.distanceTo(hip), b = ankle0.distanceTo(knee0), target = new THREE.Vector3(heads[id('foot.R')][0], 0.11, restFootL.z - H * motion.backFoot);
-        const u = target.clone().sub(hip), d = Math.min(u.length(), (a + b) * 0.999); u.normalize();
-        const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), pole = new THREE.Vector3(0, -0.4, 1);
-        const w = pole.addScaledVector(u, -pole.dot(u)).normalize();
-        const knee = hip.clone().addScaledVector(u, a * cosA).addScaledVector(w, a * Math.sqrt(1 - cosA * cosA)), ankle = hip.clone().addScaledVector(u, d);
-        over = {'upperleg.R': knee.clone().sub(hip).toArray(), 'lowerleg.R': ankle.sub(knee).toArray()};
-        const shift = bones[0].position.clone().sub(restHips);
-        fk(t, rootQ, restHips.clone().add(shift)); over = null;
-      }
-    }
+    else if (anchor === 'footL') shiftAll(restFootL.clone().sub(worldP[id('foot.L')]));
     else if (anchor === 'lying') shiftAll(new THREE.Vector3(0, motion.surface + backDepth, H * 0.12).sub(worldP[0]));
     else if (anchor === 'hands') {
       // Bar height: hanging straight, feet clear the floor.
-      if (!gripTarget) { const s = avg('hand.L', 'hand.R').y - avg('foot.L', 'foot.R').y; gripTarget = new THREE.Vector3(0, s + 0.18, 0); }
-      shiftAll(gripTarget.clone().sub(avg('hand.L', 'hand.R')));
+      const g = grips(), hold = g[0].clone().add(g[1]).multiplyScalar(0.5);
+      if (!gripTarget) gripTarget = new THREE.Vector3(0, hold.y - avg('foot.L', 'foot.R').y + 0.18, 0);
+      shiftAll(gripTarget.clone().sub(hold));
     } else if (anchor === 'plank') {
       // Pivot around the toes until the hands reach the floor (wrists ~4 cm up, ankles ~10 cm up).
       const v = avg('hand.L', 'hand.R').sub(avg('foot.L', 'foot.R')), r = Math.hypot(v.y, v.z);
@@ -256,11 +315,20 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       fk(t, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), a).multiply(rootQ), restHips);
       shiftAll(new THREE.Vector3(0, 0.1, -H * 0.5).sub(avg('foot.L', 'foot.R')));
     }
-    // Grip points: a little past the wrist along the forearm.
-    return ['L', 'R'].map(s => {
-      const wrist = worldP[id('hand.' + s)].clone(), fore = wrist.clone().sub(worldP[id('lowerarm.' + s)]).normalize();
-      return wrist.addScaledVector(fore, H * 0.045);
-    });
+    // Two-bone IK, blended in by weight w: the back leg of a lunge, hands reaching a foot or elbow.
+    const solved = {};
+    const ik = (upper, lower, end, target, pole, w = 1) => {
+      const root = worldP[id(upper)], mid0 = worldP[id(lower)], end0 = worldP[id(end)];
+      const a = mid0.distanceTo(root), b = end0.distanceTo(mid0), u = target.clone().sub(root), d = Math.min(u.length(), (a + b) * 0.999); u.normalize();
+      const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), p = pole.clone().addScaledVector(u, -pole.dot(u)).normalize();
+      const mid = root.clone().addScaledVector(u, a * cosA).addScaledVector(p, a * Math.sqrt(1 - cosA * cosA)), tip = root.clone().addScaledVector(u, d);
+      const mix = (from, to) => from.normalize().lerp(to.normalize(), w).normalize().toArray();
+      solved[upper] = mix(mid0.clone().sub(root), mid.clone().sub(root)); solved[lower] = mix(end0.clone().sub(mid0), tip.sub(mid));
+    };
+    if (motion.backFoot) ik('upperleg.R', 'lowerleg.R', 'foot.R', new THREE.Vector3(heads[id('foot.R')][0], motion.backFootY ?? 0.11, restFootL.z - H * motion.backFoot), new THREE.Vector3(0, -0.4, 1));
+    for (const r of motion.reach || []) ik(`upperarm.${r.arm}`, `lowerarm.${r.arm}`, `hand.${r.arm}`, worldP[id(r.to)].clone().add(new THREE.Vector3(...r.offset).multiplyScalar(H)), new THREE.Vector3(...r.pole), t);
+    if (Object.keys(solved).length) { over = solved; fk(t, bones[0].quaternion.clone(), bones[0].position.clone()); over = null; }
+    return grips();
   }
 
   // Simple equipment; each piece follows the grips through its update(grips).
@@ -268,25 +336,35 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const cyl = (r, len, m) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m);
   const dumbbell = () => { const g = new THREE.Group(); g.add(cyl(0.016, 0.3, metal)); for (const y of [-0.11, 0.11]) { const w = cyl(0.055, 0.07, metal); w.position.y = y; g.add(w); } return g; };
   const barbell = () => { const g = new THREE.Group(), bar = cyl(0.014, 1.75, metal); bar.rotation.z = Math.PI / 2; g.add(bar); for (const x of [-0.68, 0.68]) { const w = cyl(0.16, 0.05, metal); w.rotation.z = Math.PI / 2; w.position.x = x; g.add(w); } return g; };
-  const up = new THREE.Vector3(0, 1, 0), axis = new THREE.Vector3(...(motion.grip || [1, 0, 0]));
+  const up = new THREE.Vector3(0, 1, 0);
   const mid = grips => grips[0].clone().add(grips[1]).multiplyScalar(0.5);
   const updates = [];
   for (const p of motion.props || []) {
     if (p === 'bench') { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, H * 0.12 - 0.4); props.add(b); const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, motion.surface - 0.07, 0.9), metal); leg.position.set(0, (motion.surface - 0.07) / 2, H * 0.12 - 0.4); props.add(leg); }
     if (p === 'mat') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.01, 1.8), new THREE.MeshStandardMaterial({color: '#3d5a4a', roughness: 0.9})); m.position.set(0, 0.005, H * 0.12 - 0.25); props.add(m); }
     if (p === 'barbell') { const g = barbell(); props.add(g); updates.push(grips => g.position.copy(mid(grips))); }
-    if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d); updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, axis); })); }
-    if (p === 'onedumbbell') { const d = dumbbell(); props.add(d); updates.push(grips => d.position.copy(mid(grips))); }
+    if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d); updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, grips[k].axis); })); }
+    if (p === 'onedumbbell') { const d = dumbbell(); props.add(d); updates.push(grips => { d.position.copy(mid(grips)); d.quaternion.setFromUnitVectors(up, mid(grips).sub(avg('lowerarm.L', 'lowerarm.R')).normalize()); }); }
+    if (p === 'kettlebell') {
+      // Handle between both hands; the bell hangs off it along the arms.
+      const g = new THREE.Group(), handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 10, 24, Math.PI), metal), bell = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), metal);
+      handle.rotation.z = Math.PI; bell.position.y = -0.13; g.add(handle, bell); props.add(g);
+      updates.push(grips => { const fore = avg('hand.L', 'hand.R').sub(avg('lowerarm.L', 'lowerarm.R')).normalize(); g.position.copy(mid(grips)); g.quaternion.setFromUnitVectors(up, fore.negate()); });
+    }
     if (p === 'cable') {
       // Short bar between the hands, cable up to a pulley in front of the head.
       const bar = cyl(0.017, 0.46, metal), wire = cyl(0.006, 1, metal), pulley = cyl(0.05, 0.03, metal), top = new THREE.Vector3(0, H * 1.18, H * 0.3);
       bar.rotation.z = Math.PI / 2; pulley.rotation.z = Math.PI / 2; pulley.position.copy(top); props.add(bar, wire, pulley);
       updates.push(grips => { const m = mid(grips), d = top.clone().sub(m); bar.position.copy(m); wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize()); });
     }
+    if (p === 'wall') {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 0.08), new THREE.MeshStandardMaterial({color: '#4a4744', roughness: 0.9})); props.add(w);
+      updates.push(grips => { if (w.userData.placed) return; w.userData.placed = true; w.position.set(0, 1.1, Math.max(grips[0].z, grips[1].z) + 0.03 + 0.04); });
+    }
     if (p === 'pullbar') {
       const g = new THREE.Group(), bar = cyl(0.016, 1.4, metal); bar.rotation.z = Math.PI / 2; g.add(bar); props.add(g);
       updates.push(() => {
-        if (g.userData.placed) return; g.userData.placed = true; g.position.copy(gripTarget).y += H * 0.045; // in the palm, above the wrist
+        if (g.userData.placed) return; g.userData.placed = true; g.position.copy(gripTarget);
         for (const x of [-0.7, 0.7]) { const post = cyl(0.025, g.position.y, metal); post.position.set(x, -g.position.y / 2, 0); g.add(post); }
       });
     }
@@ -295,7 +373,9 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   place(pose(0));
   // 3.6 s loop: move 1.4 s, pause, return 1.4 s, pause.
   return {mesh, props, tick(seconds) {
-    const c = (seconds % 3.6) / 3.6, t = c < 0.39 ? ease(c / 0.39) : c < 0.5 ? 1 : c < 0.89 ? 1 - ease((c - 0.5) / 0.39) : 0;
+    // Stretches hold: ease in 1.6 s, hold 3.6 s, release 1.4 s, rest.
+    const c = motion.hold ? (seconds % 7) / 7 : (seconds % 3.6) / 3.6, [i, h, o] = motion.hold ? [0.23, 0.74, 0.94] : [0.39, 0.5, 0.89];
+    const t = c < i ? ease(c / i) : c < h ? 1 : c < o ? 1 - ease((c - h) / (o - h)) : 0;
     place(pose(t));
   }};
 }

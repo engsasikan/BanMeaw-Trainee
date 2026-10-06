@@ -1,7 +1,7 @@
 // Shows which muscles an exercise works, on the user's own 3D body.
 // Attaches to the workout form's #exercise field, and exports createMuscleFocus() for the guided training screen.
 import {musclesFor, MUSCLE_LABELS} from './exercise-muscles.mjs?v=2';
-import {motionFor} from './exercise-motion.mjs?v=2';
+import {motionFor} from './exercise-motion.mjs?v=3';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 let body={sex:'male'},timer;
@@ -22,7 +22,7 @@ export function createMuscleFocus(){
  async function draw(){
   try{
    // One figure per card: draws that start while body3d is still loading share the same mount.
-   mounting??=import('./body3d.js?v=17').then(m=>m.mountBody(stage));
+   mounting??=import('./body3d.js?v=18').then(m=>m.mountBody(stage));
    figure=await mounting;
    figure.setPlaying(playing);
    await figure.update({...body,focus,motion},'focus');
