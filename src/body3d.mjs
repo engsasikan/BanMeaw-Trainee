@@ -4,6 +4,7 @@
 // dist/body3d.js and loaded only on the profile page.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { predictGirths } from './girth-model.mjs';
 
 const REF = {
   male:   {fat: 18, smm: 0.42, smmRange: 0.2, mus: {la: 3.2, ra: 3.2, trunk: 26, ll: 9.5, rl: 9.5}},
@@ -607,9 +608,11 @@ export function shapeBody(model, r, lean = false) {
     ['thigh', 'measure-thigh-circ', [3, 4], 38, 47, Math.max],
     ['calf', 'measure-calf-circ', [3, 4], 12, 26, Math.max],
   ];
+  // Girths not measured: what people of this sex, height, weight (and body fat) usually measure (ANSUR II + body-fat data).
+  const usual = lean ? {} : predictGirths({...r, sex});
   // Two passes: neighbouring measures (waist/hip/bust) affect each other.
   for (let pass = 0; pass < (lean ? 0 : 2); pass++) for (const [key, name, segs, from, to, pick] of fits) {
-    const target = r[key]; if (!target) continue;
+    const target = r[key] || usual[key]; if (!target) continue;
     const measure = key === 'shoulder' ? shoulderWidth : p => girth(p, segs, from, to, pick, key === 'arm');
     const g0 = measure(pos); if (!g0 || Math.abs(target - g0) < 0.5) continue;
     const dir = target > g0 ? 1 : -1, probe = Float32Array.from(pos);
@@ -618,7 +621,8 @@ export function shapeBody(model, r, lean = false) {
     if (Math.abs(g1 - g0) < 0.1) continue;
     apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 2.5), s);
   }
-  return {pos, H};
+  const measured = Object.fromEntries(fits.map(([key, , segs, from, to, pick]) => [key, Math.round((key === 'shoulder' ? shoulderWidth(pos) : girth(pos, segs, from, to, pick, key === 'arm')) * 10) / 10]));
+  return {pos, H, girths: measured};
 }
 
 const ANATOMY_NOISE = `

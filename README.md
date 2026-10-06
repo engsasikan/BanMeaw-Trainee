@@ -30,3 +30,13 @@ The exercise picker includes 1,316 exercises from [hasaneyldrm/exercises-dataset
 git clone --depth 1 https://github.com/hasaneyldrm/exercises-dataset.git work/exercises-dataset
 node scripts/build-exercise-library.mjs
 ```
+
+## Body shape data
+
+When a girth was not measured, the 3D body uses what people of the same sex, height, weight and body fat usually measure (`src/girth-model.mjs`, built by `scripts/build-girth-model.mjs`):
+
+- **ANSUR II** (US Army anthropometric survey, public data; 1,986 women and 4,082 men): chest, waist, hip, thigh, calf, upper arm from height, weight and age. https://www.openlab.psu.edu/ansur2/
+- **Body fat, men**: Kaggle `fedesoriano/body-fat-prediction-dataset` (252 men, body fat by underwater weighing): how girths change with body fat at the same height and weight.
+- **Body fat, women**: the US Navy body-fat formula, applied to the difference from the usual body fat for that BMI (Deurenberg 1991).
+
+Only fitted coefficients are shipped, not the raw data.
