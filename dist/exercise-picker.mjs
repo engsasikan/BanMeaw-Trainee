@@ -1,3 +1,4 @@
+import {LIBRARY} from './exercise-library.mjs?v=1';
 export const EXERCISES=[
  ['เดินชัน','คาร์ดิโอ','cardio คาดิโอ incline walking uphill treadmill เดินขึ้นเนิน ลู่วิ่ง'],['เดินเร็ว','คาร์ดิโอ','cardio คาดิโอ walking treadmill ลู่วิ่ง'],['วิ่ง','คาร์ดิโอ','cardio running jogging ลู่วิ่ง'],['ปั่นจักรยาน','คาร์ดิโอ','cardio cycling bike'],['เครื่องเดินวงรี','คาร์ดิโอ','cardio elliptical'],['ขึ้นบันได','คาร์ดิโอ','cardio stair climber'],['ว่ายน้ำ','คาร์ดิโอ','cardio swimming'],['กระโดดเชือก','คาร์ดิโอ','cardio jump rope'],
  ['Barbell Squat','ขา','สควอต สควอท บาร์เบล'],['Goblet Squat','ขา','กอบเล็ต ดัมเบล สควอต'],['Leg Press','ขา','เลกเพรส เครื่องดันขา'],['Leg Extension','ขา','เหยียดขา หน้าขา'],['Leg Curl','ขา','งอขา หลังขา'],['Romanian Deadlift','ขา','rdl โรมาเนียน เดดลิฟต์ หลังขา'],['Deadlift','ขา / หลัง','เดดลิฟต์ เดดลิฟท์'],['Lunge','ขา','ลันจ์'],['Bulgarian Split Squat','ขา','บัลแกเรียน สปลิต สควอต'],['Hip Thrust','สะโพก','ฮิปทรัสต์ ก้น'],['Glute Bridge','สะโพก','กลูตบริดจ์ ก้น'],['Calf Raise','น่อง','ยกน่อง'],
@@ -9,14 +10,24 @@ export const EXERCISES=[
  ['Treadmill','คาร์ดิโอ','ลู่วิ่ง เดิน วิ่ง'],['Stationary Bike','คาร์ดิโอ','จักรยาน ปั่น'],['Rowing Machine','คาร์ดิโอ','เครื่องกรรเชียง พายเรือ'],['Elliptical','คาร์ดิโอ','เครื่องเดินวงรี'],['Jump Rope','คาร์ดิโอ','กระโดดเชือก']
 ].map(([name,group,aliases])=>({name,group,aliases}));
 const normalize=s=>s.toLocaleLowerCase().normalize('NFKC').replace(/[-_]/g,' ').trim();
-export function searchExercises(query){const tokens=normalize(query).split(/\s+/).filter(Boolean);return EXERCISES.filter(x=>tokens.every(t=>normalize(x.name+' '+x.group+' '+x.aliases).includes(t)));}
+// Full library (hasaneyldrm/exercises-dataset) after the hand-picked list, skipping names already in it.
+const curated=new Set(EXERCISES.map(x=>normalize(x.name)));
+const MORE=LIBRARY.filter(([name])=>!curated.has(normalize(name))).map(([name,group,aliases])=>({name,group,aliases}));
+export const SHOW_LIMIT=60;
+// Hand-picked first, then library names that match, then library muscle/equipment matches.
+export function searchExercises(query){
+ const tokens=normalize(query).split(/\s+/).filter(Boolean),hit=(x,text)=>tokens.every(t=>normalize(text).includes(t));
+ const more=MORE.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases));
+ return [...EXERCISES.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases)),...more.filter(x=>hit(x,x.name)),...more.filter(x=>!hit(x,x.name))];
+}
 export function attachExercisePicker(){
  const input=document.getElementById('exercise'),toggle=document.getElementById('exercise-toggle'),wrapper=document.getElementById('exercise-picker'),dropdown=document.getElementById('exercise-dropdown'),list=document.getElementById('exercise-options'),empty=document.getElementById('exercise-no-results');
  let matches=[],active=-1,buttons=[];
+ const more=document.createElement('p');more.className='exercise-more';more.hidden=true;list.after(more);
  function close(){dropdown.hidden=true;input.setAttribute('aria-expanded','false');toggle.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;}
  function highlight(){buttons.forEach((b,i)=>b.setAttribute('aria-selected',String(i===active)));if(active>=0){input.setAttribute('aria-activedescendant',buttons[active].id);buttons[active].scrollIntoView({block:'nearest'});}else input.removeAttribute('aria-activedescendant');}
  function choose(index){input.value=matches[index].name;input.setCustomValidity('');close();input.dispatchEvent(new Event('change'));input.focus();close();}
- function open(all=false){matches=searchExercises(all?'':input.value);active=-1;list.replaceChildren();buttons=[];matches.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.tabIndex=-1;b.id='exercise-option-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const name=document.createElement('span'),group=document.createElement('small');name.textContent=x.name;group.textContent=x.group;b.append(name,group);b.addEventListener('pointerdown',e=>e.preventDefault());b.onclick=()=>choose(i);buttons.push(b);list.append(b);});empty.hidden=matches.length>0;dropdown.hidden=false;input.setAttribute('aria-expanded','true');toggle.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');}
+ function open(all=false){const found=searchExercises(all?'':input.value);matches=found.slice(0,SHOW_LIMIT);active=-1;list.replaceChildren();buttons=[];matches.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.tabIndex=-1;b.id='exercise-option-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const name=document.createElement('span'),group=document.createElement('small');name.textContent=x.name;group.textContent=x.group;b.append(name,group);b.addEventListener('pointerdown',e=>e.preventDefault());b.onclick=()=>choose(i);buttons.push(b);list.append(b);});more.hidden=found.length<=matches.length;more.textContent='แสดง '+matches.length+' จาก '+found.length+' ท่า พิมพ์เพิ่มเพื่อค้นหา';empty.hidden=matches.length>0;dropdown.hidden=false;input.setAttribute('aria-expanded','true');toggle.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');}
  input.addEventListener('focus',()=>open());input.addEventListener('input',()=>open());
  toggle.onclick=()=>{if(dropdown.hidden){input.focus();open(true);}else close();};
  input.addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(dropdown.hidden)open();if(matches.length){active=e.key==='ArrowDown'?(active+1)%matches.length:active<0?matches.length-1:(active-1+matches.length)%matches.length;highlight();}}else if(e.key==='Enter'&&!dropdown.hidden&&active>=0){e.preventDefault();choose(active);}else if(e.key==='Escape'){e.preventDefault();close();}else if(e.key==='Tab')close();});

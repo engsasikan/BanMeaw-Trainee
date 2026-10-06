@@ -1,5 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=2';
-import {searchExercises} from './exercise-picker.mjs?v=7';
+import {searchExercises,SHOW_LIMIT} from './exercise-picker.mjs?v=9';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -19,10 +19,10 @@ function planExercisePicker(onChoose){
  function choose(exercise){i.value=exercise.name;summary.textContent=exercise.name;details.open=false;summary.focus();onChoose?.(exercise);}
  function render(){
   const matches=searchExercises(search.value);options.replaceChildren();
-  for(const exercise of matches){
+  for(const exercise of matches.slice(0,SHOW_LIMIT)){
    const b=el('button');b.type='button';b.append(el('span',exercise.name),el('small',exercise.group));b.setAttribute('aria-pressed',String(i.value===exercise.name));b.onclick=()=>choose(exercise);options.append(b);
   }
-  status.textContent=matches.length?'พบ '+matches.length+' ท่า':'ไม่พบท่า ลองค้นหาคำอื่น';
+  status.textContent=matches.length>SHOW_LIMIT?'พบ '+matches.length+' ท่า แสดง '+SHOW_LIMIT+' ท่าแรก พิมพ์เพิ่มเพื่อค้นหา':matches.length?'พบ '+matches.length+' ท่า':'ไม่พบท่า ลองค้นหาคำอื่น';
  }
  details.addEventListener('toggle',()=>{if(details.open){search.value='';render();}});
  search.addEventListener('input',render);

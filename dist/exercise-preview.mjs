@@ -1,6 +1,6 @@
 // Shows which muscles an exercise works, on the user's own 3D body.
 // Attaches to the workout form's #exercise field, and exports createMuscleFocus() for the guided training screen.
-import {musclesFor, MUSCLE_LABELS} from './exercise-muscles.mjs?v=1';
+import {musclesFor, MUSCLE_LABELS} from './exercise-muscles.mjs?v=2';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 let body={sex:'male'},timer;

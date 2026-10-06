@@ -21,3 +21,12 @@ npm run dev
 Cloudflare build settings: root /, no build command needed with the committed browser bundle, deploy command npx wrangler deploy. Rebuild and commit dist/account.js after changes to its source or dependencies.
 
 New accounts default to trainee. Administrator bootstrap requires a verified ADMIN_EMAIL. Trainer assignment/views and AI evaluation remain future work. Never commit database credentials or passwords.
+
+## Exercise library
+
+The exercise picker includes 1,316 exercises from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (names and muscle data, MIT License, © 2026 Hasan Emir Yıldırım). The dataset's images and GIFs belong to Gym visual and are not used. To regenerate `dist/exercise-library.mjs`:
+
+```
+git clone --depth 1 https://github.com/hasaneyldrm/exercises-dataset.git work/exercises-dataset
+node scripts/build-exercise-library.mjs
+```

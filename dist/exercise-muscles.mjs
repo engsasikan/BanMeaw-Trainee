@@ -1,6 +1,7 @@
 // Muscles each exercise works, in the 3D model's base muscle names (see scripts/body-anatomy.mjs):
 // pec, deltoid, biceps, triceps, flexor (forearm), trap, lat, erector, abs, oblique, serratus,
 // glute, quad, hamstring, adductor, calf, tibialis. p = primary, s = secondary.
+import {LIBRARY} from './exercise-library.mjs?v=1';
 const E = (p, s = []) => ({primary: p, secondary: s});
 const WALK = E(['quad', 'glute', 'calf'], ['hamstring', 'tibialis']);
 const BENCH = E(['pec'], ['triceps', 'deltoid']);
@@ -47,8 +48,10 @@ const KEYWORDS = [
  [/plank|แพลงก์/i, EXERCISE_MUSCLES['Plank']], [/crunch|sit.?up|ซิทอัพ|ท้อง|abs/i, CRUNCH], [/twist|oblique|เอว/i, E(['oblique'], ['abs'])],
  [/run|วิ่ง|jog/i, EXERCISE_MUSCLES['วิ่ง']], [/walk|เดิน|treadmill|ลู่/i, WALK], [/bike|cycl|ปั่น/i, EXERCISE_MUSCLES['ปั่นจักรยาน']], [/swim|ว่าย/i, EXERCISE_MUSCLES['ว่ายน้ำ']],
 ];
+// Library exercises (exercises-dataset) by lower-case name; cardio rows have no muscles and fall through to keywords.
+const LIBRARY_MUSCLES = new Map(LIBRARY.filter(r => r[3]).map(([name, , , p, s]) => [name.toLowerCase(), E(p.split(' '), s ? s.split(' ') : [])]));
 export function musclesFor(name, aliases = '') {
- const exact = EXERCISE_MUSCLES[name?.trim()];
+ const exact = EXERCISE_MUSCLES[name?.trim()] ?? LIBRARY_MUSCLES.get(name?.trim().toLowerCase());
  if (exact) return exact;
  const text = (name || '') + ' ' + aliases;
  return KEYWORDS.find(([re]) => re.test(text))?.[1] ?? null;
