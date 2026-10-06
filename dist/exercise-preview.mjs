@@ -22,7 +22,7 @@ export function createMuscleFocus(){
  async function draw(){
   try{
    // One figure per card: draws that start while body3d is still loading share the same mount.
-   mounting??=import('./body3d.js?v=21').then(m=>m.mountBody(stage));
+   mounting??=import('./body3d.js?v=22').then(m=>m.mountBody(stage));
    figure=await mounting;
    figure.setPlaying(playing);
    await figure.update({...body,focus,motion},'focus');

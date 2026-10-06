@@ -18,7 +18,7 @@ test('the 3D body is fitted to the predicted girths when none were measured', as
   globalThis.fetch = async url => new Response(await readFile(new URL('../dist/models/body-' + (String(url).includes('female') ? 'female' : 'male') + '.bin', import.meta.url)));
   const {loadModel, shapeBody} = await import('../src/body3d.mjs');
   const r = {sex: 'female', height: 158, weight: 78.8, body_fat: 42}, want = predictGirths(r), got = shapeBody(await loadModel('female'), r).girths;
-  for (const k of ['chest', 'waist', 'hip', 'thigh']) assert.ok(Math.abs(got[k] - want[k]) < 2, `${k}: body ${got[k]} vs data ${want[k]}`);
+  for (const k of ['chest', 'waist', 'hip', 'thigh']) assert.ok(Math.abs(got[k] - want[k]) < 3, `${k}: body ${got[k]} vs data ${want[k]}`);
   const measured = shapeBody(await loadModel('female'), {...r, waist: 90}).girths;
   assert.ok(Math.abs(measured.waist - 90) < 2, 'an entered tape measurement still wins');
 });

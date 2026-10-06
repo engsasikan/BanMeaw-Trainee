@@ -8,7 +8,10 @@
 //   targets/torso/torso-muscle-{dorsi,pectoral}-{decr,incr}.target
 //   targets/stomach/stomach-{pregnant,tone}-{decr,incr}.target
 //   targets/measure/measure-{bust,waist,hips,upperarm,thigh,calf}-circ-{decr,incr}.target
-//   targets/measure/measure-shoulder-dist-{decr,incr}.target
+//   targets/measure/measure-shoulder-dist-{decr,incr}.target, measure-underbust-circ-{decr,incr}.target
+//   targets/torso/torso-scale-{depth,horiz}-{decr,incr}.target, targets/hip/hip-scale-{depth,horiz}-{decr,incr}.target
+//   targets/buttocks/buttocks-volume-{decr,incr}.target
+//   targets/breast/{female,male}-young-averagemuscle-averageweight-{min,max}cup-averagefirmness.target
 // Usage: node scripts/build-body-models.mjs <folder with those files>
 //
 // Output format (little endian, 4-byte aligned):
@@ -22,7 +25,7 @@
 //               vertex u16[count], delta i16[count*3]
 //   'ANAT', region u8[n], fibre direction i8[n*3], flags u8[n], edge distance u8[n] in mm (see scripts/body-anatomy.mjs)
 //   'RGNS', byteLength u32, region names (ASCII, newline-separated, in id order from 1)
-import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {muscleMap} from './body-anatomy.mjs';
 
@@ -109,9 +112,15 @@ for (const sex of ['male', 'female']) {
   for (const m of ['pregnant', 'tone']) for (const dir of ['decr', 'incr']) locals.push(`stomach-${m}-${dir}`);
   for (const m of ['bust', 'waist', 'hips', 'upperarm', 'thigh', 'calf']) for (const dir of ['decr', 'incr']) locals.push(`measure-${m}-circ-${dir}`);
   for (const dir of ['decr', 'incr']) locals.push(`measure-shoulder-dist-${dir}`);
+  // Shape fitting to body-measurement data: torso and hip cross-sections, buttocks, bust and breasts.
+  for (const m of ['torso-scale-depth', 'torso-scale-horiz', 'hip-scale-depth', 'hip-scale-horiz', 'buttocks-volume', 'measure-underbust-circ', 'breast-cup'])
+    for (const dir of ['decr', 'incr']) locals.push(`${m}-${dir}`);
   const localTargets = locals.map(name => {
     const ids = [], deltas = [];
-    for (const [i, d] of readTarget(name + '.target')) if (remap.has(i)) { ids.push(remap.get(i)); deltas.push(...d.map(x => Math.round(x * 1000))); }
+    // breast-cup-incr/decr: MakeHuman's cup-size macro target for this sex (bigger / smaller than average).
+    const file = name.startsWith('breast-cup-') ? `${sex}-young-averagemuscle-averageweight-${name.endsWith('incr') ? 'max' : 'min'}cup-averagefirmness` : name;
+    if (!existsSync(join(src, file + '.target'))) return {name, ids, deltas}; // MakeHuman has no breast targets for men
+    for (const [i, d] of readTarget(file + '.target')) if (remap.has(i)) { ids.push(remap.get(i)); deltas.push(...d.map(x => Math.round(x * 1000))); }
     return {name, ids, deltas};
   });
 

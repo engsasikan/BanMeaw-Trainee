@@ -4,7 +4,7 @@
 // dist/body3d.js and loaded only on the profile page.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { predictGirths } from './girth-model.mjs';
+import { predictShape, GIRTH_MODEL } from './girth-model.mjs';
 
 const REF = {
   male:   {fat: 18, smm: 0.42, smmRange: 0.2, mus: {la: 3.2, ra: 3.2, trunk: 26, ll: 9.5, rl: 9.5}},
@@ -21,7 +21,7 @@ const GIRTHS = ['shoulder', 'chest', 'waist', 'hip', 'arm', 'thigh', 'calf'];
 
 const models = {};
 export function loadModel(sex) {
-  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=6`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
+  return models[sex] ??= fetch(new URL(`./models/body-${sex}.bin?v=7`, import.meta.url)).then(r => { if (!r.ok) throw Error('model'); return r.arrayBuffer(); }).then(buf => {
     const view = new DataView(buf), pad = n => (n + 3) & ~3;
     const n = view.getUint32(4, true), ni = view.getUint32(8, true), nt = view.getUint32(12, true);
     let o = 16;
@@ -786,14 +786,77 @@ export function muscleOnlyRecord(record) {
   }
   return r;
 }
-export function shapeBody(model, r, lean = false) {
-  const {n, base, segments, targets, locals} = model, {sex, muscle} = macros(r), ref = REF[sex];
-  const weight = lean ? Math.min(macros(r).weight, 0.15) : macros(r).weight;
-  const pos = Float32Array.from(base), wm = split(muscle), ww = split(weight);
-  for (const t of targets) {
-    const k = wm[t.m] * ww[t.w] / 1000; if (!k) continue;
-    for (let i = 0; i < t.ids.length; i++) { const v = t.ids[i] * 3; pos[v] += t.deltas[i * 3] * k; pos[v + 1] += t.deltas[i * 3 + 1] * k; pos[v + 2] += t.deltas[i * 3 + 2] * k; }
+// Convex-hull perimeter of points [x, z, ...] (m): what a tape laid around that slice reads.
+function hullPerimeter(pts) {
+  const n = pts.length / 2; if (n < 3) return 0;
+  const idx = Array.from({length: n}, (_, i) => i).sort((a, b) => pts[a * 2] - pts[b * 2] || pts[a * 2 + 1] - pts[b * 2 + 1]);
+  const cross = (o, a, b) => (pts[a * 2] - pts[o * 2]) * (pts[b * 2 + 1] - pts[o * 2 + 1]) - (pts[a * 2 + 1] - pts[o * 2 + 1]) * (pts[b * 2] - pts[o * 2]);
+  const half = list => { const h = []; for (const i of list) { while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], i) <= 0) h.pop(); h.push(i); } h.pop(); return h; };
+  const hull = [...half(idx), ...half(idx.slice().reverse())];
+  let len = 0;
+  for (let k = 0; k < hull.length; k++) { const a = hull[k], b = hull[(k + 1) % hull.length]; len += Math.hypot(pts[a * 2] - pts[b * 2], pts[a * 2 + 1] - pts[b * 2 + 1]); }
+  return len;
+}
+
+// Body measurements on a shaped mesh (cm), taken like an anthropometrist would:
+// chest at the bust point, waist at the navel height (navelY), hips at the most prominent
+// part of the buttocks; tape girths are convex-hull perimeters of thin slices.
+function measureBody(model, p, H, navelY) {
+  const {n, segments} = model, band = H * 0.012;
+  let bustY = 0, bustZ = -Infinity, buttY = 0, buttZ = Infinity;
+  for (let i = 0; i < n; i++) {
+    if (segments[i] !== 0) continue;
+    const y = p[i * 3 + 1] / H, z = p[i * 3 + 2];
+    if (y > 0.66 && y < 0.8 && z > bustZ) { bustZ = z; bustY = p[i * 3 + 1]; }
+    if (y > 0.4 && y < 0.58 && z < buttZ) { buttZ = z; buttY = p[i * 3 + 1]; }
   }
+  const slices = {chest: [], waist: [], hip: []}, ext = {chest: [1, -1, 1, -1], waist: [1, -1, 1, -1], hip: [1, -1, 1, -1]};
+  let hipBreadth = 0; const hipX = new Map();
+  const legs = [[], []], legBins = 40, thighBins = [Array.from({length: legBins}, () => []), Array.from({length: legBins}, () => [])];
+  for (let i = 0; i < n; i++) {
+    const seg = segments[i], x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
+    const add = key => { slices[key].push(x, z); const e = ext[key]; e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); e[2] = Math.min(e[2], z); e[3] = Math.max(e[3], z); };
+    if (seg === 0 && Math.abs(y - bustY) < band) add('chest');
+    if (seg === 0 && Math.abs(y - navelY) < band) add('waist');
+    if ((seg === 0 || seg === 3 || seg === 4) && Math.abs(y - buttY) < band) add('hip');
+    if ((seg === 0 || seg === 3 || seg === 4) && Math.abs(y - buttY) < H * 0.05) { const b = Math.round(y / band); const e = hipX.get(b) || [1, -1]; e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); hipX.set(b, e); }
+    // Thigh (38-47% of height) and calf (12-26%) slices per leg.
+    if (seg === 3 || seg === 4) { const yb = y / H; if (yb > 0.1 && yb < 0.5) { const b = Math.floor((yb - 0.1) / 0.4 * legBins); thighBins[seg - 3][b].push(x, z); } }
+  }
+  for (const e of hipX.values()) hipBreadth = Math.max(hipBreadth, e[1] - e[0]);
+  const legMax = (from, to) => [0, 1].map(l => { let m = 0; for (let b = 0; b < legBins; b++) { const yb = 0.1 + (b + 0.5) / legBins * 0.4; if (yb >= from && yb <= to && thighBins[l][b].length >= 16) m = Math.max(m, hullPerimeter(thighBins[l][b])); } return m; }).reduce((a, b) => a + b) / 2;
+  const cm = v => Math.round(v * 1000) / 10;
+  return {
+    chest: cm(hullPerimeter(slices.chest)), chestBreadth: cm(ext.chest[1] - ext.chest[0]), chestDepth: cm(ext.chest[3] - ext.chest[2]),
+    waist: cm(hullPerimeter(slices.waist)), waistBreadth: cm(ext.waist[1] - ext.waist[0]), waistDepth: cm(ext.waist[3] - ext.waist[2]),
+    hip: cm(hullPerimeter(slices.hip)), hipBreadth: cm(hipBreadth), buttockDepth: cm(ext.hip[3] - ext.hip[2]),
+    thigh: cm(legMax(0.38, 0.47)), calf: cm(legMax(0.12, 0.26)),
+  };
+}
+
+// Shape parameters fitted to measurements: [name, local target pairs, prior sd]. 'weight' is MakeHuman's weight macro.
+const SHAPE_PARAMS = [
+  ['weight', null, 0.2], ['breast', ['breast-cup'], 0.5], ['torsoDepth', ['torso-scale-depth'], 0.5], ['torsoWidth', ['torso-scale-horiz'], 0.5],
+  ['bust', ['measure-bust-circ'], 0.5], ['belly', ['stomach-pregnant'], 0.3], ['waist', ['measure-waist-circ'], 0.5],
+  ['hipDepth', ['hip-scale-depth'], 0.5], ['hipWidth', ['hip-scale-horiz'], 0.5], ['buttocks', ['buttocks-volume'], 0.5], ['hips', ['measure-hips-circ'], 0.5],
+  ['thighFat', ['l-upperleg-fat', 'r-upperleg-fat'], 0.5], ['thigh', ['measure-thigh-circ'], 0.5], ['calf', ['measure-calf-circ'], 0.5],
+  ['armFat', ['l-upperarm-fat', 'r-upperarm-fat'], 0.5], ['arm', ['measure-upperarm-circ'], 0.5], ['shoulder', ['measure-shoulder-dist'], 0.5],
+];
+const shapeCache = new Map();
+
+export function shapeBody(model, r, lean = false) {
+  const key = lean + JSON.stringify(r);
+  if (shapeCache.get(model)?.has(key)) { const c = shapeCache.get(model).get(key); return {pos: Float32Array.from(c.pos), H: c.H, girths: c.girths}; }
+  const out = shapeBodyUncached(model, r, lean);
+  if (!shapeCache.has(model)) shapeCache.set(model, new Map());
+  const cache = shapeCache.get(model); if (cache.size > 24) cache.delete(cache.keys().next().value);
+  cache.set(key, {pos: Float32Array.from(out.pos), H: out.H, girths: out.girths});
+  return out;
+}
+
+function shapeBodyUncached(model, r, lean) {
+  const {n, base, segments, targets, locals} = model, {sex, muscle} = macros(r), ref = REF[sex];
+  const H = (r.height || (sex === 'female' ? 160 : 172)) / 100;
   // Apply a local target pair: positive weight uses '-incr', negative uses '-decr'.
   const apply = (into, name, w, scale = 1) => {
     if (!w) return;
@@ -805,82 +868,94 @@ export function shapeBody(model, r, lean = false) {
   const musPct = segmentDeviation(r, 'musp_', 12);
   const musKg = musPct ? null : segmentDeviation(Object.fromEntries(['la', 'ra', 'trunk', 'll', 'rl'].map(s => ['m_' + s, r['mus_' + s] == null ? null : r['mus_' + s] / ref.mus[s] * 100])), 'm_', 12);
   const mus = musPct || musKg, fat = segmentDeviation(r, 'fat_', 40);
-  for (const [side, arm, leg] of [['l', 'la', 'll'], ['r', 'ra', 'rl']]) {
-    if (mus) {
-      for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-muscle`, mus[arm]);
-      apply(pos, `${side}-upperarm-shoulder-muscle`, mus[arm]);
-      for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-muscle`, mus[leg]);
-    }
-    if (fat && !lean) {
-      for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-fat`, fat[arm]);
-      for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-fat`, fat[leg]);
-    }
-  }
-  if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
-  // Belly from visceral fat level (1-9 normal) and trunk fat; abdominal tone from body fat.
-  // The 'pregnant' target is strong, so keep it subtle: level 16 -> ~0.35.
-  const belly = (r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0);
-  if (!lean) apply(pos, 'stomach-pregnant', clamp(belly, -0.3, 0.6));
-  if (lean) apply(pos, 'stomach-tone', 1);
-  else if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
+  // Belly from visceral fat level (1-9 normal) and trunk fat; the 'pregnant' target is strong, so keep it subtle.
+  const belly0 = clamp((r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0), -0.3, 0.6);
 
-  // Scale to the person's height (metres), feet on the ground.
-  let minY = Infinity, maxY = -Infinity;
-  for (let i = 1; i < pos.length; i += 3) { minY = Math.min(minY, pos[i]); maxY = Math.max(maxY, pos[i]); }
-  const H = (r.height || (sex === 'female' ? 160 : 172)) / 100, s = H / (maxY - minY);
-  for (let i = 0; i < pos.length; i += 3) { pos[i] *= s; pos[i + 1] = (pos[i + 1] - minY) * s; pos[i + 2] *= s; }
-
-  // Girth measurement on 1%-of-height slices of one or more segments (cm).
-  // Arms hang at an angle, so their horizontal slices are stretched in x: use depth (z) only.
-  const girth = (p, segs, from, to, pick, depthOnly = false) => {
-    const BINS = 100, ext = segs.map(() => Array.from({length: BINS}, () => [Infinity, -Infinity, Infinity, -Infinity, 0]));
-    for (let i = 0; i < n; i++) {
-      const k = segs.indexOf(segments[i]); if (k < 0) continue;
-      const b = Math.floor(p[i * 3 + 1] / H * BINS); if (b < from - 1 || b > to + 1) continue;
-      const e = ext[k][b], x = p[i * 3], z = p[i * 3 + 2];
-      e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); e[2] = Math.min(e[2], z); e[3] = Math.max(e[3], z); e[4]++;
+  // The body before scaling, for a weight macro and fitted shape parameters.
+  const build = (weight, shape = {}) => {
+    const pos = Float32Array.from(base), wm = split(muscle), ww = split(weight);
+    for (const t of targets) {
+      const k = wm[t.m] * ww[t.w] / 1000; if (!k) continue;
+      for (let i = 0; i < t.ids.length; i++) { const v = t.ids[i] * 3; pos[v] += t.deltas[i * 3] * k; pos[v + 1] += t.deltas[i * 3 + 1] * k; pos[v + 2] += t.deltas[i * 3 + 2] * k; }
     }
-    // A 1% slice is thinner than the mesh spacing and misses part of the ring: merge 3 bins.
-    const merge = (bins, b) => [b - 1, b, b + 1].map(k => bins[k]).filter(Boolean).reduce((a, e) => [Math.min(a[0], e[0]), Math.max(a[1], e[1]), Math.min(a[2], e[2]), Math.max(a[3], e[3]), a[4] + e[4]], [Infinity, -Infinity, Infinity, -Infinity, 0]);
-    const per = ext.map(bins => { const g = []; for (let b = from; b <= to; b++) { const e = merge(bins, b); if (e[4] >= 12) g.push((depthOnly ? perimeter((e[3] - e[2]) / 2, (e[3] - e[2]) / 2) : perimeter((e[1] - e[0]) / 2, (e[3] - e[2]) / 2)) * 100); } return g.length ? pick(...g) : 0; });
-    return per.reduce((a, b) => a + b) / per.length;
+    for (const [side, arm, leg] of [['l', 'la', 'll'], ['r', 'ra', 'rl']]) {
+      if (mus) {
+        for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-muscle`, mus[arm]);
+        apply(pos, `${side}-upperarm-shoulder-muscle`, mus[arm]);
+        for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-muscle`, mus[leg]);
+      }
+      if (fat && !lean) {
+        for (const part of ['upperarm', 'lowerarm']) apply(pos, `${side}-${part}-fat`, fat[arm]);
+        for (const part of ['upperleg', 'lowerleg']) apply(pos, `${side}-${part}-fat`, fat[leg]);
+      }
+    }
+    if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
+    if (lean) apply(pos, 'stomach-tone', 1);
+    else if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
+    if (!lean) for (const [name, pairs] of SHAPE_PARAMS) if (pairs) for (const t of pairs) apply(pos, t, name === 'belly' ? (shape.belly ?? belly0) : shape[name] ?? 0);
+    // Scale to the person's height (metres), feet on the ground.
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 1; i < pos.length; i += 3) { minY = Math.min(minY, pos[i]); maxY = Math.max(maxY, pos[i]); }
+    const s = H / (maxY - minY);
+    for (let i = 0; i < pos.length; i += 3) { pos[i] *= s; pos[i + 1] = (pos[i + 1] - minY) * s; pos[i + 2] *= s; }
+    return {pos, s};
   };
-  // Fit each entered tape measurement with MakeHuman's measure targets (deltas scaled to metres).
-  // Shoulder width: straight width across the shoulder tops (trunk + arms at ~82% of height),
-  // which matches a tape laid across the back from shoulder tip to shoulder tip.
+
+  // Upper-arm girth: arms hang at an angle, so use the depth of 1%-of-height slices (69-73% of height).
+  const armGirth = p => {
+    const g = [];
+    for (let b = 69; b <= 73; b++) for (const seg of [1, 2]) {
+      let z0 = Infinity, z1 = -Infinity, c = 0;
+      for (let i = 0; i < n; i++) { if (segments[i] !== seg) continue; const bb = Math.floor(p[i * 3 + 1] / H * 100); if (bb < b - 1 || bb > b + 1) continue; z0 = Math.min(z0, p[i * 3 + 2]); z1 = Math.max(z1, p[i * 3 + 2]); c++; }
+      if (c >= 12) g.push(perimeter((z1 - z0) / 2, (z1 - z0) / 2) * 100);
+    }
+    return g.length ? Math.round(median(...g) * 10) / 10 : 0;
+  };
+  // Shoulder width: straight width across the shoulder tops (trunk + arms at ~82% of height).
   const shoulderWidth = p => {
     let x0 = Infinity, x1 = -Infinity;
-    for (let i = 0; i < n; i++) {
-      if (segments[i] > 2) continue;
-      const b = Math.floor(p[i * 3 + 1] / H * 100); if (b < 81 || b > 83) continue;
-      x0 = Math.min(x0, p[i * 3]); x1 = Math.max(x1, p[i * 3]);
-    }
-    return x1 > x0 ? (x1 - x0) * 100 : 0;
+    for (let i = 0; i < n; i++) { if (segments[i] > 2) continue; const b = Math.floor(p[i * 3 + 1] / H * 100); if (b < 81 || b > 83) continue; x0 = Math.min(x0, p[i * 3]); x1 = Math.max(x1, p[i * 3]); }
+    return x1 > x0 ? Math.round((x1 - x0) * 1000) / 10 : 0;
   };
-  const fits = [
-    ['shoulder', 'measure-shoulder-dist', [0, 1, 2], 82, 82, median],
-    ['hip', 'measure-hips-circ', [0], 45, 55, Math.max],
-    ['waist', 'measure-waist-circ', [0], 57, 61, median],
-    ['chest', 'measure-bust-circ', [0], 69, 75, Math.max],
-    ['arm', 'measure-upperarm-circ', [1, 2], 69, 73, median],
-    ['thigh', 'measure-thigh-circ', [3, 4], 38, 47, Math.max],
-    ['calf', 'measure-calf-circ', [3, 4], 12, 26, Math.max],
-  ];
-  // Girths not measured: what people of this sex, height, weight (and body fat) usually measure (ANSUR II + body-fat data).
-  const usual = lean ? {} : predictGirths({...r, sex});
-  // Two passes: neighbouring measures (waist/hip/bust) affect each other.
-  for (let pass = 0; pass < (lean ? 0 : 2); pass++) for (const [key, name, segs, from, to, pick] of fits) {
-    const target = r[key] || usual[key]; if (!target) continue;
-    const measure = key === 'shoulder' ? shoulderWidth : p => girth(p, segs, from, to, pick, key === 'arm');
-    const g0 = measure(pos); if (!g0 || Math.abs(target - g0) < 0.5) continue;
-    const dir = target > g0 ? 1 : -1, probe = Float32Array.from(pos);
-    apply(probe, name, dir, s);
-    const g1 = measure(probe);
-    if (Math.abs(g1 - g0) < 0.1) continue;
-    apply(pos, name, dir * clamp((target - g0) / (g1 - g0), 0, 2.5), s);
+  const usual = predictShape({...r, sex}), navelY = (usual.waistHeight ? usual.waistHeight / (r.height || 160) : 0.6) * H;
+  const measureAll = p => ({...measureBody(model, p, H, navelY), arm: armGirth(p), shoulder: shoulderWidth(p)});
+
+  const w0 = lean ? Math.min(macros(r).weight, 0.15) : macros(r).weight;
+  let {pos} = build(w0);
+  if (!lean && r.height && r.weight) {
+    // Targets: what people of this sex, height, weight and body fat measure (ANSUR II + body-fat data),
+    // replaced by the person's own tape measurements; their cross-sections follow in proportion.
+    const want = {...usual}, sd = {...GIRTH_MODEL[sex === 'female' ? 'female' : 'male'].rmse};
+    for (const [ring, parts] of [['chest', ['chestBreadth', 'chestDepth']], ['waist', ['waistBreadth', 'waistDepth']], ['hip', ['hipBreadth', 'buttockDepth']], ['thigh', []], ['calf', []], ['arm', []]])
+      if (r[ring]) { for (const k of parts) want[k] *= r[ring] / usual[ring]; want[ring] = r[ring]; sd[ring] = 1; }
+    if (r.shoulder) { want.shoulder = r.shoulder; sd.shoulder = 1; }
+    const keys = ['chest', 'chestBreadth', 'chestDepth', 'waist', 'waistBreadth', 'waistDepth', 'hip', 'hipBreadth', 'buttockDepth', 'thigh', 'calf', 'arm', 'shoulder'].filter(k => want[k]);
+    const params = SHAPE_PARAMS.filter(([name, pairs]) => (name !== 'breast' || sex === 'female') && (name !== 'shoulder' || r.shoulder) && (!pairs || pairs.every(t => locals.has(t + '-incr'))));
+    const prior = params.map(([name]) => name === 'weight' ? w0 : name === 'belly' ? belly0 : 0);
+    // Tape girths are the most reliable; breadths and depths only steer where the volume sits.
+    const scaleOf = k => /Breadth|Depth/.test(k) ? 2 : 0.8;
+    const residuals = (m, x) => [...keys.map(k => (m[k] - want[k]) / (Math.max(sd[k] ?? 2, 1) * scaleOf(k))), ...params.map(([, , tau], j) => (x[j] - prior[j]) / (tau * 1.4))];
+    const lo = params.map(([name]) => name === 'weight' ? 0 : -1), hi = params.map(() => 1);
+    const evalAt = x => { const shape = Object.fromEntries(params.map(([name], j) => [name, x[j]])); const b = build(x[0], shape); return {p: b.pos, m: measureAll(b.pos)}; };
+    // Gauss-Newton with a little damping; Jacobian by finite differences.
+    let x = prior.slice(), cur = evalAt(x);
+    for (let iter = 0; iter < 4; iter++) {
+      const r0 = residuals(cur.m, x), J = params.map((_, j) => {
+        const h = x[j] + 0.08 > hi[j] ? -0.08 : 0.08, xj = x.slice(); xj[j] += h;
+        const rj = residuals(evalAt(xj).m, xj); return rj.map((v, i) => (v - r0[i]) / h);
+      });
+      const P = params.length, A = Array.from({length: P}, (_, a) => Array.from({length: P + 1}, (_, b) => b < P ? J[a].reduce((s, v, i) => s + v * J[b][i], 0) + (a === b ? 0.05 : 0) : -J[a].reduce((s, v, i) => s + v * r0[i], 0)));
+      for (let c = 0; c < P; c++) { let piv = c; for (let rr = c + 1; rr < P; rr++) if (Math.abs(A[rr][c]) > Math.abs(A[piv][c])) piv = rr; [A[c], A[piv]] = [A[piv], A[c]]; for (let rr = 0; rr < P; rr++) if (rr !== c) { const f = A[rr][c] / A[c][c]; for (let k = c; k <= P; k++) A[rr][k] -= f * A[c][k]; } }
+      const next = x.map((v, j) => clamp(v + A[j][P] / A[j][j], lo[j], hi[j])), cand = evalAt(next);
+      const cost = (m, xx) => residuals(m, xx).reduce((s, v) => s + v * v, 0);
+      if (cost(cand.m, next) >= cost(cur.m, x)) break;
+      x = next; cur = cand;
+    }
+    pos = cur.p;
   }
-  const measured = Object.fromEntries(fits.map(([key, , segs, from, to, pick]) => [key, Math.round((key === 'shoulder' ? shoulderWidth(pos) : girth(pos, segs, from, to, pick, key === 'arm')) * 10) / 10]));
-  return {pos, H, girths: measured};
+  const m = measureAll(pos);
+  return {pos, H, girths: {chest: m.chest, waist: m.waist, hip: m.hip, thigh: m.thigh, calf: m.calf, arm: m.arm, shoulder: m.shoulder,
+    chestBreadth: m.chestBreadth, chestDepth: m.chestDepth, waistBreadth: m.waistBreadth, waistDepth: m.waistDepth, hipBreadth: m.hipBreadth, buttockDepth: m.buttockDepth}};
 }
 
 const ANATOMY_NOISE = `
