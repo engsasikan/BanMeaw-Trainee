@@ -11,7 +11,7 @@ import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './st
 import {attachExercisePicker} from './exercise-picker.mjs?v=9';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
 import {initTeams} from './team.mjs?v=27';
-import {initBody,quickWeigh} from './body.mjs?v=27';
+import {initBody,quickWeigh} from './body.mjs?v=28';
 import {initToday} from './today.mjs?v=8';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();

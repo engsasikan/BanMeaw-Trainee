@@ -1,6 +1,7 @@
 // Shows which muscles an exercise works, on the user's own 3D body.
 // Attaches to the workout form's #exercise field, and exports createMuscleFocus() for the guided training screen.
 import {musclesFor, MUSCLE_LABELS} from './exercise-muscles.mjs?v=2';
+import {motionFor} from './exercise-motion.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 let body={sex:'male'},timer;
@@ -10,20 +11,25 @@ window.addEventListener('body-records',e=>{const latest=(e.detail||[])[0];if(lat
 // One muscle card with its own 3D figure; show(name) updates it in place.
 export function createMuscleFocus(){
  const box=node('section',undefined,'ex-focus');box.hidden=true;box.setAttribute('aria-live','polite');
- const head=node('div',undefined,'ex-focus-head');head.append(node('strong','กล้ามเนื้อที่ท่านี้ใช้'),node('span','หุ่นของคุณ · หมุนดูได้','muted'));
+ const head=node('div',undefined,'ex-focus-head');const play=node('button','หยุดท่า','ex-focus-play');play.type='button';play.hidden=true;
+ head.append(node('strong','กล้ามเนื้อที่ท่านี้ใช้'),node('span','หุ่นของคุณ · หมุนดูได้','muted'),play);
  const chips=node('div',undefined,'ex-focus-chips'),stage=node('div',undefined,'ex-focus-stage');
  const legend=node('p',undefined,'ex-focus-legend');legend.innerHTML='<i class="p"></i>ทำงานหลัก <i class="s"></i>ช่วยเสริม';
  box.append(head,chips,stage,legend);
- let figure=null,shown='',focus=null;
+ let figure=null,shown='',focus=null,motion=null,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const label=()=>{play.textContent=playing?'หยุดท่า':'เล่นท่า';play.setAttribute('aria-pressed',String(!playing));};
+ play.onclick=()=>{playing=!playing;label();figure?.setPlaying(playing);};
  async function draw(){
   try{
-   figure??=(await import('./body3d.js?v=15')).mountBody(stage);
-   await figure.update({...body,focus},'focus');
+   figure??=(await import('./body3d.js?v=16')).mountBody(stage);
+   figure.setPlaying(playing);
+   await figure.update({...body,focus,motion},'focus');
+   play.hidden=!figure.hasMotion();label();
   }catch{stage.replaceChildren(node('p','อุปกรณ์นี้แสดง 3D ไม่ได้ ดูชื่อกล้ามเนื้อด้านบนแทน','muted'));}
  }
  const view={el:box,
   show(name){
-   name=(name||'').trim();focus=name?musclesFor(name):null;
+   name=(name||'').trim();focus=name?musclesFor(name):null;motion=name?motionFor(name):null;
    if(!focus){box.hidden=true;shown='';return;}
    box.hidden=false;if(name===shown&&figure)return;shown=name;
    chips.replaceChildren(
