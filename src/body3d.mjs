@@ -92,11 +92,15 @@ export function loadRig() {
   }).catch(error => { rigPromise = null; throw error; });
 }
 
-// Exercise demonstrations, authored for this app. Each motion loops between key poses.
+// Exercise demonstrations, authored for this app. Each motion loops between two key poses.
 // Limb poses are directions in the motion frame (x = the person's left, y = up, z = forward;
-// lying motions rotate that frame onto the back). Right limbs mirror the left ones.
-// Spine bones take Euler angles in degrees (x > 0 bends forward). Feet stay flat on the floor.
+// lying and prone motions rotate that frame). Right limbs mirror the left ones unless a key
+// gives its own '<limb>R' direction. Spine bones take Euler angles in degrees (x > 0 bends
+// forward); 'foot' is an Euler angle against the shin, otherwise feet stay flat on the floor.
+// Anchors: feet (both planted), footL (front foot planted), lying (back on a surface),
+// hands (hanging from a fixed bar), plank (hands and toes on the floor).
 const STAND = {upperarm: [0.1, -1, 0.02], lowerarm: [0.12, -1, 0.06], upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06]};
+const LEGS = {upperleg: STAND.upperleg, lowerleg: STAND.lowerleg};
 const MOTIONS = {
   squat: {anchor: 'feet', view: [55, 12, 0.5], keys: [
     {...STAND, upperleg: [0.2, -1, 0.02], lowerleg: [0.16, -1, -0.05], upperarm: [0.1, -1, 0.15], lowerarm: [0.1, -1, 0.2]},
@@ -117,6 +121,39 @@ const MOTIONS = {
   crunch: {anchor: 'lying', surface: 0.01, view: [70, 22, 0.18], props: ['mat'], keys: [
     {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.22, -0.9, 0.3], lowerarm: [0.12, -0.95, 0.25]},
     {spineLow: [9, 0, 0], chest: [17, 0, 0], neck: [12, 0, 0], upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.2, -0.85, 0.48], lowerarm: [0.1, -0.85, 0.5]},
+  ]},
+  shoulderPress: {anchor: 'feet', view: [28, 6, 0.68, 1.15], props: ['dumbbells'], grip: [1, 0, 0], keys: [
+    {...LEGS, upperarm: [0.96, -0.12, 0.25], lowerarm: [0.04, 1, 0.08]},
+    {...LEGS, upperarm: [0.3, 1, 0.06], lowerarm: [0.12, 1, 0.04]},
+  ]},
+  lateralRaise: {anchor: 'feet', view: [12, 6, 0.58, 1.1], props: ['dumbbells'], grip: [0, 0, 1], keys: [
+    {...LEGS, upperarm: [0.14, -1, 0.06], lowerarm: [0.2, -1, 0.12]},
+    {...LEGS, upperarm: [1, 0.04, 0.12], lowerarm: [1, -0.04, 0.2]},
+  ]},
+  pushdown: {anchor: 'feet', view: [62, 8, 0.62, 1.15], props: ['cable'], keys: [
+    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.12, 0.35, 0.93]},
+    {...LEGS, hips: [10, 0, 0], upperarm: [0.06, -1, 0.14], lowerarm: [-0.04, -1, 0.1]},
+  ]},
+  overheadExtension: {anchor: 'feet', view: [75, 6, 0.66, 1.1], props: ['onedumbbell'], keys: [
+    {...LEGS, upperarm: [0.14, 1, 0.12], lowerarm: [-0.2, -0.5, -0.84]},
+    {...LEGS, upperarm: [0.14, 1, 0.12], lowerarm: [-0.08, 1, 0.06]},
+  ]},
+  deadlift: {anchor: 'feet', view: [70, 8, 0.45], props: ['barbell'], keys: [
+    {hips: [58, 0, 0], neck: [-10, 0, 0], head: [-26, 0, 0], upperleg: [0.14, -0.6, 0.79], lowerleg: [0.1, -0.95, -0.3], upperarm: [0.1, -1, 0.02], lowerarm: [0.06, -1, 0]},
+    {...STAND, upperarm: [0.1, -1, 0.04], lowerarm: [0.06, -1, 0.02]},
+  ]},
+  // Back (right) leg reaches a spot 0.36 x height behind the front foot, on the ball of the foot.
+  lunge: {anchor: 'footL', view: [80, 8, 0.42], backFoot: 0.36, keys: [
+    {upperleg: [0.1, -0.85, 0.5], lowerleg: [0.1, -1, 0], footR: [-10, 0, 0], upperarm: [0.14, -1, 0.04], lowerarm: [0.14, -1, 0.08]},
+    {upperleg: [0.1, -0.3, 0.95], lowerleg: [0.08, -1, 0.04], footR: [-25, 0, 0], upperarm: [0.14, -1, 0.04], lowerarm: [0.14, -1, 0.08]},
+  ]},
+  pushup: {anchor: 'plank', view: [72, 18, 0.18], keys: [
+    {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.25, -0.05, 1], lowerarm: [0.06, 0.05, 1], hand: [0, 1, 0.1]},
+    {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.55, -0.5, -0.67], lowerarm: [0.02, 0.2, 1], hand: [0, 1, 0.1]},
+  ]},
+  pullup: {anchor: 'hands', view: [40, 4, 0.7, 1.3], props: ['pullbar'], keys: [
+    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.38, 1, 0.02], lowerarm: [0.22, 1, 0.02]},
+    {upperleg: [0.08, -1, 0.12], lowerleg: [0.06, -0.94, -0.33], foot: [30, 0, 0], upperarm: [0.94, -0.35, -0.04], lowerarm: [0.05, 1, 0.02]},
   ]},
 };
 export const MOTION_IDS = Object.keys(MOTIONS);
@@ -142,70 +179,121 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   mesh.add(bones[0]); mesh.updateMatrixWorld(true);
   mesh.bind(new THREE.Skeleton(bones)); mesh.frustumCulled = false;
 
-  const id = name => rig.byName.get(name), V = (a) => new THREE.Vector3(...a);
+  const id = name => rig.byName.get(name), V = a => new THREE.Vector3(...a);
   const restDir = new Map();
-  for (const side of ['L', 'R']) for (const [a, b] of LIMBS) restDir.set(`${a}.${side}`, V(heads[id(`${b}.${side}`)]).sub(V(heads[id(`${a}.${side}`)])).normalize());
-  // Lying: rotate onto the back and rest it on the surface (back depth = trunk behind the hips).
-  const lying = motion.anchor === 'lying', frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(lying ? -Math.PI / 2 : 0, 0, 0));
+  for (const side of ['L', 'R']) {
+    for (const [a, b] of LIMBS) restDir.set(`${a}.${side}`, V(heads[id(`${b}.${side}`)]).sub(V(heads[id(`${a}.${side}`)])).normalize());
+    restDir.set(`hand.${side}`, restDir.get(`lowerarm.${side}`)); // the hand continues the forearm
+  }
+  const anchor = motion.anchor, deg = Math.PI / 180;
+  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(anchor === 'lying' ? -Math.PI / 2 : anchor === 'plank' ? Math.PI / 2 : 0, 0, 0));
   let backDepth = 0;
-  if (lying) { let minZ = Infinity; for (let i = 0; i < segments.length; i++) if (segments[i] === 0) minZ = Math.min(minZ, pos[i * 3 + 2]); backDepth = heads[0][2] - minZ; }
-  const restFeet = V(heads[id('foot.L')]).add(V(heads[id('foot.R')])).multiplyScalar(0.5);
+  if (anchor === 'lying') { let minZ = Infinity; for (let i = 0; i < segments.length; i++) if (segments[i] === 0) minZ = Math.min(minZ, pos[i * 3 + 2]); backDepth = heads[0][2] - minZ; }
+  const restHips = V(heads[0]), restFeet = V(heads[id('foot.L')]).add(V(heads[id('foot.R')])).multiplyScalar(0.5), restFootL = V(heads[id('foot.L')]);
   const worldQ = bones.map(() => new THREE.Quaternion()), worldP = bones.map(() => new THREE.Vector3());
   const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), euler = new THREE.Euler();
-  const deg = Math.PI / 180, lerp3 = (a = [0, 0, 0], b = [0, 0, 0], t) => a.map((x, k) => x + (b[k] - x) * t);
+  const lerp3 = (a = [0, 0, 0], b = a, t) => a.map((x, k) => x + (b[k] - x) * t);
+  const mirror = d => d && [-d[0], d[1], d[2]];
+  let over = null; // limb directions solved by IK, by bone name
+  const keyFor = (key, base, side) => over?.[`${base}.${side}`] ?? (side === 'R' ? key[base + 'R'] ?? (base === 'foot' ? key.foot : mirror(key[base])) : key[base]);
+  const avg = (a, b) => worldP[id(a)].clone().add(worldP[id(b)]).multiplyScalar(0.5);
 
-  function pose(t) {
+  // Forward kinematics for blend t with the root at rootQ/rootP; fills worldQ/worldP.
+  function fk(t, rootQ, rootP) {
     const [A, B] = motion.keys;
     rig.bones.forEach((b, i) => {
-      const bone = bones[i], [base, side] = b.name.split('.'), parentQ = b.parent < 0 ? null : worldQ[b.parent];
-      if (b.parent < 0) {
-        const e = lerp3(A.hips, B.hips, t);
-        bone.quaternion.copy(frame).multiply(tmpQ.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)));
-      } else if (SPINE.includes(base)) {
+      const bone = bones[i], [base, side] = b.name.split('.');
+      if (b.parent < 0) { bone.quaternion.copy(rootQ); bone.position.copy(rootP); worldQ[0].copy(rootQ); worldP[0].copy(rootP); return; }
+      const parentQ = worldQ[b.parent];
+      if (SPINE.includes(base)) {
         const e = lerp3(A[base], B[base], t);
         bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg));
-      } else if (A[base]) {
-        const d = lerp3(A[base], B[base], t); if (side === 'R') d[0] = -d[0];
+      } else if (base === 'foot') {
+        const a = keyFor(A, 'foot', side);
+        if (a) { const e = lerp3(a, keyFor(B, 'foot', side), t); bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)); }
+        else bone.quaternion.copy(parentQ).invert(); // flat on the floor
+      } else if (keyFor(A, base, side)) {
+        const a = keyFor(A, base, side), d = lerp3(a, keyFor(B, base, side) ?? a, t);
         tmpV.set(...d).normalize().applyQuaternion(frame).applyQuaternion(tmpQ.copy(parentQ).invert());
         bone.quaternion.setFromUnitVectors(restDir.get(b.name), tmpV);
-      } else if (base === 'foot') bone.quaternion.copy(parentQ).invert(); // flat on the floor
-      else bone.quaternion.identity();
-      worldQ[i].copy(parentQ || new THREE.Quaternion()).multiply(bone.quaternion);
-      if (b.parent < 0) worldP[i].set(...heads[0]);
-      else worldP[i].copy(bone.position).applyQuaternion(worldQ[b.parent]).add(worldP[b.parent]);
+      } else bone.quaternion.identity();
+      worldQ[i].copy(parentQ).multiply(bone.quaternion);
+      worldP[i].copy(bone.position).applyQuaternion(parentQ).add(worldP[b.parent]);
     });
-    const root = bones[0];
-    if (lying) root.position.set(0, motion.surface + backDepth, H * 0.12);
-    else {
-      const feet = worldP[id('foot.L')].clone().add(worldP[id('foot.R')]).multiplyScalar(0.5);
-      root.position.set(...heads[0]).add(tmpV.copy(restFeet).sub(feet));
+  }
+  const shiftAll = delta => { bones[0].position.add(delta); for (const p of worldP) p.add(delta); };
+  let gripTarget = null;
+  function pose(t) {
+    const e = lerp3(motion.keys[0].hips, motion.keys[1].hips, t);
+    const rootQ = frame.clone().multiply(tmpQ.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)));
+    fk(t, rootQ, restHips);
+    if (anchor === 'feet') shiftAll(restFeet.clone().sub(avg('foot.L', 'foot.R')));
+    else if (anchor === 'footL') {
+      shiftAll(restFootL.clone().sub(worldP[id('foot.L')]));
+      if (motion.backFoot) {
+        // Two-bone IK: the back knee bends down and forward towards the floor.
+        const hip = worldP[id('upperleg.R')], knee0 = worldP[id('lowerleg.R')], ankle0 = worldP[id('foot.R')];
+        const a = knee0.distanceTo(hip), b = ankle0.distanceTo(knee0), target = new THREE.Vector3(heads[id('foot.R')][0], 0.11, restFootL.z - H * motion.backFoot);
+        const u = target.clone().sub(hip), d = Math.min(u.length(), (a + b) * 0.999); u.normalize();
+        const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), pole = new THREE.Vector3(0, -0.4, 1);
+        const w = pole.addScaledVector(u, -pole.dot(u)).normalize();
+        const knee = hip.clone().addScaledVector(u, a * cosA).addScaledVector(w, a * Math.sqrt(1 - cosA * cosA)), ankle = hip.clone().addScaledVector(u, d);
+        over = {'upperleg.R': knee.clone().sub(hip).toArray(), 'lowerleg.R': ankle.sub(knee).toArray()};
+        const shift = bones[0].position.clone().sub(restHips);
+        fk(t, rootQ, restHips.clone().add(shift)); over = null;
+      }
     }
-    // World hand positions for props (worldP is relative to the un-anchored root).
-    const shift = root.position.clone().sub(V(heads[0]));
+    else if (anchor === 'lying') shiftAll(new THREE.Vector3(0, motion.surface + backDepth, H * 0.12).sub(worldP[0]));
+    else if (anchor === 'hands') {
+      // Bar height: hanging straight, feet clear the floor.
+      if (!gripTarget) { const s = avg('hand.L', 'hand.R').y - avg('foot.L', 'foot.R').y; gripTarget = new THREE.Vector3(0, s + 0.18, 0); }
+      shiftAll(gripTarget.clone().sub(avg('hand.L', 'hand.R')));
+    } else if (anchor === 'plank') {
+      // Pivot around the toes until the hands reach the floor (wrists ~4 cm up, ankles ~10 cm up).
+      const v = avg('hand.L', 'hand.R').sub(avg('foot.L', 'foot.R')), r = Math.hypot(v.y, v.z);
+      const wrap = x => Math.atan2(Math.sin(x), Math.cos(x)), c = Math.acos(clamp(-0.06 / r, -1, 1)), phi = Math.atan2(v.z, v.y);
+      const a = [wrap(c - phi), wrap(-c - phi)].sort((p, q) => Math.abs(p) - Math.abs(q))[0];
+      fk(t, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), a).multiply(rootQ), restHips);
+      shiftAll(new THREE.Vector3(0, 0.1, -H * 0.5).sub(avg('foot.L', 'foot.R')));
+    }
+    // Grip points: a little past the wrist along the forearm.
     return ['L', 'R'].map(s => {
-      const wrist = worldP[id('hand.' + s)].clone().add(shift), fore = wrist.clone().sub(worldP[id('lowerarm.' + s)].clone().add(shift)).normalize();
+      const wrist = worldP[id('hand.' + s)].clone(), fore = wrist.clone().sub(worldP[id('lowerarm.' + s)]).normalize();
       return wrist.addScaledVector(fore, H * 0.045);
     });
   }
 
-  // Simple equipment.
+  // Simple equipment; each piece follows the grips through its update(grips).
   const props = new THREE.Group(), metal = new THREE.MeshStandardMaterial({color: '#3a3a3c', metalness: 0.7, roughness: 0.35}), pad = new THREE.MeshStandardMaterial({color: '#262628', roughness: 0.8});
-  const cyl = (r, len, m) => { const g = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m); return g; };
-  const dumbbell = () => { const g = new THREE.Group(), bar = cyl(0.016, 0.3, metal); g.add(bar); for (const y of [-0.11, 0.11]) { const w = cyl(0.055, 0.07, metal); w.position.y = y; g.add(w); } return g; };
-  const hands = [];
+  const cyl = (r, len, m) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m);
+  const dumbbell = () => { const g = new THREE.Group(); g.add(cyl(0.016, 0.3, metal)); for (const y of [-0.11, 0.11]) { const w = cyl(0.055, 0.07, metal); w.position.y = y; g.add(w); } return g; };
+  const barbell = () => { const g = new THREE.Group(), bar = cyl(0.014, 1.75, metal); bar.rotation.z = Math.PI / 2; g.add(bar); for (const x of [-0.68, 0.68]) { const w = cyl(0.16, 0.05, metal); w.rotation.z = Math.PI / 2; w.position.x = x; g.add(w); } return g; };
+  const up = new THREE.Vector3(0, 1, 0), axis = new THREE.Vector3(...(motion.grip || [1, 0, 0]));
+  const mid = grips => grips[0].clone().add(grips[1]).multiplyScalar(0.5);
+  const updates = [];
   for (const p of motion.props || []) {
     if (p === 'bench') { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, H * 0.12 - 0.4); props.add(b); const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, motion.surface - 0.07, 0.9), metal); leg.position.set(0, (motion.surface - 0.07) / 2, H * 0.12 - 0.4); props.add(leg); }
     if (p === 'mat') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.01, 1.8), new THREE.MeshStandardMaterial({color: '#3d5a4a', roughness: 0.9})); m.position.set(0, 0.005, H * 0.12 - 0.25); props.add(m); }
-    if (p === 'barbell') { const g = new THREE.Group(), bar = cyl(0.014, 1.75, metal); bar.rotation.z = Math.PI / 2; g.add(bar); for (const x of [-0.68, 0.68]) { const w = cyl(0.16, 0.05, metal); w.rotation.z = Math.PI / 2; w.position.x = x; g.add(w); } g.userData.bar = true; props.add(g); hands.push(g); }
-    if (p === 'dumbbells') for (let k = 0; k < 2; k++) { const d = dumbbell(); props.add(d); hands.push(d); }
+    if (p === 'barbell') { const g = barbell(); props.add(g); updates.push(grips => g.position.copy(mid(grips))); }
+    if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d); updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, axis); })); }
+    if (p === 'onedumbbell') { const d = dumbbell(); props.add(d); updates.push(grips => d.position.copy(mid(grips))); }
+    if (p === 'cable') {
+      // Short bar between the hands, cable up to a pulley in front of the head.
+      const bar = cyl(0.017, 0.46, metal), wire = cyl(0.006, 1, metal), pulley = cyl(0.05, 0.03, metal), top = new THREE.Vector3(0, H * 1.18, H * 0.3);
+      bar.rotation.z = Math.PI / 2; pulley.rotation.z = Math.PI / 2; pulley.position.copy(top); props.add(bar, wire, pulley);
+      updates.push(grips => { const m = mid(grips), d = top.clone().sub(m); bar.position.copy(m); wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize()); });
+    }
+    if (p === 'pullbar') {
+      const g = new THREE.Group(), bar = cyl(0.016, 1.4, metal); bar.rotation.z = Math.PI / 2; g.add(bar); props.add(g);
+      updates.push(() => {
+        if (g.userData.placed) return; g.userData.placed = true; g.position.copy(gripTarget).y += H * 0.045; // in the palm, above the wrist
+        for (const x of [-0.7, 0.7]) { const post = cyl(0.025, g.position.y, metal); post.position.set(x, -g.position.y / 2, 0); g.add(post); }
+      });
+    }
   }
-  const axis = new THREE.Vector3(...(motion.grip || [1, 0, 0])), up = new THREE.Vector3(0, 1, 0);
-  const place = grips => {
-    if (hands[0]?.userData.bar) hands[0].position.copy(grips[0]).add(grips[1]).multiplyScalar(0.5);
-    else hands.forEach((d, k) => { d.position.copy(grips[k]); d.quaternion.setFromUnitVectors(up, axis); });
-  };
+  const place = grips => updates.forEach(u => u(grips));
   place(pose(0));
-  // 3.6 s loop: lower 1.4 s, pause, return 1.4 s, pause.
+  // 3.6 s loop: move 1.4 s, pause, return 1.4 s, pause.
   return {mesh, props, tick(seconds) {
     const c = (seconds % 3.6) / 3.6, t = c < 0.39 ? ease(c / 0.39) : c < 0.5 ? 1 : c < 0.89 ? 1 - ease((c - 0.5) / 0.39) : 0;
     place(pose(t));
@@ -528,8 +616,8 @@ export function mountBody(container) {
     if (demo) { demoProps = demo.props; scene.add(demoProps); demo.tick(playing ? clock.getElapsedTime() : 0); }
     shadow.visible = !demo || motion.anchor !== 'lying';
     if (demo && shownMotion !== r.motion) {
-      // Side-on view chosen per motion: [azimuth from the front, elevation, target height / H].
-      const [az, el, ty] = motion.view.map((v, k) => k < 2 ? v * Math.PI / 180 : v), dist = H * 2.15;
+      // Side-on view chosen per motion: [azimuth from the front, elevation, target height / H, zoom out].
+      const [az, el, ty, far = 1] = motion.view.map((v, k) => k < 2 ? v * Math.PI / 180 : v), dist = H * 2.15 * far;
       controls.target.set(0, H * ty, motion.anchor === 'lying' ? H * 0.02 : 0);
       camera.position.set(controls.target.x + dist * Math.sin(az) * Math.cos(el), controls.target.y + dist * Math.sin(el), controls.target.z + dist * Math.cos(az) * Math.cos(el));
       camera.userData.placed = true; controls.autoRotate = false; clock.start();

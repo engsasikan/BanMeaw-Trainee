@@ -2,7 +2,7 @@ import {comparePlan,workoutDescription} from './progress.mjs?v=2';
 import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=1';
 import {switchView} from './dashboard.mjs?v=9';
 import {api} from './account.js?v=4';
-import {createMuscleFocus} from './exercise-preview.mjs?v=4';
+import {createMuscleFocus} from './exercise-preview.mjs?v=5';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const card=el('section',undefined,'diary training-entry');document.getElementById('dashboard-panel').prepend(card);
