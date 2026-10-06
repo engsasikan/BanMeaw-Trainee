@@ -1,13 +1,15 @@
 // Which demonstration (see MOTIONS in src/body3d.mjs) to play for an exercise name, Thai or English.
 // First match wins, so narrower patterns (stretches, split squat, pushdown) come before broader ones.
+// Library exercises that match nothing fall back to a demonstration for their muscle group.
+import {LIBRARY} from './exercise-library.mjs?v=1';
 const RULES = [
  // Stretches first: 'Calf Stretch' is not a calf raise, 'Triceps Stretch' is not an extension.
  ['lyingFigure4', /lying.*piriformis|piriformis.*lying|figure.?(4|four)|ยืดสะโพกนอน/i],
- ['kneeToChest', /(lying glutes?|knee to chest|roller hip) stretch|knee.?to.?chest|กอดเข่า/i],
+ ['kneeToChest', /(lying glutes?|knee to chest|roller hip) stretch|knee.?to.?chest|hug kn?ees to chest|กอดเข่า/i],
  ['seatedFigure4', /(glute|gluteus|piriformis).*stretch|ยืดก้น/i],
  ['seatedHamstring', /chair leg extended|seated.*hamstring.*stretch/i],
  ['ironCross', /iron cross/i],
- ['rockingFrog', /frog/i],
+ ['rockingFrog', /frog(?! crunch)/i],
  ['worldGreatest', /world.?s? greatest/i],
  ['kneeCircles', /knee circles|circles knee/i],
  ['rollerBack', /roller back/i],
@@ -19,22 +21,75 @@ const RULES = [
  ['shoulderStretch', /(rear delt|deltoid|shoulder|upper back|cross.?body).*stretch|ยืดไหล่/i],
  ['neckStretch', /neck.*stretch|ยืดคอ/i],
  ['sideStretch', /(lateral|side|lat|oblique).*stretch|ยืดข้างลำตัว|ยืดเอว/i],
+ ['hamstringStretch', /toe touch|inchworm|toe pose|wide angle pose/i],
+ ['butterfly', /butterfly yoga|butterfly pose|ผีเสื้อ/i],
+ ['cobra', /cobra|upward facing dog|sphinx|ท่างู/i],
+ // Calves and shrugs before presses and rows.
+ ['calfRaise', /calf|calves|toe raise|ankle circles|น่อง|เขย่ง/i],
+ ['shrug', /shrug|ยักไหล่/i],
+ ['uprightRow', /upright row|high pull(?!ey)|อัพไรท์/i],
+ ['reverseFly', /reverse fly|rear delt|rear fly|deltoid rear|lateral bent.?over|[tw]-raise|cuban|w-press|face pull|เฟซพูล|ไหล่หลัง/i],
+ // Core work.
+ ['bicycleCrunch', /air bike|bicycle|elbow.?to.?knee|heel touch|cross body crunch|\(cross body\)/i],
+ ['mountainClimber', /mountain climber|bear crawl|shoulder tap|plank tap/i],
+ ['hangingLegRaise', /hanging|captains? chair|knee raise|vertical leg raise|toes to bar|front lever|back lever|skin the cat|arm slingers|ยกขาห้อยตัว/i],
+ ['deadBug', /dead bug/i],
+ ['vUp', /v-?up|v-sit|l-sit|jack ?knife|pike(?!.*push)|cocoons?|kick out sit|butt-?ups|otis/i],
+ ['legRaise', /^(?!.*curl).*(leg raise|leg-hip raise|leg hip raise|flutter|scissor kick|swimmer kick|leg pull in|throw down)/i],
+ ['russianTwist', /russian twist|seated twist|spine twist|crab twist|รัสเซียน/i],
+ ['sideBend', /side bend|side bent|windmill|ไซด์เบนด์/i],
+ ['rollout', /roll.?out|rollerout|fallout|body saw|wheel/i],
+ ['plank', /plank|planche|maltese|side bridge|handstand|flag|isometric|แพลงก์/i],
+ // Machines and benches.
+ ['legExtension', /leg extension|เหยียดขา|หน้าขา/i],
+ ['nordic', /glute.?ham|nordic|inverse leg curl/i],
+ ['lyingLegCurl', /leg curl|hamstring curl|femoral|งอขา|หลังขา/i],
+ ['legPress', /leg press|เลกเพรส|เครื่องดันขา/i],
+ ['bridge', /bridge|hip thrust|hip raise|hip lift|pelvic tilt|bottoms.?up|lifting \(on hip\)|ฮิปทรัสต์|กลูตบริดจ์/i],
+ ['hipAbduction', /abduct|adduct|side hip|monster walk|hip internal rotation|lateral leg|outer hip|กางขา|หุบขา/i],
+ ['hipExtension', /hip extension|reverse hyper|pull.?through|donkey kick|leg kickback/i],
+ ['backExtension', /hyperextension|back extension|superman|elevator|good morning/i],
+ ['dip', /\bdips?\b|body-up|ดิปส์/i],
+ ['kickback', /kickback|kick back|rear drive/i],
+ ['skullCrusher', /skull|lying.*(tricep|extension)|(decline|incline).*(tricep|extension)|tricep.*extension.*(bench|ball)|tate press|close.?grip press|triceps press|pin press|jm press|elbow press|french press on/i],
+ ['wristCurl', /wrist|pronation|supination|gripper|hand squeeze|seated one arm rotate|ข้อมือ/i],
+ ['pullover', /pullover|pull over/i],
+ ['cableFly', /^(?!.*pull.?down).*cable.*(fly|cross)|crossover|cross-over|chest squeeze|svend|เคเบิลฟลาย/i],
+ ['fly', /fly|flyes|breeding|pec deck|ฟลาย|เพ็กเด็ค/i],
+ ['lateralRaise', /lateral raise|side raise|lateral to front|เลเทอรัล|ยกข้าง/i],
+ ['frontRaise', /front raise|forward raise|shoulder raise|front shoulder|y-raise|\braise\b|around world|round arm/i],
+ // Whole-body and cardio.
  ['lunge', /lunge|split squat|ลันจ์|สปลิต/i],
- ['kettlebellSwing', /swing|สวิง/i],
- ['deadlift', /deadlift|good morning|เดดลิฟ/i],
+ ['deadlift', /deadlift|rack pull|เดดลิฟ/i],
  ['squat', /squat|สควอ?[ตท]|กอบเล็ต/i],
+ ['thruster', /thruster|clean|snatch|jerk|bradford|skier|stalder|pirate/i],
+ ['slam', /slam|sledge|throw|tire flip|chop/i],
+ ['chestPass', /chest pass|chest push|chest throw|push and pull|wipers/i],
+ ['battleRopes', /battling ropes|battle rope/i],
+ ['twist', /twist|pallof|wood ?chop|judo flip|cable standing lift|landmine|rotation|hook|spell caster|figure 8|twisting pull/i],
+ ['stepUp', /step.?up|box jump|platform|single leg balance/i],
+ ['jumpingJack', /jack|star jump|astride|scissor jumps|skater|hops|jump|burpee|half knee bends|quick feet/i],
+ ['farmerWalk', /farmer|carry/i],
+ ['run', /\brun\b|running|sprint|high knee|back and forth step|ski step|วิ่ง/i],
+ ['walk', /walk|treadmill|stepmill|elliptical|cross trainer|เดิน|ขึ้นบันได/i],
+ ['cycle', /bike|cycle|cycling|ergometer|ปั่น|จักรยาน/i],
+ ['kettlebellSwing', /swing|สวิง/i],
  ['pushdown', /push.?down|พุชดาวน์/i],
- ['overheadExtension', /^(?!.*(lying|skull|kickback)).*(overhead|french).*(tricep|extension)|เหยียดแขน/i],
+ ['overheadExtension', /^(?!.*(lying|skull|kickback)).*(overhead|french|standing|seated|kneeling).*(tricep|extension)|tricep.*extension|เหยียดแขน/i],
  ['pushup', /push.?up|วิดพื้น/i],
- ['pullup', /pull.?up|chin.?up|pulldown|pull.?down|ดึงข้อ|พูลดาวน์/i],
- ['shoulderPress', /shoulder press|overhead press|military press|arnold press|push press|\bohp\b|โชลเดอร์เพรส|ดันไหล่/i],
- ['lateralRaise', /lateral raise|side raise|เลเทอรัล|ยกข้าง/i],
- ['bench', /bench press|chest press|เบนช์|เชสต์เพรส|ดันอก|(incline|decline|floor).*press/i],
- ['row', /^(?!.*(upright|rowing|machine row)).*\b(row|rows)\b|โรว์/i],
- ['curl', /^(?!.*(leg|hamstring|nordic|wrist|crunch)).*curl|เคิร์ล|ไบเซ|หน้าแขน/i],
+ ['pullup', /pull.?up|chin.?up|\bchin\b|pulldown|pull.?down|muscle.?up|rope climb|ดึงข้อ|พูลดาวน์/i],
+ ['shoulderPress', /shoulder press|overhead press|military press|arnold press|push press|\bohp\b|behind neck press|palms in press|scott press|seesaw press|side press|โชลเดอร์เพรส|ดันไหล่/i],
+ ['bench', /bench press|chest press|เบนช์|เชสต์เพรส|ดันอก|(incline|decline|floor|lying|ball).*press|press.*(floor|ball)/i],
+ ['row', /^(?!.*(upright|machine row)).*\b(row|rows)\b|rowing machine|โรว์|เครื่องกรรเชียง|พายเรือ/i],
+ ['curl', /^(?!.*(leg|hamstring|nordic|wrist|crunch)).*curl|concentration curl|เคิร์ล|ไบเซ|หน้าแขน/i],
  ['crunch', /crunch|sit.?up|ครันช์|ซิทอัพ/i],
+ ['shoulderPress', /press/i],
 ];
+// Muscle group of a library exercise -> a demonstration that works it.
+const BY_GROUP = {'ท้อง': 'crunch', 'น่อง': 'calfRaise', 'ขา': 'squat', 'อก': 'bench', 'แขน': 'curl', 'คาร์ดิโอ': 'run', 'หลัง': 'row',
+ 'ไหล่': 'shoulderPress', 'แขนท่อนล่าง': 'wristCurl', 'คอ': 'neckStretch'};
+const GROUP_OF = new Map(LIBRARY.map(([name, group]) => [name.toLowerCase(), group]));
 export function motionFor(name) {
  name = (name || '').trim();
- return RULES.find(([, re]) => re.test(name))?.[0] ?? null;
+ return RULES.find(([, re]) => re.test(name))?.[0] ?? BY_GROUP[GROUP_OF.get(name.toLowerCase())] ?? null;
 }

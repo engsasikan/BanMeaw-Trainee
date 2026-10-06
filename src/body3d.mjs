@@ -103,7 +103,40 @@ export function loadRig() {
 // seated (on a box, seatFoot planted).
 const STAND = {upperarm: [0.1, -1, 0.02], lowerarm: [0.12, -1, 0.06], upperleg: [0.11, -1, 0.02], lowerleg: [0.12, -1, -0.06]};
 const LEGS = {upperleg: STAND.upperleg, lowerleg: STAND.lowerleg};
-const LYING_KNEES = {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83]}; // lying on the back, feet flat
+const LYING_KNEES = {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.4, -0.92]};
+const FOOT_DOWN = (leg, w = 'always') => ({leg, hold: 'start', y: 0.075, pole: [0, 1, 0], w}); // lying on the back, feet flat
+const BENCH_LEGS = {upperleg: [0.28, -0.94, -0.18], lowerleg: [0.06, -0.12, -1]}; // lying on a bench, feet on the floor
+const BENT_OVER = {hips: [62, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16]};
+const RIGHT_STAND = {upperlegR: [-0.11, -1, 0.02], lowerlegR: [-0.12, -1, -0.06]};
+const ARMS_CROSSED = {upperarm: [-0.15, -0.7, 0.7], lowerarm: [-0.95, 0.2, 0.15], grip: 0.3}; // with armsWith: 'chest'
+const HANDS_TOGETHER = {upperarm: [-0.22, -0.3, 0.93], lowerarm: [-0.45, -0.05, 0.89], grip: 0.6}; // with armsWith: 'chest'
+const FLOOR_SIT = {hips: [-35, 0, 0], upperleg: [0.12, 0.45, 0.88], lowerleg: [0.05, -0.4, 0.92], foot: [0, 0, 0]};
+const PLANK_LEGS = {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0]};
+const PUSH_ARMS = {upperarm: [0.25, -0.05, 1], lowerarm: [0.06, 0.05, 1], hand: [0, 1, 0.1], grip: 0};
+// Alternating patterns: the second key swaps left and right.
+const mirrorKey = k => {
+  const out = {}, flip = d => d && [-d[0], d[1], d[2]];
+  for (const [key, v] of Object.entries(k)) {
+    if (key.endsWith('R') && /^(upper|lower)(arm|leg)R$|^footR$/.test(key)) continue;
+    const r = k[key + 'R'];
+    if (/^(upper|lower)(arm|leg)$/.test(key)) { out[key] = r ? flip(r) : v; out[key + 'R'] = flip(v); }
+    else if (key === 'foot' && k.footR) { out.foot = k.footR; out.footR = v; }
+    else out[key] = v;
+  }
+  return out;
+};
+const RUN_A = {hips: [10, 0, 0], upperleg: [0.1, -0.25, 0.97], lowerleg: [0.05, -0.95, -0.3], upperlegR: [-0.1, -0.95, -0.3], lowerlegR: [-0.05, -0.55, -0.83],
+  upperarm: [0.1, -0.8, -0.6], lowerarm: [0.05, 0.25, 0.97], upperarmR: [-0.1, -0.75, 0.66], lowerarmR: [-0.05, 0.65, 0.76], grip: 0.4};
+const WALK_A = {upperleg: [0.1, -0.95, 0.3], lowerleg: [0.1, -1, 0.05], upperlegR: [-0.1, -0.97, -0.25], lowerlegR: [-0.1, -0.9, -0.4],
+  upperarm: [0.1, -1, -0.25], lowerarm: [0.1, -1, -0.1], upperarmR: [-0.1, -1, 0.25], lowerarmR: [-0.1, -0.95, 0.3]};
+const CYCLE_A = {hips: [25, 0, 0], upperleg: [0.12, 0.25, 0.97], lowerleg: [0.06, -0.9, 0.4], upperlegR: [-0.12, -0.6, 0.8], lowerlegR: [-0.06, -1, -0.1],
+  upperarm: [0.15, -0.45, 0.88], lowerarm: [0.1, -0.25, 0.96], grip: 0.8};
+const ROPES_A = {hips: [20, 0, 0], upperleg: [0.2, -0.85, 0.45], lowerleg: [0.15, -0.95, -0.25], upperarm: [0.15, -0.35, 0.92], lowerarm: [0.08, -0.2, 0.98],
+  upperarmR: [-0.15, 0.15, 0.98], lowerarmR: [-0.08, 0.3, 0.95], grip: 1};
+const DEAD_BUG_A = {upperarm: [0.1, 0.85, 0.5], lowerarm: [0.1, 0.85, 0.5], upperarmR: [-0.1, 0.1, 1], lowerarmR: [-0.1, 0.1, 1],
+  upperleg: [0.08, -0.9, 0.4], lowerleg: [0.08, -0.95, 0.3], upperlegR: [-0.1, 0.05, 1], lowerlegR: [-0.05, -1, 0.05]};
+const BICYCLE_A = {spineLow: [10, 0, 0], upperarm: [0.9, 0.35, -0.1], lowerarm: [-0.6, 0.5, -0.6], upperleg: [0.1, 0.5, 0.86], lowerleg: [0.05, -0.9, 0.4],
+  upperlegR: [-0.08, -0.95, 0.3], lowerlegR: [-0.08, -0.95, 0.3]};
 const SITTING = {upperleg: [0.12, 0, 1], lowerleg: [0.08, -1, 0.02], upperarm: [0.1, -0.9, 0.4], lowerarm: [0.05, -0.3, 0.95], grip: 0.2};
 const MOTIONS = {
   squat: {anchor: 'feet', view: [55, 12, 0.5], keys: [
@@ -122,7 +155,7 @@ const MOTIONS = {
     {...STAND, upperarm: [0.08, -1, 0], lowerarm: [0.1, -1, 0.06], twist: -73},
     {...STAND, upperarm: [0.08, -1, 0.08], lowerarm: [0.06, 0.78, 0.62], twist: -93},
   ]},
-  crunch: {anchor: 'lying', surface: 0.01, view: [70, 22, 0.18], props: ['mat'], keys: [
+  crunch: {anchor: 'lying', surface: 0.01, view: [70, 22, 0.18], props: ['mat'], reach: [FOOT_DOWN('L'), FOOT_DOWN('R')], keys: [
     {upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.22, -0.9, 0.3], lowerarm: [0.12, -0.95, 0.25]},
     {spineLow: [9, 0, 0], chest: [17, 0, 0], neck: [12, 0, 0], upperleg: [0.14, -0.5, 0.85], lowerleg: [0.04, -0.55, -0.83], upperarm: [0.2, -0.85, 0.48], lowerarm: [0.1, -0.85, 0.5]},
   ]},
@@ -198,12 +231,12 @@ const MOTIONS = {
   ]},
   // Glute and hip stretches. Lying ones use the lying frame: x = left, y = towards the head, z = up from the chest.
   kneeToChest: {anchor: 'lying', surface: 0.01, hold: true, view: [70, 22, 0.18], props: ['mat'],
-    reach: [{arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.01, 0.03], pole: [1, -0.3, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.01, 0.03], pole: [-1, -0.3, 0]}], keys: [
+    reach: [FOOT_DOWN('L', 'out'), FOOT_DOWN('R', 'out'), {arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.01, 0.03], pole: [1, -0.3, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.01, 0.03], pole: [-1, -0.3, 0]}], keys: [
     {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
-    {chest: [14, 0, 0], neck: [10, 0, 0], upperleg: [0.15, 0.75, 0.65], lowerleg: [0.05, -0.95, 0.1], upperlegR: [-0.1, -1, 0.02], lowerlegR: [-0.1, -1, 0.02], upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1], grip: 0.7},
+    {chest: [14, 0, 0], neck: [10, 0, 0], upperleg: [0.15, 0.75, 0.65], lowerleg: [0.05, -0.95, 0.1], upperlegR: [-0.1, -1, -0.1], lowerlegR: [-0.1, -1, -0.05], upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1], grip: 0.7},
   ]},
   lyingFigure4: {anchor: 'lying', surface: 0.01, hold: true, view: [60, 24, 0.18], props: ['mat'],
-    reach: [{leg: 'R', to: 'lowerleg.L', offset: [-0.02, 0.025, 0], pole: [-1, 0.2, 0]},
+    reach: [FOOT_DOWN('L', 'out'), FOOT_DOWN('R', 'out'), {leg: 'R', to: 'lowerleg.L', offset: [-0.02, 0.025, 0], pole: [-1, 0.2, 0]},
       {arm: 'L', to: 'lowerleg.L', offset: [0.03, -0.02, -0.06], pole: [1, -0.3, 0]}, {arm: 'R', to: 'lowerleg.L', offset: [-0.03, -0.02, -0.06], pole: [-1, -0.3, 0]}], keys: [
     {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
     {chest: [12, 0, 0], neck: [10, 0, 0], upperleg: [0.1, 0.55, 0.83], lowerleg: [0.05, -0.95, 0.3], upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1], grip: 0.7},
@@ -221,9 +254,9 @@ const MOTIONS = {
   ]},
   ironCross: {anchor: 'lying', surface: 0.01, hold: true, view: [20, 40, 0.15], props: ['mat'], keys: [
     {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperarm: [1, 0, 0], lowerarm: [1, 0, 0]},
-    {hips: [0, -32, 0], chest: [0, 26, 0], upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperlegR: [0.78, -0.55, -0.1], lowerlegR: [0.8, -0.55, -0.15], upperarm: [1, 0, 0], lowerarm: [1, 0, 0]},
+    {hips: [0, -32, 0], chest: [0, 26, 0], upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperlegR: [0.78, -0.55, -0.02], lowerlegR: [0.8, -0.55, -0.05], upperarm: [1, 0, 0], lowerarm: [1, 0, 0]},
   ]},
-  rockingFrog: {anchor: 'quadruped', view: [75, 22, 0.18], keys: [
+  rockingFrog: {anchor: 'quadruped', handsUp: 0.04, view: [75, 22, 0.18], keys: [
     {upperleg: [0.75, -0.05, 0.65], lowerleg: [0.35, -0.94, 0], foot: [0, 0, 0], upperarm: [0.15, 0.05, 1], lowerarm: [0.1, 0.05, 1], hand: [0, 1, 0.1], grip: 0},
     {upperleg: [0.7, 0.5, 0.5], lowerleg: [0.3, -0.95, -0.05], foot: [0, 0, 0], upperarm: [0.15, 0.75, 0.65], lowerarm: [0.1, 0.75, 0.65], hand: [0, 1, 0.1], grip: 0},
   ]},
@@ -237,12 +270,181 @@ const MOTIONS = {
     {hips: [46, 0, 0], head: [-26, 0, 0], upperleg: [0.32, -0.85, 0.4], lowerleg: [-0.12, -0.95, -0.25], upperlegR: [0.2, -0.88, 0.4], lowerlegR: [-0.25, -0.92, -0.25], grip: 0.3},
     {hips: [46, 0, 0], head: [-26, 0, 0], upperleg: [-0.2, -0.88, 0.4], lowerleg: [0.25, -0.92, -0.25], upperlegR: [-0.32, -0.85, 0.4], lowerlegR: [0.12, -0.95, -0.25], grip: 0.3},
   ]},
-  rollerBack: {anchor: 'lying', surface: 0.01, hold: true, view: [75, 20, 0.16], props: ['mat', 'roller'], keys: [
+  rollerBack: {anchor: 'lying', surface: 0.01, hold: true, view: [75, 20, 0.16], props: ['mat', 'roller'], reach: [FOOT_DOWN('L'), FOOT_DOWN('R')], keys: [
     {...LYING_KNEES, upperarm: [0.2, -0.95, 0.1], lowerarm: [0.15, -0.95, 0.1]},
-    {...LYING_KNEES, chest: [-14, 0, 0], neck: [-8, 0, 0], upperarm: [0.25, 0.95, -0.15], lowerarm: [0.2, 0.95, -0.2]},
+    {...LYING_KNEES, chest: [-14, 0, 0], neck: [-8, 0, 0], upperarm: [0.25, 0.97, 0], lowerarm: [0.2, 0.97, 0.05]},
+  ]},
+  // ---- More patterns, so every exercise in the library has a demonstration. ----
+  calfRaise: {anchor: 'feet', view: [70, 6, 0.35], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.06, -1, 0.06], lowerarm: [0.04, -1, 0.04], twist: -16, foot: [0, 0, 0]},
+    {...LEGS, upperarm: [0.06, -1, 0.06], lowerarm: [0.04, -1, 0.04], twist: -16, foot: [30, 0, 0], lift: 0.085},
+  ]},
+  frontRaise: {anchor: 'feet', view: [60, 8, 0.6, 1.1], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.08, -1, 0.1], lowerarm: [0.06, -1, 0.12], twist: 78},
+    {...LEGS, upperarm: [0.12, 0.05, 1], lowerarm: [0.1, 0.05, 1], twist: 78},
+  ]},
+  uprightRow: {anchor: 'feet', view: [30, 6, 0.62], props: ['barbell'], keys: [
+    {...LEGS, upperarm: [0.06, -1, 0.12], lowerarm: [-0.1, -1, 0.1], twist: 78},
+    {...LEGS, upperarm: [0.92, 0.15, 0.3], lowerarm: [-0.8, 0.4, 0.3], twist: 78},
+  ]},
+  reverseFly: {anchor: 'feet', view: [35, 14, 0.45], props: ['dumbbells'], keys: [
+    {...BENT_OVER, upperarm: [0.06, -1, 0.08], lowerarm: [0.04, -1, 0.1], twist: -16},
+    {...BENT_OVER, upperarm: [1, -0.12, 0], lowerarm: [1, -0.2, 0.08], twist: -16},
+  ]},
+  shrug: {anchor: 'feet', view: [25, 6, 0.65], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.06, -1, 0.04], lowerarm: [0.04, -1, 0.04], twist: -16},
+    {...LEGS, upperarm: [0.06, -1, 0.04], lowerarm: [0.04, -1, 0.04], twist: -16, clavicle: [0, 0, 14]},
+  ]},
+  fly: {anchor: 'lying', surface: 0.43, view: [38, 30, 0.3], props: ['bench', 'dumbbells'], keys: [
+    {...BENCH_LEGS, upperarm: [0.1, -0.05, 1], lowerarm: [0.04, -0.05, 1], twist: -35},
+    {...BENCH_LEGS, upperarm: [1, -0.05, -0.2], lowerarm: [0.95, -0.05, 0.3], twist: -35},
+  ]},
+  cableFly: {anchor: 'feet', view: [30, 8, 0.6, 1.1], keys: [
+    {...LEGS, hips: [12, 0, 0], upperarm: [0.9, 0.3, -0.25], lowerarm: [0.85, 0.2, 0.25], grip: 1},
+    {...LEGS, hips: [12, 0, 0], upperarm: [0.3, -0.3, 0.9], lowerarm: [-0.2, -0.25, 0.95], grip: 1},
+  ]},
+  pullover: {anchor: 'lying', surface: 0.43, view: [70, 22, 0.3], props: ['bench', 'onedumbbell'], keys: [
+    {...BENCH_LEGS, upperarm: [0.12, 0.95, -0.3], lowerarm: [0.08, 0.95, -0.3]},
+    {...BENCH_LEGS, upperarm: [0.12, 0.1, 1], lowerarm: [0.06, 0.1, 1]},
+  ]},
+  dip: {anchor: 'hands', hang: 0.5, view: [55, 6, 0.62, 1.2], props: ['dipbars'], keys: [
+    {upperarm: [0.14, -1, 0.02], lowerarm: [0.1, -1, 0.04], upperleg: [0.08, -1, 0.15], lowerleg: [0.06, -0.5, -0.86], foot: [30, 0, 0], twist: -16},
+    {hips: [15, 0, 0], upperarm: [0.18, -0.45, -0.87], lowerarm: [0.08, -1, 0.06], upperleg: [0.08, -1, 0.15], lowerleg: [0.06, -0.5, -0.86], foot: [30, 0, 0], twist: -16},
+  ]},
+  skullCrusher: {anchor: 'lying', surface: 0.43, view: [70, 22, 0.32], props: ['bench', 'barbell'], keys: [
+    {...BENCH_LEGS, upperarm: [0.1, 0.2, 0.98], lowerarm: [0.04, 0.2, 0.98], twist: 55},
+    {...BENCH_LEGS, upperarm: [0.1, 0.2, 0.98], lowerarm: [0.03, 0.9, -0.42], twist: 55},
+  ]},
+  kickback: {anchor: 'feet', view: [80, 8, 0.45], props: ['dumbbells'], keys: [
+    {...BENT_OVER, upperarm: [0.1, -0.4, -0.92], lowerarm: [0.05, -1, 0.05], twist: -16},
+    {...BENT_OVER, upperarm: [0.1, -0.4, -0.92], lowerarm: [0.08, -0.4, -0.92], twist: -16},
+  ]},
+  wristCurl: {anchor: 'seated', seatFoot: 'L', view: [70, 14, 0.4], props: ['seat', 'dumbbells'], keys: [
+    {...SITTING, hips: [28, 0, 0], upperarm: [0.12, -0.85, 0.5], lowerarm: [0.06, -0.05, 1], hand: [0.05, -0.6, 0.8], twist: -73, grip: 1},
+    {...SITTING, hips: [28, 0, 0], upperarm: [0.12, -0.85, 0.5], lowerarm: [0.06, -0.05, 1], hand: [0.05, 0.55, 0.83], twist: -73, grip: 1},
+  ]},
+  legExtension: {anchor: 'seated', seatFoot: 'L', view: [75, 8, 0.38], props: ['seat'], keys: [
+    {...SITTING, upperarm: [0.25, -1, 0], lowerarm: [0.2, -1, 0.1], grip: 0.7},
+    {...SITTING, lowerleg: [0.08, 0, 1], upperarm: [0.25, -1, 0], lowerarm: [0.2, -1, 0.1], grip: 0.7},
+  ]},
+  lyingLegCurl: {anchor: 'prone', surface: 0.43, view: [80, 14, 0.3], props: ['bench'], keys: [
+    {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.45, 0.6, 0.35], lowerarm: [0.1, 0.45, 0.6], grip: 0.8},
+    {upperleg: [0.08, -1, 0], lowerleg: [0.06, -0.15, -0.99], foot: [0, 0, 0], upperarm: [0.45, 0.6, 0.35], lowerarm: [0.1, 0.45, 0.6], grip: 0.8},
+  ]},
+  legPress: {anchor: 'lying', surface: 0.45, view: [75, 14, 0.35], props: ['bench'], keys: [
+    {upperleg: [0.15, 0.35, 0.92], lowerleg: [0.1, -0.7, 0.7], upperarm: [0.25, -0.95, -0.1], lowerarm: [0.2, -0.95, 0], grip: 0.8},
+    {upperleg: [0.12, -0.45, 0.88], lowerleg: [0.12, -0.45, 0.88], upperarm: [0.25, -0.95, -0.1], lowerarm: [0.2, -0.95, 0], grip: 0.8},
+  ]},
+  bridge: {anchor: 'shoulders', surface: 0.01, view: [75, 14, 0.18], props: ['mat'],
+    reach: [FOOT_DOWN('L'), FOOT_DOWN('R')], keys: [
+    {...LYING_KNEES, upperarm: [0.25, -0.95, -0.05], lowerarm: [0.2, -0.95, 0]},
+    {...LYING_KNEES, hips: [-26, 0, 0], neck: [30, 0, 0], head: [8, 0, 0], upperarm: [0.25, -0.95, -0.05], lowerarm: [0.2, -0.95, 0]},
+  ]},
+  hipAbduction: {anchor: 'footR', view: [10, 6, 0.5], keys: [
+    {...STAND, ...RIGHT_STAND},
+    {...STAND, ...RIGHT_STAND, upperleg: [0.55, -0.83, 0.02], lowerleg: [0.55, -0.83, -0.02]},
+  ]},
+  hipExtension: {anchor: 'footR', view: [80, 6, 0.5], keys: [
+    {...STAND, ...RIGHT_STAND},
+    {...STAND, ...RIGHT_STAND, hips: [12, 0, 0], upperleg: [0.1, -0.8, -0.6], lowerleg: [0.1, -0.85, -0.5]},
+  ]},
+  backExtension: {anchor: 'feet', armsWith: 'chest', view: [80, 8, 0.45], keys: [
+    {...LEGS, hips: [75, 0, 0], neck: [-10, 0, 0], ...ARMS_CROSSED},
+    {...LEGS, hips: [-5, 0, 0], ...ARMS_CROSSED},
+  ]},
+  legRaise: {anchor: 'lying', surface: 0.01, view: [75, 18, 0.18], props: ['mat'], keys: [
+    {upperleg: [0.08, -1, -0.1], lowerleg: [0.08, -1, -0.05], upperarm: [0.25, -0.95, -0.05], lowerarm: [0.2, -0.95, 0]},
+    {upperleg: [0.06, 0.05, 1], lowerleg: [0.06, 0.05, 1], upperarm: [0.25, -0.95, -0.05], lowerarm: [0.2, -0.95, 0]},
+  ]},
+  hangingLegRaise: {anchor: 'hands', view: [60, 4, 0.7, 1.3], props: ['pullbar'], keys: [
+    {upperarm: [0.38, 1, 0.02], lowerarm: [0.22, 1, 0.02], twist: -71, upperleg: [0.08, -1, 0.05], lowerleg: [0.06, -1, 0], foot: [20, 0, 0]},
+    {upperarm: [0.38, 1, 0.02], lowerarm: [0.22, 1, 0.02], twist: -71, upperleg: [0.06, -0.05, 1], lowerleg: [0.06, -0.05, 1], foot: [20, 0, 0]},
+  ]},
+  russianTwist: {anchor: 'floorSit', armsWith: 'chest', view: [20, 20, 0.25], props: ['ball'], keys: [
+    {...FLOOR_SIT, chest: [0, 35, 0], spineLow: [0, 10, 0], ...HANDS_TOGETHER},
+    {...FLOOR_SIT, chest: [0, -35, 0], spineLow: [0, -10, 0], ...HANDS_TOGETHER},
+  ]},
+  sideBend: {anchor: 'feet', view: [10, 6, 0.55], props: ['dumbbells'], keys: [
+    {...LEGS, upperarm: [0.08, -1, 0.02], lowerarm: [0.06, -1, 0.04], twist: -16},
+    {...LEGS, spineLow: [0, 0, 12], chest: [0, 0, 14], upperarm: [0.08, -1, 0.02], lowerarm: [0.06, -1, 0.04], twist: -16},
+  ]},
+  plank: {anchor: 'plank', hold: true, view: [75, 16, 0.15], keys: [
+    {...PLANK_LEGS, upperarm: [0.2, -0.05, 1], lowerarm: [0.05, 1, 0.05], hand: [0, 1, 0], grip: 0},
+    {...PLANK_LEGS, hips: [8, 0, 0], upperarm: [0.2, -0.05, 1], lowerarm: [0.05, 1, 0.05], hand: [0, 1, 0], grip: 0},
+  ]},
+  mountainClimber: {anchor: 'plank', view: [75, 16, 0.18], keys: [
+    {...PUSH_ARMS, foot: [0, 0, 0], upperleg: [0.1, 0.75, 0.55], lowerleg: [0.05, -0.95, 0.18], upperlegR: [-0.08, -1, 0], lowerlegR: [-0.08, -1, 0]},
+    {...PUSH_ARMS, foot: [0, 0, 0], upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], upperlegR: [-0.1, 0.75, 0.55], lowerlegR: [-0.05, -0.95, 0.18]},
+  ]},
+  jumpingJack: {anchor: 'feet', hop: 0.07, view: [10, 6, 0.55, 1.15], keys: [
+    {...STAND},
+    {upperleg: [0.3, -0.95, 0.02], lowerleg: [0.3, -0.95, -0.02], upperarm: [0.55, 0.83, 0], lowerarm: [0.45, 0.9, 0]},
+  ]},
+  run: {anchor: 'ground', hop: 0.03, view: [75, 6, 0.5], keys: [RUN_A, mirrorKey(RUN_A)]},
+  walk: {anchor: 'ground', view: [75, 6, 0.5], keys: [WALK_A, mirrorKey(WALK_A)]},
+  farmerWalk: {anchor: 'ground', view: [60, 6, 0.5], props: ['dumbbells'], keys: [
+    {...WALK_A, upperarm: [0.12, -1, 0.02], lowerarm: [0.08, -1, 0.02], upperarmR: undefined, lowerarmR: undefined, twist: -16},
+    {...mirrorKey(WALK_A), upperarm: [0.12, -1, 0.02], lowerarm: [0.08, -1, 0.02], upperarmR: undefined, lowerarmR: undefined, twist: -16},
+  ]},
+  cycle: {anchor: 'seated', seatFoot: 'R', view: [80, 8, 0.4], props: ['seat'], keys: [CYCLE_A, mirrorKey(CYCLE_A)]},
+  thruster: {anchor: 'feet', view: [60, 8, 0.55, 1.15], props: ['barbell'], keys: [
+    {hips: [25, 0, 0], head: [-10, 0, 0], upperleg: [0.36, -0.22, 0.9], lowerleg: [0.16, -0.93, -0.33], upperarm: [0.3, -0.15, 0.94], lowerarm: [-0.45, 0.85, -0.25], twist: -5},
+    {...LEGS, upperarm: [0.25, 1, 0.05], lowerarm: [0.12, 1, 0.04], twist: -66},
+  ]},
+  twist: {anchor: 'feet', armsWith: 'chest', view: [15, 10, 0.55], keys: [
+    {...LEGS, chest: [0, 40, 0], spineLow: [0, 12, 0], ...HANDS_TOGETHER, grip: 0.9},
+    {...LEGS, chest: [0, -40, 0], spineLow: [0, -12, 0], ...HANDS_TOGETHER, grip: 0.9},
+  ]},
+  rollout: {anchor: 'quadruped', handsUp: 0.09, view: [80, 14, 0.18], props: ['wheel'], keys: [
+    {upperleg: [0.1, 0, 1], lowerleg: [0.05, -1, 0.05], foot: [0, 0, 0], upperarm: [0.12, 0.05, 1], lowerarm: [0.08, 0.05, 1], twist: 55, grip: 1},
+    {upperleg: [0.1, 0.55, 0.83], lowerleg: [0.05, -1, 0.05], foot: [0, 0, 0], upperarm: [0.12, 0.9, 0.42], lowerarm: [0.1, 0.9, 0.42], twist: 55, grip: 1},
+  ]},
+  stepUp: {anchor: 'footL', plant: [0, 0.33, 0.28], view: [80, 8, 0.5], props: ['box'],
+    reach: [{leg: 'R', at: [0, 0.08, -0.12], pole: [0, 0, 1], w: 'out'}], keys: [
+    {upperleg: [0.1, -0.5, 0.86], lowerleg: [0.08, -1, 0.05], ...RIGHT_STAND, upperarm: STAND.upperarm, lowerarm: STAND.lowerarm},
+    {...STAND, ...RIGHT_STAND},
+  ]},
+  battleRopes: {anchor: 'feet', view: [60, 8, 0.45], keys: [ROPES_A, mirrorKey(ROPES_A)]},
+  slam: {anchor: 'feet', view: [70, 8, 0.5, 1.15], props: ['ball'], keys: [
+    {...STAND, upperarm: [0.15, 1, 0.1], lowerarm: [0.1, 1, 0.15], grip: 0.4},
+    {hips: [40, 0, 0], upperleg: [0.25, -0.6, 0.76], lowerleg: [0.15, -0.93, -0.3], upperarm: [0.12, -0.75, 0.65], lowerarm: [0.05, -0.85, 0.5], grip: 0.4},
+  ]},
+  chestPass: {anchor: 'feet', view: [65, 8, 0.6], props: ['ball'], keys: [
+    {...LEGS, upperarm: [0.5, -0.75, -0.4], lowerarm: [-0.25, 0.1, 0.96], grip: 0.4},
+    {...LEGS, upperarm: [0.15, 0.05, 1], lowerarm: [0.05, 0.05, 1], grip: 0.4},
+  ]},
+  cobra: {anchor: 'prone', surface: 0.01, hold: true, view: [75, 14, 0.15], props: ['mat'],
+    reach: [{arm: 'L', hold: 'start', pole: [0.3, -0.6, -1], w: 'always'}, {arm: 'R', hold: 'start', pole: [-0.3, -0.6, -1], w: 'always'}], keys: [
+    {upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.35, -0.7, -0.62], lowerarm: [0.05, 0.25, 0.97], hand: [0, 1, 0.1], grip: 0},
+    {chest: [-30, 0, 0], spineLow: [-25, 0, 0], neck: [-10, 0, 0], upperleg: [0.08, -1, 0], lowerleg: [0.08, -1, 0], foot: [0, 0, 0], upperarm: [0.2, -0.2, 0.97], lowerarm: [0.1, 0, 1], hand: [0, 1, 0.1], grip: 0},
+  ]},
+  butterfly: {anchor: 'floorSit', hold: true, view: [20, 20, 0.25],
+    reach: [{arm: 'L', to: 'foot.L', offset: [0, 0.02, 0.02], pole: [1, 0, 0], w: 'always'}, {arm: 'R', to: 'foot.R', offset: [0, 0.02, 0.02], pole: [-1, 0, 0], w: 'always'}], keys: [
+    {upperleg: [0.75, 0.15, 0.65], lowerleg: [-0.55, -0.1, 0.83], foot: [0, 0, -30], grip: 0.6},
+    {hips: [25, 0, 0], upperleg: [0.75, 0.15, 0.65], lowerleg: [-0.55, -0.1, 0.83], foot: [0, 0, -30], grip: 0.6},
+  ]},
+  nordic: {anchor: 'kneel', armsWith: 'chest', view: [80, 8, 0.35], keys: [
+    {upperleg: [0.1, -1, 0.02], lowerleg: [0.05, -0.02, -1], foot: [60, 0, 0], ...ARMS_CROSSED},
+    {hips: [40, 0, 0], upperleg: [0.1, -0.75, 0.66], lowerleg: [0.05, -0.02, -1], foot: [60, 0, 0], ...ARMS_CROSSED},
+  ]},
+  deadBug: {anchor: 'lying', surface: 0.01, view: [65, 22, 0.18], props: ['mat'], keys: [DEAD_BUG_A, mirrorKey(DEAD_BUG_A)]},
+  bicycleCrunch: {anchor: 'lying', surface: 0.01, armsWith: 'chest', view: [65, 22, 0.18], props: ['mat'], keys: [
+    {...BICYCLE_A, chest: [25, 25, 0]},
+    {...mirrorKey(BICYCLE_A), chest: [25, -25, 0]},
+  ]},
+  vUp: {anchor: 'lying', surface: 0.01, view: [75, 18, 0.2], props: ['mat'], keys: [
+    {upperleg: [0.08, -1, -0.1], lowerleg: [0.08, -1, -0.05], upperarm: [0.15, 0.98, -0.1], lowerarm: [0.1, 0.98, -0.1]},
+    {spineLow: [25, 0, 0], chest: [35, 0, 0], neck: [10, 0, 0], upperleg: [0.06, 0.35, 0.94], lowerleg: [0.06, 0.35, 0.94], upperarm: [0.15, -0.3, 0.94], lowerarm: [0.1, -0.4, 0.9]},
   ]},
 };
 export const MOTION_IDS = Object.keys(MOTIONS);
+// For tests: pose a body for one motion and read the joints (blend t: 0 = first key, 1 = second key).
+export function demoJoints(rig, model, record, id, t) {
+  const {pos, H} = shapeBody(model, record), g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(new THREE.BufferAttribute(model.indices, 1));
+  const fig = rigFigure(rig, g, new THREE.MeshBasicMaterial(), pos, H, model.segments, MOTIONS[id]);
+  fig.tick(t >= 1 ? 1.4 : t <= 0 ? 0 : 0.7); return fig.joints();
+}
 // Closing the hand: degrees per joint at full grip; where a handle sits (fraction wrist -> knuckles, distance off the palm / height).
 const FINGER_CURL = [70, 95, 55], THUMB_CURL = [40, 30, 35], PALM_SIDE = 1, GRIP_ALONG = 0.95, GRIP_OUT = 0.018;
 const LIMBS = [['upperarm', 'lowerarm'], ['lowerarm', 'hand'], ['upperleg', 'lowerleg'], ['lowerleg', 'foot']];
@@ -289,11 +491,15 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
     curlAxis.set(`finger${f}-${k}.${side}`, new THREE.Vector3().crossVectors(b.sub(a).normalize(), f === 1 ? palm[side].along : palm[side].normal).normalize());
   }
   const anchor = motion.anchor, deg = Math.PI / 180;
-  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(anchor === 'lying' ? -Math.PI / 2 : anchor === 'plank' || anchor === 'quadruped' ? Math.PI / 2 : 0, 0, 0));
-  const frameInv = frame.clone().invert();
-  let backDepth = 0;
-  if (anchor === 'lying') { let minZ = Infinity; for (let i = 0; i < segments.length; i++) if (segments[i] === 0) minZ = Math.min(minZ, pos[i * 3 + 2]); backDepth = heads[0][2] - minZ; }
+  const BACK = ['lying', 'shoulders'], FRONT = ['plank', 'quadruped', 'prone'];
+  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(BACK.includes(anchor) ? -Math.PI / 2 : FRONT.includes(anchor) ? Math.PI / 2 : 0, 0, 0));
+  // turn: extra whole-body rotation found by an anchor (planks pivot on the toes); limbs turn with it.
+  const turn = new THREE.Quaternion(), limbFrame = new THREE.Quaternion(), limbFrameInv = new THREE.Quaternion();
+  // How far the back (lying) or belly (prone) sticks out from the hip joint.
+  let backDepth = 0, frontDepth = 0;
+  { let minZ = Infinity, maxZ = -Infinity; for (let i = 0; i < segments.length; i++) if (segments[i] === 0) { minZ = Math.min(minZ, pos[i * 3 + 2]); maxZ = Math.max(maxZ, pos[i * 3 + 2]); } backDepth = heads[0][2] - minZ; frontDepth = maxZ - heads[0][2]; }
   const restHips = V(heads[0]), restFeet = V(heads[id('foot.L')]).add(V(heads[id('foot.R')])).multiplyScalar(0.5), restFootL = V(heads[id('foot.L')]);
+  const plantSide = anchor === 'footR' ? 'R' : 'L', restPlant = V(heads[id('foot.' + plantSide)]).add(V(motion.plant || [0, 0, 0]));
   const worldQ = bones.map(() => new THREE.Quaternion()), worldP = bones.map(() => new THREE.Vector3());
   const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), euler = new THREE.Euler();
   const lerp3 = (a = [0, 0, 0], b = a, t) => a.map((x, k) => x + (b[k] - x) * t), lerpN = (a, b, t) => a + (b - a) * t;
@@ -317,13 +523,17 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
         const a = keyFor(A, 'foot', side);
         if (a) { const e = lerp3(a, keyFor(B, 'foot', side), t); bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)); }
         else bone.quaternion.copy(parentQ).invert(); // flat on the floor
+      } else if (base === 'clavicle') {
+        const e = lerp3(A.clavicle ?? ZERO, B.clavicle ?? ZERO, t), m = side === 'R' ? -1 : 1;
+        bone.quaternion.setFromEuler(euler.set(e[0] * deg, e[1] * deg * m, e[2] * deg * m));
       } else if (base.startsWith('finger')) {
         // Close the hand: grip 0 = relaxed, 1 = wrapped around a handle.
         const g = lerpN(A.grip ?? baseGrip, B.grip ?? A.grip ?? baseGrip, t), f = +base[6], k = +base[8];
         bone.quaternion.setFromAxisAngle(curlAxis.get(b.name), (f === 1 ? THUMB_CURL : FINGER_CURL)[k - 1] * g * deg);
       } else if (keyFor(A, base, side)) {
         const a = keyFor(A, base, side), d = lerp3(a, keyFor(B, base, side) ?? a, t);
-        tmpV.set(...d).normalize().applyQuaternion(frame).applyQuaternion(tmpQ.copy(parentQ).invert());
+        const armFrame = motion.armsWith === 'chest' && ['upperarm', 'lowerarm', 'hand'].includes(base) && !over?.[b.name] ? worldQ[id('chest')] : limbFrame;
+        tmpV.set(...d).normalize().applyQuaternion(armFrame).applyQuaternion(tmpQ.copy(parentQ).invert());
         bone.quaternion.setFromUnitVectors(restDir.get(b.name), tmpV);
         if (base === 'lowerarm') {
           // Forearm twist (degrees, + turns the left palm outwards; mirrored on the right).
@@ -344,32 +554,57 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
     });
   }
   const shiftAll = delta => { bones[0].position.add(delta); for (const p of worldP) p.add(delta); };
-  let gripTarget = null;
+  let gripTarget = null, chestAt = null, kneesAt = null, seatShift = null;
+  const held = new Map(); // reach targets fixed at the start of the motion
   function pose(t) {
     const e = lerp3(motion.keys[0].hips ?? ZERO, motion.keys[1].hips ?? ZERO, t);
     const rootQ = frame.clone().multiply(tmpQ.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)));
+    turn.identity(); limbFrame.copy(frame); limbFrameInv.copy(frame).invert();
     fk(t, rootQ, restHips);
     if (anchor === 'feet') shiftAll(restFeet.clone().sub(avg('foot.L', 'foot.R')));
-    else if (anchor === 'footL') shiftAll(restFootL.clone().sub(worldP[id('foot.L')]));
+    else if (anchor === 'footL' || anchor === 'footR') shiftAll(restPlant.clone().sub(worldP[id('foot.' + plantSide)]));
     else if (anchor === 'lying') shiftAll(new THREE.Vector3(0, motion.surface + backDepth, H * 0.12).sub(worldP[0]));
+    else if (anchor === 'prone') shiftAll(new THREE.Vector3(0, motion.surface + frontDepth, -H * 0.12).sub(worldP[0]));
+    else if (anchor === 'shoulders') {
+      // Bridges: the upper back stays on the floor while the hips rise.
+      // Where the chest is when lying flat at the start (placed like 'lying').
+      chestAt ??= worldP[id('chest')].clone().add(new THREE.Vector3(0, motion.surface + backDepth, H * 0.12).sub(worldP[0]));
+      shiftAll(chestAt.clone().sub(worldP[id('chest')]));
+    } else if (anchor === 'ground') {
+      // Walking and running in place: the lower foot is on the floor.
+      shiftAll(new THREE.Vector3(0, restFeet.y - Math.min(worldP[id('foot.L')].y, worldP[id('foot.R')].y), 0));
+    } else if (anchor === 'floorSit') shiftAll(new THREE.Vector3(0, H * 0.055 - worldP[0].y, 0));
+    else if (anchor === 'kneel') {
+      kneesAt ??= new THREE.Vector3(0, 0.06, avg('lowerleg.L', 'lowerleg.R').z);
+      shiftAll(kneesAt.clone().sub(avg('lowerleg.L', 'lowerleg.R')));
+    }
     else if (anchor === 'hands') {
       // Bar height: hanging straight, feet clear the floor.
       const g = grips(), hold = g[0].clone().add(g[1]).multiplyScalar(0.5);
-      if (!gripTarget) gripTarget = new THREE.Vector3(0, hold.y - avg('foot.L', 'foot.R').y + 0.18, 0);
+      if (!gripTarget) gripTarget = new THREE.Vector3(0, hold.y - avg('foot.L', 'foot.R').y + (motion.hang ?? 0.18), 0);
       shiftAll(gripTarget.clone().sub(hold));
     } else if (anchor === 'plank' || anchor === 'quadruped') {
       // Pivot around the toes (plank) or knees (all fours) until the hands reach the floor.
       // Heights above the floor: wrists ~4 cm, ankles on the toes ~10 cm, knees ~6 cm.
-      const [j, dy, y0, z0] = anchor === 'plank' ? ['foot', -0.06, 0.1, -H * 0.5] : ['lowerleg', -0.02, 0.06, -H * 0.18];
-      const v = avg('hand.L', 'hand.R').sub(avg(j + '.L', j + '.R')), r = Math.hypot(v.y, v.z);
+      const [j, dy, y0, z0] = anchor === 'plank' ? ['foot', -0.06, 0.1, -H * 0.5] : ['lowerleg', 0.01 + (motion.handsUp ?? 0), 0.06, -H * 0.18];
+      const hands = avg('hand.L', 'hand.R'), far = anchor === 'plank' ? [j + '.L', j + '.R'].sort((a, b) => worldP[id(b)].distanceTo(hands) - worldP[id(a)].distanceTo(hands))[0] : null;
+      const pivot = () => far ? worldP[id(far)].clone() : avg(j + '.L', j + '.R');
+      const v = hands.sub(pivot()), r = Math.hypot(v.y, v.z);
       const wrap = x => Math.atan2(Math.sin(x), Math.cos(x)), c = Math.acos(clamp(dy / r, -1, 1)), phi = Math.atan2(v.z, v.y);
       const a = [wrap(c - phi), wrap(-c - phi)].sort((p, q) => Math.abs(p) - Math.abs(q))[0];
-      fk(t, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), a).multiply(rootQ), restHips);
-      shiftAll(new THREE.Vector3(0, y0, z0).sub(avg(j + '.L', j + '.R')));
+      // Planks are rigid, so the limbs turn with the body; on all fours the shins stay along the floor.
+      turn.setFromAxisAngle(new THREE.Vector3(1, 0, 0), a);
+      if (anchor === 'plank') { limbFrame.copy(turn).multiply(frame); limbFrameInv.copy(limbFrame).invert(); }
+      fk(t, turn.clone().multiply(rootQ), restHips);
+      const p = pivot(); shiftAll(new THREE.Vector3(-avg(j + '.L', j + '.R').x, y0 - p.y, z0 - p.z));
     } else if (anchor === 'seated') {
-      // Sitting: the planted foot's ankle rests ~8 cm above the floor; the seat sits under the thighs.
-      shiftAll(new THREE.Vector3(0, 0.08 - worldP[id('foot.' + motion.seatFoot)].y, 0));
+      // Sitting: at the start the planted foot's ankle rests ~8 cm above the floor; the seat then stays put.
+      seatShift ??= 0.08 - worldP[id('foot.' + motion.seatFoot)].y;
+      shiftAll(new THREE.Vector3(0, seatShift, 0));
     }
+    // Rising onto the toes (lift) and jumps (hop).
+    const rise = lerpN(motion.keys[0].lift ?? 0, motion.keys[1].lift ?? 0, t) + (motion.hop ?? 0) * Math.sin(Math.PI * t);
+    if (rise) shiftAll(new THREE.Vector3(0, rise, 0));
     // Two-bone IK, blended in by weight w: the back leg of a lunge, hands reaching a foot or elbow.
     const solved = {};
     const ik = (upper, lower, end, target, pole, w = 1) => {
@@ -377,7 +612,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       const a = mid0.distanceTo(root), b = end0.distanceTo(mid0), u = target.clone().sub(root), d = Math.min(u.length(), (a + b) * 0.999); u.normalize();
       const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), p = pole.clone().addScaledVector(u, -pole.dot(u)).normalize();
       const mid = root.clone().addScaledVector(u, a * cosA).addScaledVector(p, a * Math.sqrt(1 - cosA * cosA)), tip = root.clone().addScaledVector(u, d);
-      const mix = (from, to) => from.normalize().lerp(to.normalize(), w).normalize().applyQuaternion(frameInv).toArray();
+      const mix = (from, to) => from.normalize().lerp(to.normalize(), w).normalize().applyQuaternion(limbFrameInv).toArray();
       solved[upper] = mix(mid0.clone().sub(root), mid.clone().sub(root)); solved[lower] = mix(end0.clone().sub(mid0), tip.sub(mid));
     };
     // Solved in order, re-running FK after each so later targets see earlier results (a hand holding an IK'd ankle).
@@ -387,7 +622,12 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
     for (const r of motion.reach || []) {
       // r.arm / r.leg: side; r.to: joint; r.offset: x height; r.w: 'in' (default, with the motion), 'out' or 'always'.
       const side = r.arm || r.leg, [u, l, e] = r.arm ? ['upperarm', 'lowerarm', 'hand'] : ['upperleg', 'lowerleg', 'foot'];
-      solve(`${u}.${side}`, `${l}.${side}`, `${e}.${side}`, worldP[id(r.to)].clone().addScaledVector(V3(r.offset), H), V3(r.pole), r.w === 'always' ? 1 : r.w === 'out' ? 1 - t : t);
+      let target;
+      if (r.hold === 'start') { const k = `${e}.${side}`; if (!held.has(k)) held.set(k, worldP[id(k)].clone()); target = held.get(k).clone(); }
+      else if (r.at) target = V3(r.at).add(new THREE.Vector3(heads[id(`${e}.${side}`)][0], 0, 0));
+      else target = worldP[id(r.to)].clone().addScaledVector(V3(r.offset || [0, 0, 0]), H);
+      if (r.y != null) target.y = r.y;
+      solve(`${u}.${side}`, `${l}.${side}`, `${e}.${side}`, target, V3(r.pole), r.w === 'always' ? 1 : r.w === 'out' ? 1 - t : t);
     }
     over = null;
     return grips();
@@ -402,7 +642,25 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const mid = grips => grips[0].clone().add(grips[1]).multiplyScalar(0.5);
   const updates = [];
   for (const p of motion.props || []) {
-    if (p === 'bench') { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, H * 0.12 - 0.4); props.add(b); const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, motion.surface - 0.07, 0.9), metal); leg.position.set(0, (motion.surface - 0.07) / 2, H * 0.12 - 0.4); props.add(leg); }
+    if (p === 'bench') {
+      const z = anchor === 'prone' ? -H * 0.12 + 0.4 : H * 0.12 - 0.4; // under the trunk, towards the head
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, z); props.add(b);
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, motion.surface - 0.07, 0.9), metal); leg.position.set(0, (motion.surface - 0.07) / 2, z); props.add(leg);
+    }
+    if (p === 'ball') { const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16), new THREE.MeshStandardMaterial({color: '#5a4636', roughness: 0.8})); props.add(b); updates.push(grips => b.position.copy(mid(grips))); }
+    if (p === 'wheel') { const w = cyl(0.09, 0.06, metal); w.rotation.z = Math.PI / 2; props.add(w); updates.push(grips => w.position.copy(mid(grips))); }
+    if (p === 'box') {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.42), pad); props.add(b);
+      updates.push(() => { if (b.userData.placed) return; b.userData.placed = true; const f = worldP[id('foot.' + plantSide)], top = f.y - 0.065; b.scale.y = top; b.position.set(0, top / 2, f.z + 0.04); });
+    }
+    if (p === 'dipbars') {
+      const g = new THREE.Group(); props.add(g);
+      updates.push(grips => {
+        if (g.userData.placed) return; g.userData.placed = true;
+        for (const k of [0, 1]) { const bar = cyl(0.02, 0.7, metal); bar.rotation.x = Math.PI / 2; bar.position.copy(grips[k]); g.add(bar);
+          for (const dz of [-0.3, 0.3]) { const post = cyl(0.025, grips[k].y, metal); post.position.set(grips[k].x, grips[k].y / 2, grips[k].z + dz); g.add(post); } }
+      });
+    }
     if (p === 'mat') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.01, 1.8), new THREE.MeshStandardMaterial({color: '#3d5a4a', roughness: 0.9})); m.position.set(0, 0.005, H * 0.12 - 0.25); props.add(m); }
     if (p === 'barbell') { const g = barbell(); props.add(g); updates.push(grips => g.position.copy(mid(grips))); }
     if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d); updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, grips[k].axis); })); }
@@ -442,7 +700,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const place = grips => updates.forEach(u => u(grips));
   place(pose(0));
   // 3.6 s loop: move 1.4 s, pause, return 1.4 s, pause.
-  return {mesh, props, tick(seconds) {
+  return {mesh, props, joints: () => new Map(rig.bones.map((b, i) => [b.name, worldP[i].clone()])), tick(seconds) {
     // Stretches hold: ease in 1.6 s, hold 3.6 s, release 1.4 s, rest.
     const c = motion.hold ? (seconds % 7) / 7 : (seconds % 3.6) / 3.6, [i, h, o] = motion.hold ? [0.23, 0.74, 0.94] : [0.39, 0.5, 0.89];
     const t = c < i ? ease(c / i) : c < h ? 1 : c < o ? 1 - ease((c - h) / (o - h)) : 0;

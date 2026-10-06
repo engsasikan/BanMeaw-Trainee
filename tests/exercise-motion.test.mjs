@@ -24,9 +24,18 @@ test('exercise names map to demonstrations', () => {
   ]) assert.equal(motionFor(name), motion, name);
 });
 
-test('look-alike names get no demonstration', () => {
-  for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', 'Dips', 'Calf Raise', 'Single Leg Bridge With Outstretched Leg', '', null])
-    assert.equal(motionFor(name), null, String(name));
+test('look-alikes get the right demonstration, and every library exercise has one', async () => {
+  for (const [name, motion] of [['Leg Curl', 'lyingLegCurl'], ['Barbell Upright Row', 'uprightRow'], ['Rowing Machine', 'row'], ['Leg Extension', 'legExtension'],
+    ['Plank', 'plank'], ['Dips', 'dip'], ['Calf Raise', 'calfRaise'], ['Calf Stretch With Hands Against Wall', 'calfStretch'], ['Lateral Raise', 'lateralRaise'],
+    ['Dumbbell Cross Body Hammer Curl', 'curl'], ['Cable High Pulley Overhead Tricep Extension', 'overheadExtension'], ['Walking Lunge', 'lunge'],
+    ['Dumbbell Bicep Curl On Exercise Ball With Leg Raised', 'curl'], ['Band Jack Knife Sit-up', 'vUp'], ['Hanging Leg Raise', 'hangingLegRaise'],
+    ['Barbell Glute Bridge', 'bridge'], ['Farmers Walk', 'farmerWalk'], ['Burpee', 'jumpingJack'], ['Balance Board', 'squat']])
+    assert.equal(motionFor(name), motion, name);
+  for (const name of ['', null, 'my own made-up move']) assert.equal(motionFor(name), null, String(name));
+  const {LIBRARY} = await import('../dist/exercise-library.mjs');
+  const {readFile} = await import('node:fs/promises');
+  const ids = new Set([...(await readFile(new URL('../src/body3d.mjs', import.meta.url), 'utf8')).matchAll(/^  (\w+): \{anchor:/gm)].map(m => m[1]));
+  for (const [name] of LIBRARY) { const m = motionFor(name); assert.ok(m && ids.has(m), `${name}: ${m}`); }
 });
 
 test('search forgives common misspellings', async () => {
