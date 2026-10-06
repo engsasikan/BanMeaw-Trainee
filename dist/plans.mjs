@@ -1,5 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=2';
-import {searchExercises,SHOW_LIMIT} from './exercise-picker.mjs?v=9';
+import {searchExercises,SHOW_LIMIT} from './exercise-picker.mjs?v=10';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};

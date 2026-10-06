@@ -16,3 +16,9 @@ test('look-alike names get no demonstration', () => {
   for (const name of ['Leg Curl', 'Lying Leg Curl', 'Barbell Upright Row', 'Rowing Machine', 'Leg Extension', 'Plank', '', null])
     assert.equal(motionFor(name), null, String(name));
 });
+
+test('search forgives common misspellings', async () => {
+  const {searchExercises} = await import('../dist/exercise-picker.mjs');
+  for (const [query, name] of [['bend over row', 'Barbell Bent Over Row'], ['bentover row', 'Barbell Bent Over Row'], ['dumbell curl', 'Dumbbell Biceps Curl'], ['pushup', 'Push-up']])
+    assert.ok(searchExercises(query).some(x => x.name === name), query);
+});

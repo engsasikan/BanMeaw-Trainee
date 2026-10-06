@@ -14,9 +14,11 @@ const normalize=s=>s.toLocaleLowerCase().normalize('NFKC').replace(/[-_]/g,' ').
 const curated=new Set(EXERCISES.map(x=>normalize(x.name)));
 const MORE=LIBRARY.filter(([name])=>!curated.has(normalize(name))).map(([name,group,aliases])=>({name,group,aliases}));
 export const SHOW_LIMIT=60;
+// Common spellings people type that differ from the library names.
+const TYPOS={bend:'bent',bentover:'bent over',dumbell:'dumbbell',dumbel:'dumbbell',barbel:'barbell',kettlebel:'kettlebell',pushup:'push up',pullup:'pull up',chinup:'chin up',situp:'sit up',shoulderpress:'shoulder press',benchpress:'bench press',legpress:'leg press'};
 // Hand-picked first, then library names that match, then library muscle/equipment matches.
 export function searchExercises(query){
- const tokens=normalize(query).split(/\s+/).filter(Boolean),hit=(x,text)=>tokens.every(t=>normalize(text).includes(t));
+ const tokens=normalize(query).split(/\s+/).filter(Boolean).flatMap(t=>(TYPOS[t]??t).split(' ')),hit=(x,text)=>tokens.every(t=>normalize(text).includes(t));
  const more=MORE.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases));
  return [...EXERCISES.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases)),...more.filter(x=>hit(x,x.name)),...more.filter(x=>!hit(x,x.name))];
 }
