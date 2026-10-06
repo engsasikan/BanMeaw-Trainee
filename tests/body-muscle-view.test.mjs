@@ -14,3 +14,12 @@ test('muscle mesh ignores total weight, fat and tape girths while retaining segm
   assert.equal(a.H,1.65);assert.ok(a.pos.every(Number.isFinite));
  }
 });
+test('the muscle view is the person without fat: their muscle sets the size, the level is not capped',async()=>{
+ const {macros}=await import('../src/body3d.mjs');
+ const r={sex:'female',height:158,weight:78.8,body_fat:42,muscle:25.6},lean=muscleOnlyRecord(r);
+ assert.ok(lean.weight>50&&lean.weight<60,'fat-free mass from muscle, plus minimal fat: '+lean.weight);
+ assert.equal(lean.body_fat,14);
+ const level=macros(lean).muscle;assert.ok(level>0.6&&level<1,'above-average muscle without hitting the cap: '+level);
+ assert.ok(macros(muscleOnlyRecord({...r,muscle:20})).muscle<level,'less muscle, lower level');
+ assert.ok(muscleOnlyRecord({...r,muscle:20}).weight<lean.weight,'less muscle, smaller fat-free body');
+});

@@ -713,9 +713,10 @@ export function macros(r) {
   const sex = r.sex === 'female' ? 'female' : 'male', ref = REF[sex], weights = [];
   if (r.height && r.weight) { const bmi = r.weight / (r.height / 100) ** 2; weights.push(bmi <= 22 ? clamp((bmi - 16) / 12, 0, 0.5) : 0.5 + clamp((bmi - 22) / 40, 0, 0.5)); }
   if (r.body_fat) weights.push(r.body_fat <= ref.fat ? clamp(0.5 - (ref.fat - r.body_fat) / 24, 0, 0.5) : 0.5 + clamp((r.body_fat - ref.fat) / 50, 0, 0.5));
-  let muscle = 0.5;
+  let muscle = r.muscleLevel ?? 0.5;
   const pcts = ['la', 'ra', 'trunk', 'll', 'rl'].map(s => r['musp_' + s]).filter(v => v != null);
-  if (pcts.length) muscle = clamp(0.5 + (pcts.reduce((a, b) => a + b) / pcts.length - 100) / 60, 0, 1);
+  if (r.muscleLevel != null) { /* fat-free body: already set from muscle per height */ }
+  else if (pcts.length) muscle = clamp(0.5 + (pcts.reduce((a, b) => a + b) / pcts.length - 100) / 60, 0, 1);
   else if (r.muscle && r.weight) muscle = clamp(0.5 + (r.muscle / r.weight - ref.smm) / ref.smmRange, 0, 1);
   else {
     const ratios = ['la', 'ra', 'trunk', 'll', 'rl'].filter(s => r['mus_' + s] != null).map(s => r['mus_' + s] / ref.mus[s]);
@@ -774,12 +775,18 @@ function segmentDeviation(r, prefix, scale) {
   return Object.fromEntries(segs.map((s, i) => [s, vals[i] == null ? 0 : clamp((vals[i] - mean) / scale, -1, 1)]));
 }
 
-// The muscle view uses a lean reference frame: total weight, fat and tape girths
-// describe the skin silhouette and must not inflate this view.
+// The person without their fat: the same height and muscle, carrying only minimal body fat
+// (14% women, 6% men). Fat-free mass comes from skeletal muscle mass (InBody SMM is about 55% /
+// 57% of it), or else from weight and body fat. Total weight, fat and tape girths don't inflate it.
 export function muscleOnlyRecord(record) {
-  const sex = record.sex === 'female' ? 'female' : 'male';
-  const height = record.height || (sex === 'female' ? 160 : 172);
-  const r = {sex, height, weight: 22 * (height / 100) ** 2, muscle: record.muscle};
+  const sex = record.sex === 'female' ? 'female' : 'male', female = sex === 'female';
+  const height = record.height || (female ? 160 : 172), h2 = (height / 100) ** 2;
+  const fat = record.body_fat ?? (record.weight ? clamp(1.2 * record.weight / h2 + 0.23 * 30 - 5.4 - (female ? 0 : 10.8), 5, 60) : null);
+  const fatFree = record.muscle ? record.muscle / (female ? 0.55 : 0.57) : record.weight && fat != null ? record.weight * (1 - fat / 100) : (female ? 0.75 : 0.83) * 22 * h2;
+  const minimal = female ? 14 : 6;
+  // Muscle level against people of the same height: skeletal muscle per height squared (kg/m2).
+  const level = record.muscle ? clamp(0.5 + (record.muscle / h2 - (female ? 8.4 : 10.5)) / 5, 0, 1) : 0.5;
+  const r = {sex, height, weight: Math.round(fatFree / (1 - minimal / 100) * 10) / 10, body_fat: minimal, muscle: record.muscle, muscleLevel: level};
   for (const seg of ['la', 'ra', 'trunk', 'll', 'rl']) {
     if (record['mus_' + seg] != null) r['mus_' + seg] = record['mus_' + seg];
     if (record['musp_' + seg] != null) r['musp_' + seg] = record['musp_' + seg];
@@ -869,7 +876,7 @@ function shapeBodyUncached(model, r, lean) {
   const musKg = musPct ? null : segmentDeviation(Object.fromEntries(['la', 'ra', 'trunk', 'll', 'rl'].map(s => ['m_' + s, r['mus_' + s] == null ? null : r['mus_' + s] / ref.mus[s] * 100])), 'm_', 12);
   const mus = musPct || musKg, fat = segmentDeviation(r, 'fat_', 40);
   // Belly from visceral fat level (1-9 normal) and trunk fat; the 'pregnant' target is strong, so keep it subtle.
-  const belly0 = clamp((r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0), -0.3, 0.6);
+  const belly0 = lean ? -0.2 : clamp((r.visceral != null ? clamp((r.visceral - 9) / 30, -0.1, 0.25) : 0) + (fat ? fat.trunk * 0.15 : 0), -0.3, 0.6);
 
   // The body before scaling, for a weight macro and fitted shape parameters.
   const build = (weight, shape = {}) => {
@@ -892,7 +899,7 @@ function shapeBodyUncached(model, r, lean) {
     if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
     if (lean) apply(pos, 'stomach-tone', 1);
     else if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
-    if (!lean) for (const [name, pairs] of SHAPE_PARAMS) if (pairs) for (const t of pairs) apply(pos, t, name === 'belly' ? (shape.belly ?? belly0) : shape[name] ?? 0);
+    for (const [name, pairs] of SHAPE_PARAMS) if (pairs) for (const t of pairs) apply(pos, t, name === 'belly' ? (shape.belly ?? belly0) : shape[name] ?? 0);
     // Scale to the person's height (metres), feet on the ground.
     let minY = Infinity, maxY = -Infinity;
     for (let i = 1; i < pos.length; i += 3) { minY = Math.min(minY, pos[i]); maxY = Math.max(maxY, pos[i]); }
@@ -920,9 +927,9 @@ function shapeBodyUncached(model, r, lean) {
   const usual = predictShape({...r, sex}), navelY = (usual.waistHeight ? usual.waistHeight / (r.height || 160) : 0.6) * H;
   const measureAll = p => ({...measureBody(model, p, H, navelY), arm: armGirth(p), shoulder: shoulderWidth(p)});
 
-  const w0 = lean ? Math.min(macros(r).weight, 0.15) : macros(r).weight;
+  const w0 = lean ? Math.min(macros(r).weight, 0.35) : macros(r).weight;
   let {pos} = build(w0);
-  if (!lean && r.height && r.weight) {
+  if (r.height && r.weight) {
     // Targets: what people of this sex, height, weight and body fat measure (ANSUR II + body-fat data),
     // replaced by the person's own tape measurements; their cross-sections follow in proportion.
     const want = {...usual}, sd = {...GIRTH_MODEL[sex === 'female' ? 'female' : 'male'].rmse};
@@ -1055,7 +1062,7 @@ export function mountBody(container) {
     if (mode === 'composition' || mode === 'muscle' || mode === 'focus') {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
       // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
-      const lean = shapeBody(model, r, true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
+      const lean = shapeBody(model, mode === 'muscle' ? r : muscleOnlyRecord(r), true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
       const skin = model.anatomy?.anat.array; // hands/feet/head have dense vertices: keep them out of the fat share
       for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 || skin?.[i * 3 + 2] ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
       const prior = fatPrior(model, pos, H, r); for (let i = 0; i < model.n; i++) thick[i] *= prior[i];
