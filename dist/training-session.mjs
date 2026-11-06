@@ -1,11 +1,12 @@
+import {attachWeightUnit,formatWeight} from './weight-units.mjs';
 import {comparePlan,workoutDescription} from './progress.mjs?v=2';
 import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=1';
 import {switchView} from './dashboard.mjs?v=9';
 import {api} from './account.js?v=4';
-import {createMuscleFocus} from './exercise-preview.mjs?v=11';
+import {createMuscleFocus} from './exercise-preview.mjs?v=14';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
- const card=el('section',undefined,'diary training-entry');document.getElementById('dashboard-panel').prepend(card);
+ const card=el('section',undefined,'diary training-entry');document.getElementById('today-card').after(card);
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
  const focus=createMuscleFocus();
  let plans=[],day='',items=[],current=0,active=false,busy=false,deadline=null,ticker=null,summary=false;
@@ -25,7 +26,7 @@ export function initTrainingSession({getRecords,saveRecords}){
  function start(){if(!plans.length)return;items=rows();current=Math.max(0,items.findIndex(x=>!done(x)));summary=items.every(done);active=true;session.hidden=false;document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return;stop();active=false;session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');}
  function navigation(finished,last){
-  const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();};
+  const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();if(last&&rows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));};
   const nav=el('div',undefined,'training-actions');
   nav.append(current>0?button('← ท่าก่อนหน้า',()=>{if(busy)return;stop();current--;render();}):el('span'));
   if(!last)nav.append(button(finished?'ท่าถัดไป →':'ข้ามท่านี้ →',next));
@@ -81,18 +82,18 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(target.superset)session.append(el('p','Super set '+target.superset+' · ทำสลับกับท่าในกลุ่มเดียวกันตามลำดับ','muted'));
   // 3. Sets: done / now / later.
   const track=el('ol',undefined,'ts-sets');
-  for(let i=0;i<Math.max(sets,logs.length+(finished?0:1));i++){const r=logs[i],li=el('li',undefined,r?'done':i===logs.length?'now':'');li.append(el('small','เซ็ต '+(i+1)),el('b',r?'✓ '+r.reps+' ครั้ง':i===logs.length?'ตอนนี้':'รอ'));li.append(el('small',r?(r.weight==null?'':r.weight+' กก.'):''));track.append(li);}
+  for(let i=0;i<Math.max(sets,logs.length+(finished?0:1));i++){const r=logs[i],li=el('li',undefined,r?'done':i===logs.length?'now':'');li.append(el('small','เซ็ต '+(i+1)),el('b',r?'✓ '+r.reps+' ครั้ง':i===logs.length?'ตอนนี้':'รอ'));li.append(el('small',r?(r.weight==null?'':formatWeight(r.weight)):''));track.append(li);}
   session.append(track);
   const rest=el('div',undefined,'ts-rest'),clock=el('p',undefined,'training-clock');clock.setAttribute('role','status');rest.hidden=!deadline;
   rest.append(el('small','พักก่อนเซ็ตถัดไป'),clock,button('ข้ามเวลาพัก',()=>{stop();rest.hidden=true;}));session.append(rest);
   // 4. Log the set just done.
-  const form=el('form',undefined,'ts-log'),weight=el('input'),reps=el('input'),weightLabel=el('label','น้ำหนักที่ยก (กก.)'),repsLabel=el('label','ทำได้กี่ครั้ง');
+  const form=el('form',undefined,'ts-log'),weight=el('input'),reps=el('input'),weightLabel=el('label','น้ำหนักที่ยก'),repsLabel=el('label','ทำได้กี่ครั้ง');
   weight.type=reps.type='number';weight.min=0;weight.max=2000;weight.step='.01';weight.placeholder='ไม่ระบุ';weight.value=logs.at(-1)?.weight??target.weight??'';weight.inputMode='decimal';
   reps.min=1;reps.max=1000;reps.step=1;reps.required=true;reps.value=logs.at(-1)?.reps??target.reps??12;reps.inputMode='numeric';weightLabel.append(weight);repsLabel.append(reps);
-  const metrics=el('div',undefined,'training-live-metrics');metrics.append(weightLabel,repsLabel);
+  const metrics=el('div',undefined,'training-live-metrics');metrics.append(weightLabel,repsLabel);const weightUnit=attachWeightUnit(weight,metrics);weightUnit.set(logs.at(-1)?.weight??target.weight??null);
   const notice=el('p',undefined,'muted');notice.setAttribute('role','status');
   const save=el('button',finished?'+ บันทึกเซ็ตเพิ่ม':'✓ ทำเซ็ต '+(logs.length+1)+' เสร็จแล้ว',finished?'quiet':'primary');save.type='submit';save.disabled=busy;
-  const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();};
+  const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();if(last&&rows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));};
   if(finished){const doneBox=el('div',undefined,'ts-done');doneBox.append(el('strong','ครบ '+sets+' เซ็ตแล้ว เก่งมาก!'),button(last?'ดูสรุปการฝึก →':'ไปท่าถัดไป →',next,'primary'));session.append(doneBox);}
   form.append(el('p',finished?'ทำเกินเป้าได้ บันทึกเพิ่มได้เลย':'ทำเซ็ต '+(logs.length+1)+' แล้วกรอกผลจริง','ts-label'),metrics,save);
   session.append(form,notice);
@@ -102,7 +103,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(deadline){tick();clearInterval(ticker);ticker=setInterval(tick,250);}
   form.onsubmit=async e=>{
    e.preventDefault();if(busy||selected()!==day)return;busy=true;save.disabled=true;notice.textContent='กำลังบันทึกเซ็ต…';
-   const latest=draft(item),nextLogs=[...(latest?.setLogs||[]),{weight:weight.value===''?null:Number(weight.value),reps:Number(reps.value)}];
+   const latest=draft(item),nextLogs=[...(latest?.setLogs||[]),{weight:weightUnit.read(),reps:Number(reps.value)}];
    if(nextLogs.length>100){busy=false;save.disabled=false;notice.textContent='บันทึกได้สูงสุด 100 เซ็ตต่อท่า';return;}
    const row={id:latest?.id||crypto.randomUUID(),kind:'workout',day,trainingType:'strength',exercise:target.exercise,planId:item.plan.id,planExerciseIndex:item.index,weight:nextLogs.at(-1).weight,sets:nextLogs.length,reps:nextLogs.at(-1).reps,notes:latest?.notes||'',setLogs:nextLogs,sessionComplete:nextLogs.length>=target.sets};
    try{const ok=await saveRecords([...getRecords().filter(r=>r.id!==row.id),row]);if(!ok){notice.textContent='บันทึกไม่สำเร็จ กรอกไว้แล้ว กดจบเซ็ตเพื่อลองใหม่';return;}stop();if((target.rest_seconds??60)>0)deadline=Date.now()+(target.rest_seconds??60)*1000;if(target.superset){const group=items.map((x,i)=>({x,i})).filter(({x})=>x.plan.id===item.plan.id&&x.target.superset===target.superset);const candidates=[...group.filter(x=>x.i>current),...group.filter(x=>x.i<=current)];const next=candidates.find(({x})=>!done(x));if(next)current=next.i;}render();overview();}catch(error){notice.textContent=error.message;}finally{busy=false;save.disabled=false;session.querySelector('button[type="submit"]')?.removeAttribute('disabled');}

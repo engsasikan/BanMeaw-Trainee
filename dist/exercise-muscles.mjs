@@ -49,7 +49,7 @@ const KEYWORDS = [
  [/run|วิ่ง|jog/i, EXERCISE_MUSCLES['วิ่ง']], [/walk|เดิน|treadmill|ลู่/i, WALK], [/bike|cycl|ปั่น/i, EXERCISE_MUSCLES['ปั่นจักรยาน']], [/swim|ว่าย/i, EXERCISE_MUSCLES['ว่ายน้ำ']],
 ];
 // Library exercises (exercises-dataset) by lower-case name; cardio rows have no muscles and fall through to keywords.
-const LIBRARY_MUSCLES = new Map(LIBRARY.filter(r => r[3]).map(([name, , , p, s]) => [name.toLowerCase(), E(p.split(' '), s ? s.split(' ') : [])]));
+const LIBRARY_MUSCLES = new Map(LIBRARY.filter(r => r[3]||r[4]).map(([name, , , p, s]) => [name.toLowerCase(), E(p ? p.split(' ') : [], s ? s.split(' ') : [])]));
 export function musclesFor(name, aliases = '') {
  const exact = EXERCISE_MUSCLES[name?.trim()] ?? LIBRARY_MUSCLES.get(name?.trim().toLowerCase());
  if (exact) return exact;

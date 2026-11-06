@@ -12,3 +12,13 @@ test('zero is a replacement value and future records do not fill older history',
  const result=resolveBodyRecords([{id:'old',day:'2026-10-01',weight:80},{id:'new',day:'2026-10-02',muscle_control:0,muscle:31}]);
  assert.equal(result[0].muscle,undefined);assert.equal(result[1].muscle_control,0);assert.equal(result[1].weight,80);
 });
+
+test('weigh-in bowel status validates, stays optional and belongs only to its recorded day',async()=>{
+ const {validateBody}=await import('../dist/body-data.mjs');
+ const base={id:'weight',day:'2026-10-16',sex:'male',weight:70,note:''};
+ for(const bowelStatus of ['passed','pending'])assert.equal(validateBody({...base,bowelStatus}).bowelStatus,bowelStatus);
+ for(const bowelStatus of [undefined,null,''])assert.equal(validateBody({...base,bowelStatus}).bowelStatus,undefined);
+ for(const bowelStatus of ['other',true,1,['passed'],{}])assert.throws(()=>validateBody({...base,bowelStatus}));
+ const records=resolveBodyRecords([{...base,day:'2026-10-15',bowelStatus:'passed'},{...base,id:'new'}]);
+ assert.equal(records[1].bowelStatus,undefined);assert.equal(records[0].bowelStatus,'passed');
+});

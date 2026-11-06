@@ -1,3 +1,4 @@
+import {BOWEL_STATUS_LABELS} from './body-data.mjs';
 import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=5';
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
@@ -5,6 +6,7 @@ import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=5';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=9';
+import {replay,cheer,celebrate} from './motion.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'long',day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
@@ -21,6 +23,8 @@ const todayWorkouts=()=>diary.filter(r=>r.day===today()&&r.kind==='workout');
 const todayWeight=()=>body.find(r=>r.day===today()&&r.weight!=null);
 const previousWeight=()=>body.find(r=>r.day<today()&&r.weight!=null);
 const say=text=>{$('today-message').textContent=text;};
+// What was done on the last render of the shown day, so only fresh ticks get animated.
+let seen={day:null,steps:{},chips:{}};
 
 function render(){
  if(!$('today-card'))return;
@@ -32,7 +36,7 @@ function render(){
  // 1. Morning weigh-in
  const w=todayWeight(),prev=previousWeight(),stepW=$('step-weight');
  stepW.classList.toggle('done',!!w);$('quick-weight').hidden=!!w;$('weight-done').hidden=!w;
- if(w){const diff=prev?Math.round((w.weight-prev.weight)*10)/10:null;$('weight-done').textContent=w.weight+' กก.'+(diff?(diff<0?' · ▼ ':' · ▲ ')+Math.abs(diff)+' กก. จากครั้งก่อน':'');}
+ if(w){const diff=prev?Math.round((w.weight-prev.weight)*10)/10:null;$('weight-done').textContent=w.weight+' กก.'+(BOWEL_STATUS_LABELS[w.bowelStatus]?' · '+BOWEL_STATUS_LABELS[w.bowelStatus]:'')+(diff?(diff<0?' · ▼ ':' · ▲ ')+Math.abs(diff)+' กก. จากครั้งก่อน':'');}
  else if(prev)$('quick-weight-input').placeholder='ครั้งก่อน '+prev.weight;
  // 2. Meals
  const meals=todayMeals(),chips=$('meal-chips');chips.replaceChildren();
@@ -46,6 +50,17 @@ function render(){
  $('step-send').classList.toggle('done',!!reportSentAt);
  $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว'+(new Date(reportSentAt).toDateString()===new Date(today()+'T12:00:00').toDateString()?' ':' ('+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(reportSentAt))+') ')+clock(reportSentAt)+' น. · '+(reportVisible?'ทุกคนในทีมเห็นอาหารและการฝึกแล้ว':'ส่งให้เทรนเนอร์แล้ว · ส่งอีกครั้งเพื่อร่วมคะแนนทีม');
  $('send-report').textContent=reportSentAt?'ส่งอีกครั้ง':'ส่งในแอป';
+ animate(chips);
+}
+function animate(chips){
+ const day=today(),fresh=seen.day===day,steps={};
+ for(const id of ['step-weight','step-meals','step-send']){steps[id]=$(id).classList.contains('done');if(fresh&&steps[id]&&!seen.steps[id])replay($(id),'step-pop');}
+ const chipState={};for(const b of chips.children){const key=b.getAttribute('aria-label').replace(/^.*: |^บันทึก/,''),done=b.classList.contains('done');chipState[key]=done;if(fresh&&done&&!seen.chips[key])replay(b,'chip-pop');}
+ const all=Object.values(steps).every(Boolean),wasAll=Object.values(seen.steps).length===3&&Object.values(seen.steps).every(Boolean);
+ if(fresh&&all&&!wasAll)celebrate(isToday()?'ครบทุกขั้นของวันนี้แล้ว! เก่งที่สุดเลย 🎉':'บันทึกวันนั้นครบทุกขั้นแล้ว 🎉');
+ // The cat dozes on an empty today and looks proud once everything is in.
+ const cat=document.querySelector('.welcome-mini-cat');if(cat){cat.classList.toggle('is-sleepy',isToday()&&!Object.values(steps).some(Boolean)&&!todayWorkouts().length);cat.classList.toggle('is-proud',all);}
+ seen={day,steps,chips:chipState};
 }
 function openMeal(meal){
  switchView('food');
@@ -74,13 +89,13 @@ export function initToday(account,{weigh}){
  $('quick-weight').onsubmit=async e=>{
   e.preventDefault();const input=$('quick-weight-input'),kg=Number(input.value),btn=e.submitter||$('quick-weight').querySelector('button');
   if(!(kg>=10&&kg<=400)){say('กรุณาใส่น้ำหนัก 10–400 กก.');return;}
-  btn.disabled=true;try{await quickWeigh(kg,today());input.value='';say(isToday()?'บันทึกน้ำหนักเช้านี้แล้ว':'บันทึกน้ำหนักวันนั้นแล้ว');}catch(error){say(error.message);}finally{btn.disabled=false;}
+  btn.disabled=true;try{await quickWeigh(kg,today(),$('quick-weight-bowel').value);input.value='';$('quick-weight-bowel').value='';say(isToday()?'บันทึกน้ำหนักเช้านี้แล้ว':'บันทึกน้ำหนักวันนั้นแล้ว');cheer('บันทึกน้ำหนัก '+kg+' กก. แล้ว · เริ่มวันได้ดีมาก!');}catch(error){say(error.message);}finally{btn.disabled=false;}
  };
  $('weight-done').onclick=()=>switchView('settings');
  document.querySelectorAll('[data-view="dashboard"]').forEach(b=>b.addEventListener('click',render)); // keep the dated heading
  $('send-report').onclick=async()=>{
   if(!todayMeals().length&&!confirm((isToday()?'วันนี้':'วันนั้น')+'ยังไม่มีมื้อที่บันทึก ส่งสรุปเลยไหม?'))return;
-  try{await markSent();say('ส่งสรุป'+(isToday()?'วันนี้':'วันที่เลือก')+'ให้เทรนเนอร์ในแอปแล้ว');}catch(error){say(error.message);}
+  try{await markSent();say('ส่งสรุป'+(isToday()?'วันนี้':'วันที่เลือก')+'ให้เทรนเนอร์ในแอปแล้ว');cheer('ส่งให้ทีมแล้ว เทรนเนอร์ต้องดีใจแน่ ๆ');}catch(error){say(error.message);}
  };
  $('share-report').onclick=async()=>{
   if(!bodyReady){say('รอโหลดข้อมูลร่างกายให้ครบก่อนแชร์');return;}

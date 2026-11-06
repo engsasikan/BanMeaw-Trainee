@@ -23,3 +23,15 @@ test('the muscle view is the person without fat: their muscle sets the size, the
  assert.ok(macros(muscleOnlyRecord({...r,muscle:20})).muscle<level,'less muscle, lower level');
  assert.ok(muscleOnlyRecord({...r,muscle:20}).weight<lean.weight,'less muscle, smaller fat-free body');
 });
+
+ test('composition shows arm fat even when the torso is much thicker', async()=>{
+  const {compositionFatOverlay}=await import('../src/body3d.mjs');
+  const thickness=[],segments=[];
+  for(let seg=0;seg<5;seg++) for(let i=0;i<100;i++){segments.push(seg);thickness.push((seg===0?0.08:0.008)+i*(seg===0?0.002:0.0003));}
+  segments.push(5,1);thickness.push(0.2,0);
+  const mask=compositionFatOverlay(thickness,segments,{sex:'female',body_fat:42});
+  for(let seg=0;seg<5;seg++) assert.ok(mask.some((v,i)=>segments[i]===seg&&v>0.7),'fat visible on segment '+seg);
+  assert.equal(mask[500],0,'head excluded');assert.equal(mask[501],0,'excluded skin stays clear');
+  const low=compositionFatOverlay(thickness,segments,{sex:'female',body_fat:22});
+  assert.ok(mask.reduce((a,b)=>a+b,0)>low.reduce((a,b)=>a+b,0));
+ });

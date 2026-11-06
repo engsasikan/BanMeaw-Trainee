@@ -24,7 +24,7 @@ New accounts default to trainee. Administrator bootstrap requires a verified ADM
 
 ## Exercise library
 
-The exercise picker includes 1,316 exercises from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (names and muscle data, MIT License, © 2026 Hasan Emir Yıldırım). The dataset's images and GIFs belong to Gym visual and are not used. To regenerate `dist/exercise-library.mjs`:
+The exercise picker includes 1,361 library entries, combining common gym names and Thai search aliases with exercises from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (names and muscle data, MIT License, © 2026 Hasan Emir Yıldırım). The dataset's images and GIFs belong to Gym visual and are not used. Common gym additions and Thai aliases are maintained in `src/exercise-additions.json` and retained on rebuild. To regenerate `dist/exercise-library.mjs`:
 
 ```
 git clone --depth 1 https://github.com/hasaneyldrm/exercises-dataset.git work/exercises-dataset
@@ -40,3 +40,4 @@ When a girth was not measured, the 3D body uses what people of the same sex, hei
 - **Body fat, women**: the US Navy body-fat formula, applied to the difference from the usual body fat for that BMI (Deurenberg 1991).
 
 The body is fitted to all of these at once (MakeHuman's weight macro plus bust, breast, torso, hip, buttock, thigh, calf and arm shape targets, each kept within its designed range), measured like a tape on the mesh. Only fitted coefficients are shipped, not the raw data.
+

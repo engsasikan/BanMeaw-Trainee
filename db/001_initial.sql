@@ -151,3 +151,4 @@ CREATE TABLE IF NOT EXISTS team_redemptions (
 CREATE INDEX IF NOT EXISTS team_redemptions_team ON team_redemptions(team_id,created_at DESC);
 
 ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS team_visible boolean NOT NULL DEFAULT false;
+

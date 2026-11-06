@@ -1,5 +1,6 @@
 import {LIBRARY} from './exercise-library.mjs?v=1';
 export const EXERCISES=[
+ ['HIIT','คาร์ดิโอ','cardio คาดิโอ ฮิต เอชไอไอที interval training สลับหนักเบา'],['HIIT วิ่งสลับเดิน','คาร์ดิโอ','cardio คาดิโอ ฮิต interval running sprint walking treadmill ลู่วิ่ง สลับหนักเบา'],['HIIT ปั่นจักรยาน','คาร์ดิโอ','cardio คาดิโอ ฮิต interval cycling bike สลับหนักเบา'],['HIIT น้ำหนักตัว','คาร์ดิโอ','cardio คาดิโอ ฮิต interval bodyweight circuit เบอร์พี กระโดด สลับหนักเบา'],
  ['เดินชัน','คาร์ดิโอ','cardio คาดิโอ incline walking uphill treadmill เดินขึ้นเนิน ลู่วิ่ง'],['เดินเร็ว','คาร์ดิโอ','cardio คาดิโอ walking treadmill ลู่วิ่ง'],['วิ่ง','คาร์ดิโอ','cardio running jogging ลู่วิ่ง'],['ปั่นจักรยาน','คาร์ดิโอ','cardio cycling bike'],['เครื่องเดินวงรี','คาร์ดิโอ','cardio elliptical'],['ขึ้นบันได','คาร์ดิโอ','cardio stair climber'],['ว่ายน้ำ','คาร์ดิโอ','cardio swimming'],['กระโดดเชือก','คาร์ดิโอ','cardio jump rope'],
  ['Barbell Squat','ขา','สควอต สควอท บาร์เบล'],['Goblet Squat','ขา','กอบเล็ต ดัมเบล สควอต'],['Leg Press','ขา','เลกเพรส เครื่องดันขา'],['Leg Extension','ขา','เหยียดขา หน้าขา'],['Leg Curl','ขา','งอขา หลังขา'],['Romanian Deadlift','ขา','rdl โรมาเนียน เดดลิฟต์ หลังขา'],['Deadlift','ขา / หลัง','เดดลิฟต์ เดดลิฟท์'],['Lunge','ขา','ลันจ์'],['Bulgarian Split Squat','ขา','บัลแกเรียน สปลิต สควอต'],['Hip Thrust','สะโพก','ฮิปทรัสต์ ก้น'],['Glute Bridge','สะโพก','กลูตบริดจ์ ก้น'],['Calf Raise','น่อง','ยกน่อง'],
  ['Barbell Bench Press','อก','เบนช์เพรส บาร์เบล'],['Dumbbell Bench Press','อก','เบนช์เพรส ดัมเบล'],['Incline Dumbbell Press','อก','อกบน ดัมเบล'],['Chest Press Machine','อก','เครื่องดันอก เชสต์เพรส'],['Cable Fly','อก','เคเบิลฟลาย'],['Pec Deck Fly','อก','เพ็กเด็ค ฟลาย'],['Push-up','อก','วิดพื้น pushup'],
@@ -11,14 +12,17 @@ export const EXERCISES=[
 ].map(([name,group,aliases])=>({name,group,aliases}));
 const normalize=s=>s.toLocaleLowerCase().normalize('NFKC').replace(/[-_]/g,' ').trim();
 // Full library (hasaneyldrm/exercises-dataset) after the hand-picked list, skipping names already in it.
+// Keep library aliases for names that are also in the hand-picked list.
+for (const x of EXERCISES) { const row=LIBRARY.find(r=>normalize(r[0])===normalize(x.name)); if(row) x.aliases+=' '+row[2]; }
 const curated=new Set(EXERCISES.map(x=>normalize(x.name)));
 const MORE=LIBRARY.filter(([name])=>!curated.has(normalize(name))).map(([name,group,aliases])=>({name,group,aliases}));
 export const SHOW_LIMIT=60;
 // Common spellings people type that differ from the library names.
-const TYPOS={bend:'bent',bentover:'bent over',dumbell:'dumbbell',dumbel:'dumbbell',barbel:'barbell',kettlebel:'kettlebell',pushup:'push up',pullup:'pull up',chinup:'chin up',situp:'sit up',shoulderpress:'shoulder press',benchpress:'bench press',legpress:'leg press'};
+const TYPOS={db:'dumbbell',bendover:'bent over',matchine:'machine',bend:'bent',bentover:'bent over',dumbell:'dumbbell',dumbel:'dumbbell',barbel:'barbell',kettlebel:'kettlebell',pushup:'push up',pullup:'pull up',chinup:'chin up',situp:'sit up',shoulderpress:'shoulder press',benchpress:'bench press',legpress:'leg press'};
 // Hand-picked first, then library names that match, then library muscle/equipment matches.
 export function searchExercises(query){
- const tokens=normalize(query).split(/\s+/).filter(Boolean).flatMap(t=>(TYPOS[t]??t).split(' ')),hit=(x,text)=>tokens.every(t=>normalize(text).includes(t));
+ const searchable=s=>normalize(s).split(/\s+/).filter(Boolean).flatMap(t=>(TYPOS[t]??t).split(' ')).join(' ');
+ const tokens=searchable(query).split(' ').filter(Boolean),hit=(x,text)=>tokens.every(t=>searchable(text).includes(t));
  const more=MORE.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases));
  return [...EXERCISES.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases)),...more.filter(x=>hit(x,x.name)),...more.filter(x=>!hit(x,x.name))];
 }

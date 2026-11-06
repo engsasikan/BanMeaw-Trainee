@@ -20,3 +20,20 @@ test('every demonstration poses a sensible body', async () => {
     }
   }
 });
+
+test('bicycle crunch keeps hands beside the head and alternates a bent knee with a straight leg',async()=>{
+ const rig=await loadRig();
+ for(const sex of ['male','female']){
+  const model=await loadModel(sex),record={sex,height:sex==='male'?175:160,weight:sex==='male'?78:62};
+  for(const phase of [0,1]){
+   const joints=demoJoints(rig,model,record,'bicycleCrunch',phase),height=record.height/100;
+   for(const side of ['L','R'])assert.ok(joints.get('hand.'+side).distanceTo(joints.get('head'))<height*.12,`${sex}: hand drift`);
+   const bent=phase===0?'L':'R',straight=phase===0?'R':'L';
+   const kneeAngle=side=>{const knee=joints.get('lowerleg.'+side),a=joints.get('upperleg.'+side).clone().sub(knee).normalize(),b=joints.get('foot.'+side).clone().sub(knee).normalize();return Math.acos(Math.max(-1,Math.min(1,a.dot(b))))*180/Math.PI;};
+   assert.ok(kneeAngle(bent)>50&&kneeAngle(bent)<120,`${sex}: bent knee`);
+   assert.ok(kneeAngle(straight)>165,`${sex}: extended leg`);
+   assert.ok(joints.get('foot.'+bent).y<joints.get('lowerleg.'+bent).y,`${sex}: bent ankle must not flip above knee`);
+   assert.ok(joints.get('hips').y<height*.08,`${sex}: pelvis floats`);
+  }
+ }
+});

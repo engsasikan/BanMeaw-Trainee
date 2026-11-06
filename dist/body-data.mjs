@@ -1,3 +1,4 @@
+export const BOWEL_STATUS_LABELS={passed:'ถ่ายแล้ว',pending:'ยังไม่ถ่าย'};
 // Body measurement records, shared by the browser and the Worker.
 // Fields follow the InBody result sheet (e.g. InBody 380); every numeric field is optional.
 // Segments: ra/la = right/left arm, trunk, rl/ll = right/left leg (InBody sheet order).
@@ -67,7 +68,8 @@ export function validateBody(r){
  if(typeof r.day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(r.day)||localDay(new Date(r.day+'T12:00:00'))!==r.day)fail();
  if(!['male','female'].includes(r.sex))fail();
  const note=r.note??'';if(typeof note!=='string'||note.length>500)fail();
- const out={id:r.id,day:r.day,sex:r.sex,note:note.trim()};
+ if(r.bowelStatus!=null&&r.bowelStatus!==''&&(typeof r.bowelStatus!=='string'||!Object.hasOwn(BOWEL_STATUS_LABELS,r.bowelStatus)))fail();
+ const out={id:r.id,day:r.day,sex:r.sex,note:note.trim(),...(r.bowelStatus?{bowelStatus:r.bowelStatus}:{})};
  let any=false;
  for(const [key,{min,max,dp}] of Object.entries(FIELDS)){
   const v=r[key]??null;

@@ -1,5 +1,5 @@
 import {api} from './account.js?v=2';
-import {FIELDS,SEGMENTS,GROUPS,validateBody,resolveBodyRecords} from './body-data.mjs';
+import {FIELDS,SEGMENTS,GROUPS,validateBody,resolveBodyRecords,BOWEL_STATUS_LABELS} from './body-data.mjs';
 import {localDay} from './store.mjs';
 import {createWeightChart} from './weight-chart.mjs?v=1';
 const $=id=>document.getElementById(id);
@@ -8,7 +8,7 @@ const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
 const fmt=(key,v)=>v==null?'–':v+(FIELDS[key].unit?' '+FIELDS[key].unit:'');
 let threeModule;
-const loadThree=()=>threeModule??=import('./body3d.js?v=23');
+const loadThree=()=>threeModule??=import('./body3d.js?v=25');
 
 // A self-contained body card (3D figure, mode switch, stats, date picker); used on the
 // profile page and in a trainer's view of a team member.
@@ -34,7 +34,7 @@ export function createBodyViewer(root,{onSelect}={}){
    if(!figure){figure=three.mountBody(stage);}
    const shape=await figure.update({...current,sex:current?.sex||fallbackSex},mode);
    if(!current){legend.textContent='กรอกค่าร่างกายเพื่อดูหุ่น 3D';return;}
-   legend.textContent=mode==='composition'?'สีแดง = กล้ามเนื้อ · สีเหลือง = ภาพประมาณไขมันสะสม':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'🟦 ต่ำกว่ามาตรฐาน · ⬜ มาตรฐาน (100%) · 🟧 สูงกว่ามาตรฐาน — ดู % แต่ละส่วนในตารางด้านล่าง':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
+   legend.textContent=mode==='composition'?'สีแดง = กล้ามเนื้อ · สีเหลือง = ภาพประมาณไขมันสะสมแยกแต่ละส่วน · บริเวณสีแดงไม่ได้หมายความว่าไม่มีไขมัน':mode==='fat'?'สีส้มเข้ม = ไขมันมาก · สีอ่อน = ไขมันน้อย':mode==='muscle'?'🟦 ต่ำกว่ามาตรฐาน · ⬜ มาตรฐาน (100%) · 🟧 สูงกว่ามาตรฐาน — ดู % แต่ละส่วนในตารางด้านล่าง':'รูปร่างจากส่วนสูง น้ำหนัก ไขมัน กล้ามเนื้อ และสัดส่วนที่กรอก';
    if(mode!=='muscle'&&shape.estimated.length)note.textContent='ประมาณจากส่วนสูงและน้ำหนัก: '+shape.estimated.map(k=>FIELDS[k].label).join(', ');
    if(mode==='composition')note.textContent='ภาพจำลองตามเพศและค่าร่างกายที่กรอก ไม่ใช่ภาพตรวจวัดตำแหน่งกล้ามเนื้อหรือไขมันจริง';
    if(mode==='fat'&&SEGMENTS.every(([s])=>current['fat_'+s]==null))note.textContent='ไม่มีค่าไขมันแต่ละส่วน (InBody 380 ไม่วัดค่านี้) จึงใช้ % ไขมันรวมทั้งตัว';
@@ -101,6 +101,7 @@ function fillValues(src,day){
  $('body-day').value=day;$('body-sex').value=profileSex??src?.sex??'male';
  for(const key of FORM_KEYS)input(key).value=src?.[key]??'';
  $('body-note').value=editing?src?.note??'':'';
+ $('body-bowel-status').value=editing?src?.bowelStatus??'':'';
 }
 function openRecord(r){
  editing=r.id;fillValues(resolveBodyRecords(records).find(x=>x.id===r.id)||r,r.day);viewer.show(records,r.id);renderHistory();
@@ -120,7 +121,7 @@ function renderHistory(){
  if(!records.length){box.append(node('p','ยังไม่มีประวัติ กรอกค่าครั้งแรกด้านบนได้เลย','muted'));return;}
  for(const r of records){
   const row=node('div',undefined,'team-row'+(r.id===editing?' selected':'')),info=node('div');
-  info.append(node('strong',thaiDate(r.day)+(r===records[0]?' · ล่าสุด':'')),node('span',[r.weight!=null?r.weight+' กก.':'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':'',r.score!=null?'คะแนน '+r.score:''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
+  info.append(node('strong',thaiDate(r.day)+(r===records[0]?' · ล่าสุด':'')),node('span',[r.weight!=null?r.weight+' กก.':'',BOWEL_STATUS_LABELS[r.bowelStatus]||'',r.body_fat!=null?'ไขมัน '+r.body_fat+'%':'',r.muscle!=null?'กล้ามเนื้อ '+r.muscle+' กก.':'',r.score!=null?'คะแนน '+r.score:''].filter(Boolean).join(' · ')||'มีค่าสัดส่วน','muted'));
   const actions=node('div',undefined,'team-actions');
   actions.append(button(r.id===editing?'กำลังดู':'เปิด',r.id===editing?'quiet':'primary',()=>{openRecord(r);$('body-viewer').scrollIntoView({behavior:'smooth',block:'start'});}),
    button('ลบ','quiet',async()=>{if(!confirm('ลบค่าร่างกายวันที่ '+thaiDate(r.day)+'?'))return;try{await api('/api/body/'+encodeURIComponent(r.id),{method:'DELETE'});if(editing===r.id)editing=null;await loadBody();say('ลบแล้ว');}catch(error){say(error.message);}}));
@@ -136,7 +137,7 @@ function renderWeightCard(){
  const withWeight=records.filter(r=>r.weight!=null&&r.day<=selected),latest=withWeight[0],previous=withWeight[1];
  if(!$('weight-value'))return;
  $('weight-title').textContent=latest?.day===selected?(selected===localDay()?'น้ำหนักวันนี้':'น้ำหนักวันที่เลือก'):'น้ำหนักล่าสุด';
- $('weight-value').textContent=latest?latest.weight:'–';$('weight-date').textContent=latest?thaiDate(latest.day):'ยังไม่มีข้อมูล';
+ $('weight-value').textContent=latest?latest.weight:'–';$('weight-date').textContent=latest?thaiDate(latest.day)+(BOWEL_STATUS_LABELS[latest.bowelStatus]?' · '+BOWEL_STATUS_LABELS[latest.bowelStatus]:''):'ยังไม่มีข้อมูล';
  const change=$('weight-change');change.className='weight-change';
  if(!latest)change.textContent='บันทึกค่าร่างกายครั้งแรกในหน้าโปรไฟล์';
  else if(!previous)change.textContent='ค่าแรกที่บันทึก';
@@ -150,7 +151,7 @@ function renderWeightCard(){
  $('weight-open').textContent=latest?'ดูโปรไฟล์ร่างกาย':'บันทึกค่าร่างกาย';
  // Weight trend chart up to the selected day; target from the latest InBody target weight.
  weightChart??=createWeightChart($('weight-chart'));
- weightChart.update(records.filter(r=>r.weight!=null).map(r=>({day:r.day,weight:r.weight})),selected,records.find(r=>r.target_weight!=null&&r.day<=selected)?.target_weight??null);
+ weightChart.update(records.filter(r=>r.weight!=null).map(r=>({day:r.day,weight:r.weight,bowelStatus:r.bowelStatus})),selected,records.find(r=>r.target_weight!=null&&r.day<=selected)?.target_weight??null);
 }
 async function loadBody(selectedId){
  window.dispatchEvent(new Event('body-loading'));
@@ -166,9 +167,9 @@ async function loadBody(selectedId){
  if(selected)openRecord(selected);else startDay();
 }
 // Morning weigh-in from the overview: updates today's record or starts one from the latest.
-export async function quickWeigh(kg,day=localDay()){
+export async function quickWeigh(kg,day=localDay(),bowelStatus=''){
  const existing=records.find(r=>r.day===day),base=resolveBodyRecords(records.filter(r=>r.day<=day))[0];
- const row={...base,...existing,id:existing?.id||crypto.randomUUID(),day,sex:profileSex??base?.sex??'male',note:existing?.note??'',weight:kg};
+ const row={...base,...existing,id:existing?.id||crypto.randomUUID(),day,sex:profileSex??base?.sex??'male',note:existing?.note??'',weight:kg,bowelStatus};
  const valid=validateBody(row);
  await api('/api/body/'+encodeURIComponent(valid.id),{method:'PUT',body:JSON.stringify(valid)});
  await loadBody(valid.id);
@@ -207,7 +208,7 @@ export function initBody(me={}){
   e.preventDefault();const button=$('body-save');button.disabled=true;
   try{
    const day=$('body-day').value,id=editing||records.find(x=>x.day===day)?.id||crypto.randomUUID(); // one record per day
-   const row={id,day,sex:$('body-sex').value,note:$('body-note').value};
+   const row={id,day,sex:$('body-sex').value,note:$('body-note').value,bowelStatus:$('body-bowel-status').value};
    const saved=records.find(x=>x.id===id);
    for(const key of Object.keys(FIELDS)){if(!FORM_KEYS.includes(key)){row[key]=saved?.[key]??null;continue;}const raw=input(key).value.trim();row[key]=raw===''?null:Number(raw);}
    const valid=validateBody(row);

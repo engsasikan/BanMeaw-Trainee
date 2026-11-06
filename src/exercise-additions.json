@@ -1,0 +1,380 @@
+[
+  [
+    "Smith Machine Squat",
+    "ขา",
+    "สมิธแมชชีน สควอต สควอท",
+    "quad glute",
+    "hamstring erector"
+  ],
+  [
+    "Hack Squat",
+    "ขา",
+    "แฮกสควอต แฮ็คสควอท เครื่อง",
+    "quad glute",
+    "calf"
+  ],
+  [
+    "Sumo Squat",
+    "ขา",
+    "ซูโม่ สควอต สควอท",
+    "quad glute adductor",
+    "abs"
+  ],
+  [
+    "Sumo Deadlift",
+    "ขา",
+    "ซูโม่ เดดลิฟต์ เดดลิฟท์",
+    "glute hamstring adductor",
+    "quad erector flexor"
+  ],
+  [
+    "Dumbbell Romanian Deadlift",
+    "ขา",
+    "ดัมเบล โรมาเนียน อาร์ดีแอล rdl หลังขา",
+    "hamstring glute",
+    "erector flexor"
+  ],
+  [
+    "Reverse Lunge",
+    "ขา",
+    "รีเวิร์สลันจ์ ลันจ์ถอยหลัง",
+    "quad glute",
+    "hamstring calf"
+  ],
+  [
+    "Walking Lunge",
+    "ขา",
+    "วอล์กกิ้งลันจ์ เดินย่อลันจ์",
+    "quad glute",
+    "hamstring calf"
+  ],
+  [
+    "Hip Abduction Machine",
+    "ขา",
+    "เครื่องกางขา กางสะโพก สะโพกด้านนอก",
+    "glute",
+    ""
+  ],
+  [
+    "Hip Adduction Machine",
+    "ขา",
+    "เครื่องหุบขา หุบสะโพก ต้นขาด้านใน",
+    "adductor",
+    ""
+  ],
+  [
+    "Seated Leg Curl",
+    "ขา",
+    "ซีทเต็ดเลกเคิร์ล นั่งงอขา หลังขา",
+    "hamstring",
+    "calf"
+  ],
+  [
+    "Lying Leg Curl",
+    "ขา",
+    "ไลอิงเลกเคิร์ล นอนงอขา หลังขา",
+    "hamstring",
+    "calf"
+  ],
+  [
+    "Seated Calf Raise",
+    "น่อง",
+    "ซีทเต็ดคาล์ฟเรส นั่งยกน่อง",
+    "calf",
+    ""
+  ],
+  [
+    "Standing Calf Raise",
+    "น่อง",
+    "ยืนยกน่อง เขย่ง",
+    "calf",
+    ""
+  ],
+  [
+    "Smith Machine Hip Thrust",
+    "ขา",
+    "สมิธแมชชีน ฮิปทรัสต์ ดันสะโพก ก้น",
+    "glute",
+    "hamstring"
+  ],
+  [
+    "Incline Barbell Bench Press",
+    "อก",
+    "อินไคลน์ บาร์เบล เบนช์เพรส อกบน",
+    "pec deltoid",
+    "triceps"
+  ],
+  [
+    "Decline Bench Press",
+    "อก",
+    "ดีไคลน์ เบนช์เพรส อกล่าง",
+    "pec",
+    "triceps deltoid"
+  ],
+  [
+    "Cable Crossover",
+    "อก",
+    "เคเบิลครอสโอเวอร์ ครอสโอเวอร์ ฟลาย",
+    "pec",
+    "deltoid"
+  ],
+  [
+    "Assisted Dips",
+    "แขน",
+    "เครื่องช่วยดิป ดิปส์ หลังแขน",
+    "triceps pec",
+    "deltoid"
+  ],
+  [
+    "Chin-up",
+    "หลัง",
+    "ชินอัพ ดึงข้อหงายมือ",
+    "lat biceps",
+    "trap flexor"
+  ],
+  [
+    "T-bar Row",
+    "หลัง",
+    "ทีบาร์โรว์ ทีบาร์ ดึงหลัง",
+    "lat trap",
+    "biceps erector"
+  ],
+  [
+    "Chest Supported Row",
+    "หลัง",
+    "เชสต์ซัพพอร์ตโรว์ โรว์พิงอก",
+    "lat trap",
+    "biceps deltoid"
+  ],
+  [
+    "Straight Arm Pulldown",
+    "หลัง",
+    "สเตรทอาร์มพูลดาวน์ ดึงแขนตรง ปีกหลัง",
+    "lat",
+    "triceps serratus"
+  ],
+  [
+    "Single Arm Cable Row",
+    "หลัง",
+    "เคเบิลโรว์แขนเดียว ดึงหลัง",
+    "lat trap",
+    "biceps deltoid"
+  ],
+  [
+    "Arnold Press",
+    "ไหล่",
+    "อาร์โนลด์เพรส ดัมเบล ดันไหล่",
+    "deltoid",
+    "triceps trap"
+  ],
+  [
+    "Cable Lateral Raise",
+    "ไหล่",
+    "เคเบิลยกข้าง เลเทอรัลเรส",
+    "deltoid",
+    "trap"
+  ],
+  [
+    "Reverse Pec Deck",
+    "ไหล่",
+    "รีเวิร์สเพ็กเด็ค เครื่องไหล่หลัง",
+    "deltoid",
+    "trap"
+  ],
+  [
+    "Preacher Curl",
+    "แขน",
+    "พรีเชอร์เคิร์ล หน้าแขน",
+    "biceps",
+    "flexor"
+  ],
+  [
+    "Cable Biceps Curl",
+    "แขน",
+    "เคเบิลไบเซปเคิร์ล หน้าแขน",
+    "biceps",
+    "flexor"
+  ],
+  [
+    "Concentration Curl",
+    "แขน",
+    "คอนเซนเทรชันเคิร์ล หน้าแขน",
+    "biceps",
+    "flexor"
+  ],
+  [
+    "Skull Crusher",
+    "แขน",
+    "สกัลครัชเชอร์ นอนเหยียดแขน หลังแขน",
+    "triceps",
+    ""
+  ],
+  [
+    "Rope Triceps Pushdown",
+    "แขน",
+    "เชือกไตรเซปพุชดาวน์ กดเชือก หลังแขน",
+    "triceps",
+    ""
+  ],
+  [
+    "Side Plank",
+    "ท้อง",
+    "ไซด์แพลงก์ แพลงก์ด้านข้าง",
+    "oblique",
+    "abs glute deltoid"
+  ],
+  [
+    "Dead Bug",
+    "ท้อง",
+    "เดดบั๊ก เดดบัก แกนกลาง",
+    "abs",
+    "oblique"
+  ],
+  [
+    "Mountain Climber",
+    "ท้อง",
+    "เมาน์เทนไคลม์เบอร์ ปีนเขา",
+    "abs",
+    "quad deltoid"
+  ],
+  [
+    "Bicycle Crunch",
+    "ท้อง",
+    "ไบซิเคิลครันช์ ปั่นจักรยานอากาศ",
+    "abs oblique",
+    ""
+  ],
+  [
+    "Ab Wheel Rollout",
+    "ท้อง",
+    "ล้อกลิ้งหน้าท้อง แอบวีล โรลเอาท์",
+    "abs",
+    "lat deltoid"
+  ],
+  [
+    "Kettlebell Swing",
+    "ขา",
+    "เคตเทิลเบลสวิง เคทเทิลเบล สวิง",
+    "glute hamstring",
+    "erector abs"
+  ],
+  [
+    "Machine Fly",
+    "อก",
+    "matchine fly machine chest fly chest fly machine pec deck butterfly เครื่องฟลาย เครื่องเล่นอก บัตเตอร์ฟลาย เพ็กเด็ค แมชชีนฟลาย",
+    "pec",
+    "deltoid"
+  ],
+  [
+    "Knee Push-up",
+    "อก",
+    "knee push up knee pushup kneeling push up modified push up วิดพื้นเข่า วิดพื้นคุกเข่า วิดพื้นวางเข่า",
+    "pec",
+    "triceps deltoid abs"
+  ],
+  [
+    "Staggered Push Up",
+    "อก",
+    "staggered push-up วิดพื้นสลับมือ วิดพื้นมือเหลื่อม",
+    "pec",
+    "triceps deltoid abs"
+  ],
+  [
+    "Dumbbell Floor Squeeze Press",
+    "อก",
+    "DB Floor Squeeze Press ดัมเบลฟลอร์สควีซเพรส นอนพื้นดันดัมเบลบีบอก",
+    "pec",
+    "triceps deltoid"
+  ],
+  [
+    "Dumbbell Floor Pullover",
+    "หลัง",
+    "DB Floor Pullover ดัมเบลฟลอร์พูลโอเวอร์ นอนพื้นพูลโอเวอร์",
+    "lat pec",
+    "triceps serratus"
+  ],
+  [
+    "Dumbbell Reverse Fly",
+    "ไหล่",
+    "ดัมเบลรีเวิร์สฟลาย ไหล่หลัง",
+    "deltoid",
+    "trap"
+  ],
+  [
+    "Overhead Extension Standing",
+    "แขน",
+    "standing overhead extension standing overhead triceps extension ยืนเหยียดแขนเหนือศีรษะ หลังแขน",
+    "triceps",
+    ""
+  ],
+  [
+    "Dumbbell Curl",
+    "แขน",
+    "DB Curl ดัมเบลเคิร์ล หน้าแขน",
+    "biceps",
+    "flexor"
+  ],
+  [
+    "Dumbbell Thruster",
+    "ขา",
+    "DB Thruster ดัมเบลทรัสเตอร์ สควอตดันเหนือหัว",
+    "quad glute deltoid",
+    "triceps abs"
+  ],
+  [
+    "DB Plank Row + Push-up",
+    "อก",
+    "dumbbell plank row push up renegade row push up แพลงก์โรว์วิดพื้น ดัมเบลโรว์วิดพื้น",
+    "pec lat abs",
+    "triceps deltoid biceps glute"
+  ],
+  [
+    "Front Raise",
+    "ไหล่",
+    "ยกหน้า ฟรอนต์เรส ดัมเบลยกหน้า",
+    "deltoid",
+    "pec trap"
+  ],
+  [
+    "Bendover Reverse Fly",
+    "ไหล่",
+    "bent over reverse fly bend over reverse fly bentover reverse fly ก้มตัวรีเวิร์สฟลาย ก้มตัวยกไหล่หลัง",
+    "deltoid",
+    "trap"
+  ],
+  [
+    "Weighted Crunch",
+    "ท้อง",
+    "เวทเต็ดครันช์ ครันช์ถ่วงน้ำหนัก",
+    "abs",
+    "oblique"
+  ],
+  [
+    "Side Plank Crunch",
+    "ท้อง",
+    "ไซด์แพลงก์ครันช์ แพลงก์ข้างงอเข่า",
+    "oblique abs",
+    "deltoid glute"
+  ],
+  [
+    "Flutter Kick",
+    "ท้อง",
+    "flutter kicks ฟลัตเตอร์คิก นอนเตะขาสลับ",
+    "abs",
+    "oblique quad"
+  ],
+  [
+    "Chest Stretching",
+    "อก",
+    "chest stretch ยืดอก ยืดกล้ามเนื้ออก",
+    "pec",
+    "deltoid"
+  ],
+  [
+    "Lat Pulldown",
+    "หลัง",
+    "lat pull down lat pull-down แลตพูลดาวน์ ลาตพูลดาวน์ ดึงหลัง",
+    "lat",
+    "biceps trap flexor"
+  ]
+]

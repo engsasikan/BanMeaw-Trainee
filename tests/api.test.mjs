@@ -120,3 +120,12 @@ test('team game route admits accepted players of either role and denies pending 
   const response=await handleTeams(new Request('https://app.test/api/teams/'+id+'/game?day=2026-10-04'),sql,{sub:'coach'});assert.equal(response.status,status==='active'?200:403);
  }
 });
+
+test('removed health integration rejects reads, key creation and shortcut uploads',async()=>{
+ for(const path of ['/api/health','/api/health/key','/api/health/ingest']){
+  for(const method of ['GET','POST','DELETE']){
+   const response=await worker.fetch(new Request('https://app.test'+path,{method}),{});
+   assert.equal(response.status,404);
+  }
+ }
+});

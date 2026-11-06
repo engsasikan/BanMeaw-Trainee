@@ -47,6 +47,7 @@ async function authProxy(request, env, url) {
 }
 export async function handleApi(request, env) {
   const url = new URL(request.url);
+  if(url.pathname==='/api/health'||url.pathname.startsWith('/api/health/'))return json({error:'ยกเลิกการเชื่อมต่อสุขภาพแล้ว'},404);
   if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin) return json({error:'คำขอจากเว็บไซต์อื่นไม่ได้รับอนุญาต'},403);
   if (Number(request.headers.get('Content-Length') || 0) > (url.pathname==='/api/me/avatar'?65536:url.pathname==='/api/backup'?262144:16000)) return json({error:'ข้อมูลใหญ่เกินไป'},413);
   if (url.pathname === '/api/config') return json({ready:Boolean(env.DATABASE_URL && env.NEON_AUTH_BASE_URL),googleLoginReady:googleLoginReady(env)});

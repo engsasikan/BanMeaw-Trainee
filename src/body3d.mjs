@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { predictShape, GIRTH_MODEL } from './girth-model.mjs';
+import {EXTRA_MOTIONS,configureMotion} from './exercise-variants.mjs';
 
 const REF = {
   male:   {fat: 18, smm: 0.42, smmRange: 0.2, mus: {la: 3.2, ra: 3.2, trunk: 26, ll: 9.5, rl: 9.5}},
@@ -135,9 +136,12 @@ const ROPES_A = {hips: [20, 0, 0], upperleg: [0.2, -0.85, 0.45], lowerleg: [0.15
   upperarmR: [-0.15, 0.15, 0.98], lowerarmR: [-0.08, 0.3, 0.95], grip: 1};
 const DEAD_BUG_A = {upperarm: [0.1, 0.85, 0.5], lowerarm: [0.1, 0.85, 0.5], upperarmR: [-0.1, 0.1, 1], lowerarmR: [-0.1, 0.1, 1],
   upperleg: [0.08, -0.9, 0.4], lowerleg: [0.08, -0.95, 0.3], upperlegR: [-0.1, 0.05, 1], lowerlegR: [-0.05, -1, 0.05]};
-const BICYCLE_A = {spineLow: [10, 0, 0], upperarm: [0.9, 0.35, -0.1], lowerarm: [-0.6, 0.5, -0.6], upperleg: [0.1, 0.5, 0.86], lowerleg: [0.05, -0.9, 0.4],
-  upperlegR: [-0.08, -0.95, 0.3], lowerlegR: [-0.08, -0.95, 0.3]};
+const BICYCLE_A = {spineLow: [8, 0, 0], neck:[6,0,0], head:[4,0,0],grip:0,
+  upperarm:[.9,.3,.05],lowerarm:[-.7,.5,.15],
+  upperleg:[.04,.25,.97],lowerleg:[.03,-.98,-.2],
+  upperlegR:[-.04,-.98,.18],lowerlegR:[-.03,-.99,.12],foot:[0,0,0]};
 const SITTING = {upperleg: [0.12, 0, 1], lowerleg: [0.08, -1, 0.02], upperarm: [0.1, -0.9, 0.4], lowerarm: [0.05, -0.3, 0.95], grip: 0.2};
+const ROW_SITTING = {upperleg: [0.1, -0.18, 0.98], lowerleg: [0.07, -0.55, 0.84], grip: 1};
 const MOTIONS = {
   squat: {anchor: 'feet', view: [55, 12, 0.5], keys: [
     {...STAND, upperleg: [0.2, -1, 0.02], lowerleg: [0.16, -1, -0.05], upperarm: [0.1, -1, 0.15], lowerarm: [0.1, -1, 0.2]},
@@ -150,6 +154,18 @@ const MOTIONS = {
   row: {anchor: 'feet', view: [72, 10, 0.45], props: ['dumbbells'], keys: [
     {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.06, -1, 0.1], lowerarm: [0.04, -1, 0.04], twist: -16},
     {hips: [64, 0, 0], neck: [-12, 0, 0], head: [-26, 0, 0], upperleg: [0.13, -1, 0.24], lowerleg: [0.12, -1, -0.16], upperarm: [0.16, -0.3, -0.94], lowerarm: [0.03, -1, 0.02], twist: 6},
+  ]},
+  seatedCableRow: {anchor: 'seated', seatFoot: 'L', view: [55, 12, 0.35, 1.25], props: ['seat', 'rowCable'], cableHeight: 0.28, keys: [
+    {...ROW_SITTING, upperarm: [0.12, -0.18, 0.98], lowerarm: [0.03, -0.12, 1]},
+    {...ROW_SITTING, upperarm: [0.18, -0.8, -0.55], lowerarm: [-0.12, 0.05, 1]},
+  ]},
+  wideSeatedCableRow: {anchor: 'seated', seatFoot: 'L', view: [40, 12, 0.35, 1.25], props: ['seat', 'rowCable'], cableHeight: 0.35, keys: [
+    {...ROW_SITTING, upperarm: [0.48, -0.12, 0.87], lowerarm: [0.05, -0.1, 1]},
+    {...ROW_SITTING, upperarm: [0.88, -0.15, -0.45], lowerarm: [-0.2, -0.1, 0.98]},
+  ]},
+  declineSeatedCableRow: {anchor: 'seated', seatFoot: 'L', view: [45, 12, 0.4, 1.25], props: ['seat', 'rowCable'], cableHeight: 0.72, keys: [
+    {...ROW_SITTING, upperarm: [0.48, 0.3, 0.82], lowerarm: [0.06, 0.35, 0.94]},
+    {...ROW_SITTING, upperarm: [0.86, -0.22, -0.46], lowerarm: [-0.2, 0.05, 0.98]},
   ]},
   curl: {anchor: 'feet', view: [38, 8, 0.55], props: ['dumbbells'], keys: [
     {...STAND, upperarm: [0.08, -1, 0], lowerarm: [0.1, -1, 0.06], twist: -73},
@@ -428,22 +444,27 @@ const MOTIONS = {
     {hips: [40, 0, 0], upperleg: [0.1, -0.75, 0.66], lowerleg: [0.05, -0.02, -1], foot: [60, 0, 0], ...ARMS_CROSSED},
   ]},
   deadBug: {anchor: 'lying', surface: 0.01, view: [65, 22, 0.18], props: ['mat'], keys: [DEAD_BUG_A, mirrorKey(DEAD_BUG_A)]},
-  bicycleCrunch: {anchor: 'lying', surface: 0.01, armsWith: 'chest', view: [65, 22, 0.18], props: ['mat'], keys: [
-    {...BICYCLE_A, chest: [25, 25, 0]},
-    {...mirrorKey(BICYCLE_A), chest: [25, -25, 0]},
+  bicycleCrunch: {anchor: 'lying', surface: 0.01, armsWith: 'chest', view: [55, 30, 0.16,1.15], props: ['mat'],
+    reach:[{arm:'L',to:'head',offset:[.055,.015,-.015],pole:[1,.15,-.1],w:'always'},
+           {arm:'R',to:'head',offset:[-.055,.015,-.015],pole:[-1,.15,-.1],w:'always'}],keys: [
+    {...BICYCLE_A, chest: [16, 18, 0]},
+    {...mirrorKey(BICYCLE_A), chest: [16, -18, 0]},
   ]},
   vUp: {anchor: 'lying', surface: 0.01, view: [75, 18, 0.2], props: ['mat'], keys: [
     {upperleg: [0.08, -1, -0.1], lowerleg: [0.08, -1, -0.05], upperarm: [0.15, 0.98, -0.1], lowerarm: [0.1, 0.98, -0.1]},
     {spineLow: [25, 0, 0], chest: [35, 0, 0], neck: [10, 0, 0], upperleg: [0.06, 0.35, 0.94], lowerleg: [0.06, 0.35, 0.94], upperarm: [0.15, -0.3, 0.94], lowerarm: [0.1, -0.4, 0.9]},
   ]},
 };
+Object.assign(MOTIONS,EXTRA_MOTIONS);
 export const MOTION_IDS = Object.keys(MOTIONS);
+export function motionDefinition(id,profile){return configureMotion(MOTIONS[id],profile);}
 // For tests: pose a body for one motion and read the joints (blend t: 0 = first key, 1 = second key).
-export function demoJoints(rig, model, record, id, t) {
+export function demoJoints(rig, model, record, id, t, profile) {
   const {pos, H} = shapeBody(model, record), g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(new THREE.BufferAttribute(model.indices, 1));
-  const fig = rigFigure(rig, g, new THREE.MeshBasicMaterial(), pos, H, model.segments, MOTIONS[id]);
-  fig.tick(t >= 1 ? 1.4 : t <= 0 ? 0 : 0.7); return fig.joints();
+  const mat=new THREE.MeshBasicMaterial(),fig = rigFigure(rig, g, mat, pos, H, model.segments, motionDefinition(id,profile));
+  fig.tick(t >= 1 ? 1.4 : t <= 0 ? 0 : 0.7);const joints=fig.joints();
+  g.dispose();mat.dispose();fig.mesh.skeleton?.dispose();fig.props.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose();});return joints;
 }
 // Closing the hand: degrees per joint at full grip; where a handle sits (fraction wrist -> knuckles, distance off the palm / height).
 const FINGER_CURL = [70, 95, 55], THUMB_CURL = [40, 30, 35], PALM_SIDE = 1, GRIP_ALONG = 0.95, GRIP_OUT = 0.018;
@@ -492,7 +513,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   }
   const anchor = motion.anchor, deg = Math.PI / 180;
   const BACK = ['lying', 'shoulders'], FRONT = ['plank', 'quadruped', 'prone'];
-  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(BACK.includes(anchor) ? -Math.PI / 2 : FRONT.includes(anchor) ? Math.PI / 2 : 0, 0, 0));
+  const frame = new THREE.Quaternion().setFromEuler(new THREE.Euler(BACK.includes(anchor) ? -Math.PI / 2 : FRONT.includes(anchor) ? Math.PI / 2 : 0, 0, anchor==='side'?Math.PI/2:0));
   // turn: extra whole-body rotation found by an anchor (planks pivot on the toes); limbs turn with it.
   const turn = new THREE.Quaternion(), limbFrame = new THREE.Quaternion(), limbFrameInv = new THREE.Quaternion();
   // How far the back (lying) or belly (prone) sticks out from the hip joint.
@@ -505,13 +526,13 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   const lerp3 = (a = [0, 0, 0], b = a, t) => a.map((x, k) => x + (b[k] - x) * t), lerpN = (a, b, t) => a + (b - a) * t;
   const HELD = ['dumbbells', 'onedumbbell', 'barbell', 'cable', 'pullbar', 'kettlebell'], baseGrip = (motion.props || []).some(p => HELD.includes(p)) ? 1 : 0.2;
   const mirror = d => d && [-d[0], d[1], d[2]];
-  let over = null; // limb directions solved by IK, by bone name
+  let over = null, activeKeys=motion.keys; // limb directions solved by IK, by bone name
   const keyFor = (key, base, side) => over?.[`${base}.${side}`] ?? (side === 'R' ? key[base + 'R'] ?? (base === 'foot' ? key.foot : mirror(key[base])) : key[base]);
   const avg = (a, b) => worldP[id(a)].clone().add(worldP[id(b)]).multiplyScalar(0.5);
 
   // Forward kinematics for blend t with the root at rootQ/rootP; fills worldQ/worldP.
   function fk(t, rootQ, rootP) {
-    const [A, B] = motion.keys;
+    const [A, B] = activeKeys;
     rig.bones.forEach((b, i) => {
       const bone = bones[i], [base, side] = b.name.split('.');
       if (b.parent < 0) { bone.quaternion.copy(rootQ); bone.position.copy(rootP); worldQ[0].copy(rootQ); worldP[0].copy(rootP); return; }
@@ -557,7 +578,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   let gripTarget = null, chestAt = null, kneesAt = null, seatShift = null;
   const held = new Map(); // reach targets fixed at the start of the motion
   function pose(t) {
-    const e = lerp3(motion.keys[0].hips ?? ZERO, motion.keys[1].hips ?? ZERO, t);
+    const e = lerp3(activeKeys[0].hips ?? ZERO, activeKeys[1].hips ?? ZERO, t);
     const rootQ = frame.clone().multiply(tmpQ.setFromEuler(euler.set(e[0] * deg, e[1] * deg, e[2] * deg)));
     turn.identity(); limbFrame.copy(frame); limbFrameInv.copy(frame).invert();
     fk(t, rootQ, restHips);
@@ -597,13 +618,15 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       if (anchor === 'plank') { limbFrame.copy(turn).multiply(frame); limbFrameInv.copy(limbFrame).invert(); }
       fk(t, turn.clone().multiply(rootQ), restHips);
       const p = pivot(); shiftAll(new THREE.Vector3(-avg(j + '.L', j + '.R').x, y0 - p.y, z0 - p.z));
+    } else if (anchor === 'side') {
+      shiftAll(new THREE.Vector3(0,.035-Math.min(...worldP.map(p=>p.y)),0));
     } else if (anchor === 'seated') {
       // Sitting: at the start the planted foot's ankle rests ~8 cm above the floor; the seat then stays put.
-      seatShift ??= 0.08 - worldP[id('foot.' + motion.seatFoot)].y;
+      seatShift ??= Math.max(0.08 - worldP[id('foot.' + motion.seatFoot)].y,H*.34-worldP[0].y);
       shiftAll(new THREE.Vector3(0, seatShift, 0));
     }
     // Rising onto the toes (lift) and jumps (hop).
-    const rise = lerpN(motion.keys[0].lift ?? 0, motion.keys[1].lift ?? 0, t) + (motion.hop ?? 0) * Math.sin(Math.PI * t);
+    const rise = lerpN(activeKeys[0].lift ?? 0, activeKeys[1].lift ?? 0, t) + (motion.hop ?? 0) * Math.sin(Math.PI * t);
     if (rise) shiftAll(new THREE.Vector3(0, rise, 0));
     // Two-bone IK, blended in by weight w: the back leg of a lunge, hands reaching a foot or elbow.
     const solved = {};
@@ -644,7 +667,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   for (const p of motion.props || []) {
     if (p === 'bench') {
       const z = anchor === 'prone' ? -H * 0.12 + 0.4 : H * 0.12 - 0.4; // under the trunk, towards the head
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, z); props.add(b);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 1.15), pad); b.position.set(0, motion.surface - 0.035, z);b.rotation.x=(motion.benchAngle||0)*Math.PI/180; props.add(b);
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, motion.surface - 0.07, 0.9), metal); leg.position.set(0, (motion.surface - 0.07) / 2, z); props.add(leg);
     }
     if (p === 'ball') { const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16), new THREE.MeshStandardMaterial({color: '#5a4636', roughness: 0.8})); props.add(b); updates.push(grips => b.position.copy(mid(grips))); }
@@ -662,20 +685,42 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
       });
     }
     if (p === 'mat') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.01, 1.8), new THREE.MeshStandardMaterial({color: '#3d5a4a', roughness: 0.9})); m.position.set(0, 0.005, H * 0.12 - 0.25); props.add(m); }
-    if (p === 'barbell') { const g = barbell(); props.add(g); updates.push(grips => g.position.copy(mid(grips))); }
-    if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d); updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, grips[k].axis); })); }
+    if (p === 'barbell') { const g = barbell(); props.add(g); updates.push(grips => g.position.copy(motion.singleArm?grips[0]:mid(grips))); }
+    if (p === 'dumbbells') { const d = [dumbbell(), dumbbell()]; props.add(...d);d[1].visible=!motion.singleArm; updates.push(grips => d.forEach((x, k) => { x.position.copy(grips[k]); x.quaternion.setFromUnitVectors(up, grips[k].axis); })); }
+    if (p === 'shoulderBar') {const bar=barbell();props.add(bar);updates.push(()=>bar.position.copy(worldP[id('neck')]).add(new THREE.Vector3(0,-H*.03,H*(motion.frontRack?.06:-.04))));}
+    if (['cableHandles','bandHandles','machineHandles'].includes(p)) {
+      const handles=[cyl(.018,.14,metal),cyl(.018,.14,metal)],lines=[cyl(.004,1,metal),cyl(.004,1,metal)];props.add(...handles,...lines);
+      handles[1].visible=lines[1].visible=!motion.singleArm;
+      const n=motion.profileName||'',upper=/pushdown|pulldown|face pull|overhead/i.test(n),low=/curl|front raise|lateral raise/i.test(n),press=/press|fly/i.test(n);
+      const anchors=[-1,1].map(x=>new THREE.Vector3(x*H*.4,H*(upper?1.15:low?.05:.55),H*(press?-.45:.85)));
+      updates.push(grips=>handles.forEach((handle,k)=>{handle.position.copy(grips[k]);handle.quaternion.setFromUnitVectors(up,grips[k].axis);const d=anchors[k].clone().sub(grips[k]);lines[k].position.copy(grips[k]).addScaledVector(d,.5);lines[k].scale.y=d.length();lines[k].quaternion.setFromUnitVectors(up,d.normalize());}));
+    }
+    if (p === 'jumpRope') {
+      const rope=new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({length:33},()=>new THREE.Vector3())),new THREE.LineBasicMaterial({color:'#ff8b47'}));props.add(rope);
+      updates.push(grips=>{const points=rope.geometry.attributes.position;for(let i=0;i<33;i++){const t=i/32,point=grips[0].clone().lerp(grips[1],t);point.y-=Math.sin(Math.PI*t)*H*.65;point.z+=Math.sin(Math.PI*t)*H*.2;points.setXYZ(i,point.x,point.y,point.z);}points.needsUpdate=true;});
+    }
     if (p === 'onedumbbell') { const d = dumbbell(); props.add(d); updates.push(grips => { d.position.copy(mid(grips)); d.quaternion.setFromUnitVectors(up, mid(grips).sub(avg('lowerarm.L', 'lowerarm.R')).normalize()); }); }
     if (p === 'kettlebell') {
       // Handle between both hands; the bell hangs off it along the arms.
       const g = new THREE.Group(), handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 10, 24, Math.PI), metal), bell = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), metal);
       handle.rotation.z = Math.PI; bell.position.y = -0.13; g.add(handle, bell); props.add(g);
-      updates.push(grips => { const fore = avg('hand.L', 'hand.R').sub(avg('lowerarm.L', 'lowerarm.R')).normalize(); g.position.copy(mid(grips)); g.quaternion.setFromUnitVectors(up, fore.negate()); });
+      updates.push(grips => { const fore = avg('hand.L', 'hand.R').sub(avg('lowerarm.L', 'lowerarm.R')).normalize(); g.position.copy(motion.singleArm?grips[0]:mid(grips)); g.quaternion.setFromUnitVectors(up, fore.negate()); });
     }
     if (p === 'cable') {
       // Short bar between the hands, cable up to a pulley in front of the head.
       const bar = cyl(0.017, 0.46, metal), wire = cyl(0.006, 1, metal), pulley = cyl(0.05, 0.03, metal), top = new THREE.Vector3(0, H * 1.18, H * 0.3);
       bar.rotation.z = Math.PI / 2; pulley.rotation.z = Math.PI / 2; pulley.position.copy(top); props.add(bar, wire, pulley);
-      updates.push(grips => { const m = mid(grips), d = top.clone().sub(m); bar.position.copy(m); wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize()); });
+      updates.push(grips => { const m = mid(grips), d = top.clone().sub(m); bar.position.copy(m);bar.scale.y=(grips[0].distanceTo(grips[1])+.12)/.46; wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize()); });
+    }
+    if (p === 'rowCable') {
+      const bar = cyl(0.017, 1, metal), wire = cyl(0.005, 1, metal), pulley = cyl(0.055, 0.04, metal);
+      const top = new THREE.Vector3(0, H * motion.cableHeight, H * 0.95);
+      pulley.rotation.z = Math.PI / 2; pulley.position.copy(top); props.add(bar, wire, pulley);
+      updates.push(grips => {
+        const m = mid(grips), across = grips[1].clone().sub(grips[0]), d = top.clone().sub(m);
+        bar.position.copy(m); bar.scale.y = across.length() + 0.08; bar.quaternion.setFromUnitVectors(up, across.normalize());
+        wire.position.copy(m).addScaledVector(d, 0.5); wire.scale.y = d.length(); wire.quaternion.setFromUnitVectors(up, d.normalize());
+      });
     }
     if (p === 'seat') {
       const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1, 0.4), pad); props.add(box);
@@ -702,6 +747,7 @@ function rigFigure(rig, geometry, material, pos, H, segments, motion) {
   // 3.6 s loop: move 1.4 s, pause, return 1.4 s, pause.
   return {mesh, props, joints: () => new Map(rig.bones.map((b, i) => [b.name, worldP[i].clone()])), tick(seconds) {
     // Stretches hold: ease in 1.6 s, hold 3.6 s, release 1.4 s, rest.
+    if(motion.sequence){const phase=(seconds%5)/5*(motion.keys.length-1),index=Math.min(motion.keys.length-2,Math.floor(phase));activeKeys=[motion.keys[index],motion.keys[index+1]];place(pose(ease(phase-index)));return;}
     const c = motion.hold ? (seconds % 7) / 7 : (seconds % 3.6) / 3.6, [i, h, o] = motion.hold ? [0.23, 0.74, 0.94] : [0.39, 0.5, 0.89];
     const t = c < i ? ease(c / i) : c < h ? 1 : c < o ? 1 - ease((c - h) / (o - h)) : 0;
     place(pose(t));
@@ -765,6 +811,23 @@ function fatPrior(model, pos, H, r) {
     else if ((seg === 3 || seg === 4) && y >= 0.34 && y < 0.50) prior[i] = female ? 1.35 : 0.9;
   }
   return prior;
+}
+
+// Compare thickness within each body segment so a thicker torso cannot hide arm fat.
+export function compositionFatOverlay(thickness, segments, record) {
+  const result = new Float32Array(thickness.length);
+  const fatPct = record.body_fat ?? (macros(record).weight * 40 + 5);
+  const cover = clamp((fatPct - (record.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
+  for (let segment = 0; segment < 5; segment++) {
+    const sorted = Array.from(thickness).filter((t, i) => segments[i] === segment && t > 0).sort((a, b) => a - b);
+    if (!sorted.length) continue;
+    const q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))];
+    const from = Math.max(q(1 - cover), 0.006);
+    const full = Math.max(q(1 - cover * 0.35), from + 0.004);
+    for (let i = 0; i < thickness.length; i++) if (segments[i] === segment && thickness[i] > 0)
+      result[i] = clamp((thickness[i] - from) / (full - from), 0, 1);
+  }
+  return result;
 }
 
 function segmentDeviation(r, prefix, scale) {
@@ -897,7 +960,13 @@ function shapeBodyUncached(model, r, lean) {
       }
     }
     if (mus) { apply(pos, 'torso-muscle-pectoral', mus.trunk); apply(pos, 'torso-muscle-dorsi', mus.trunk); }
-    if (lean) apply(pos, 'stomach-tone', 1);
+    if (lean) {
+      apply(pos, 'stomach-tone', 1);
+      // Exposed muscle view: remove the breast envelope and subcutaneous limb volume.
+      apply(pos, 'breast-cup', -1);
+      for (const side of ['l', 'r']) for (const part of ['upperarm', 'lowerarm', 'upperleg', 'lowerleg'])
+        apply(pos, `${side}-${part}-fat`, -0.5);
+    }
     else if (r.body_fat != null) apply(pos, 'stomach-tone', clamp((ref.fat - r.body_fat) / 12, -1, 1));
     for (const [name, pairs] of SHAPE_PARAMS) if (pairs) for (const t of pairs) apply(pos, t, name === 'belly' ? (shape.belly ?? belly0) : shape[name] ?? 0);
     // Scale to the person's height (metres), feet on the ground.
@@ -929,7 +998,7 @@ function shapeBodyUncached(model, r, lean) {
 
   const w0 = lean ? Math.min(macros(r).weight, 0.35) : macros(r).weight;
   let {pos} = build(w0);
-  if (r.height && r.weight) {
+  if (!lean && r.height && r.weight) {
     // Targets: what people of this sex, height, weight and body fat measure (ANSUR II + body-fat data),
     // replaced by the person's own tape measurements; their cross-sections follow in proportion.
     const want = {...usual}, sd = {...GIRTH_MODEL[sex === 'female' ? 'female' : 'male'].rmse};
@@ -1021,7 +1090,12 @@ function anatomyMaterial(tint = false) {
         vec3 tendonCol = mix(vec3(0.82, 0.72, 0.70), vec3(0.96, 0.91, 0.88), 0.6 + 0.07 * fibres);
         muscleCol = mix(muscleCol, tendonCol, smoothstep(0.15, 0.85, vAnat.y));
         muscleCol = mix(muscleCol, vec3(0.9, 0.76, 0.74), smoothstep(0.4, 0.6, vAnat.z));
+        #ifdef SEGMENT_TINT
+        float fascia = 1.0 - smoothstep(0.01, 0.10 + edgeW, edgeCm);
+        muscleCol *= mix(0.58, 1.0, smoothstep(0.08, 0.7 + edgeW, edgeCm));
+        #else
         float fascia = 1.0 - smoothstep(0.02, 0.30 + edgeW, edgeCm);
+        #endif
         muscleCol = mix(muscleCol, vec3(0.93, 0.86, 0.84), fascia * 0.75 * (1.0 - smoothstep(0.4, 0.6, vAnat.z)));
         // Broad, soft variation instead of high-contrast cellular speckling.
         float fatTone = 0.5 + 0.16 * (noise(vObjPos * 9.0) - 0.5);
@@ -1034,7 +1108,7 @@ function anatomyMaterial(tint = false) {
   return material;
 }
 
-export function mountBody(container) {
+export function mountBody(container, {onMuscleSelect, fixedView} = {}) {
   const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1046,30 +1120,49 @@ export function mountBody(container) {
   const controls = new OrbitControls(camera, renderer.domElement);
   Object.assign(controls, {enablePan: false, enableDamping: true, autoRotate: true, autoRotateSpeed: 1.6, minDistance: 1.6, maxDistance: 7});
   controls.addEventListener('start', () => { controls.autoRotate = false; });
+  if (fixedView) controls.autoRotate = false;
   const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
   const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: 0.72, metalness: 0}), anatomy = anatomyMaterial(), anatomyTint = anatomyMaterial(true);
-  let mesh = null, frame = 0, request = 0, demo = null, demoProps = null, playing = true, shownMotion = null;
+  let mesh = null, frame = 0, request = 0, demo = null, demoProps = null, playing = true, shownMotion = null, anatomyData = null, bodyHeight = 1.75;
+  let pointerStart = null;
+  const raycaster = new THREE.Raycaster();
+  renderer.domElement.addEventListener('pointerdown', e => { pointerStart = [e.clientX, e.clientY]; });
+  renderer.domElement.addEventListener('pointerup', e => {
+    if (!onMuscleSelect || !mesh || !pointerStart || Math.hypot(e.clientX-pointerStart[0], e.clientY-pointerStart[1]) > 6) return;
+    pointerStart = null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    raycaster.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1, -(e.clientY-rect.top)/rect.height*2+1), camera);
+    const hit = raycaster.intersectObject(mesh)[0];
+    if (!hit?.face || !anatomyData) return;
+    const names = [hit.face.a, hit.face.b, hit.face.c].map(i => anatomyData.muscleOf[anatomyData.region[i]]).filter(Boolean);
+    const name = names.find(n => names.filter(v=>v===n).length >= 2) || names[0];
+    if (name) onMuscleSelect(name);
+  });
+  function setView(side = 'front') {
+    controls.autoRotate = false;
+    controls.target.set(0, bodyHeight * .52, 0);
+    camera.position.set(0, bodyHeight * .55, bodyHeight * 2.25 * (side === 'back' ? -1 : 1));
+    camera.userData.placed = true; controls.update();
+  }
   const clock = new THREE.Clock();
 
   async function update(record = {}, mode = 'shape') {
     const r = mode === 'muscle' ? muscleOnlyRecord(record) : record, sex = r.sex === 'female' ? 'female' : 'male', ticket = ++request;
-    const motion = mode === 'focus' ? MOTIONS[r.motion] : null;
+    const motion = mode === 'focus' ? motionDefinition(r.motion,r.demo) : null;
     const [model, rig] = await Promise.all([loadModel(sex), motion ? loadRig().catch(() => null) : null]);
     if (ticket !== request) return {estimated: GIRTHS.filter(k => !r[k])};
     const {pos, H} = shapeBody(model, r, mode === 'muscle'), geometry = new THREE.BufferGeometry();
+    anatomyData = model.anatomy; bodyHeight = H;
     if (mode === 'composition' || mode === 'muscle' || mode === 'focus') {
       // Fat thickness per vertex = distance from the lean body. Yellow covers the thickest part of
-      // this body; the covered share grows with body fat % (e.g. ~28% of the body at 42% fat).
+      // each segment; the covered share grows with body fat %, without treating red as zero fat.
       const lean = shapeBody(model, mode === 'muscle' ? r : muscleOnlyRecord(r), true).pos, fatAmt = new Float32Array(model.n), thick = new Float32Array(model.n);
       const skin = model.anatomy?.anat.array; // hands/feet/head have dense vertices: keep them out of the fat share
       for (let i = 0; i < model.n; i++) thick[i] = model.segments[i] === 5 || skin?.[i * 3 + 2] ? 0 : Math.hypot(pos[i * 3] - lean[i * 3], pos[i * 3 + 1] - lean[i * 3 + 1], pos[i * 3 + 2] - lean[i * 3 + 2]);
       const prior = fatPrior(model, pos, H, r); for (let i = 0; i < model.n; i++) thick[i] *= prior[i];
-      const sorted = Array.from(thick).filter(t => t > 0).sort((a, b) => a - b), q = f => sorted[Math.floor(clamp(f, 0, 1) * (sorted.length - 1))] ?? 0;
-      const fatPct = r.body_fat ?? (macros(r).weight * 40 + 5), cover = clamp((fatPct - (r.sex === 'female' ? 20 : 12)) / 80, 0.03, 0.35);
-      const from = Math.max(q(1 - cover), 0.006), full = Math.max(q(1 - cover * 0.35), from + 0.004);
-      if (mode === 'composition') for (let i = 0; i < model.n; i++) fatAmt[i] = clamp((thick[i] - from) / (full - from), 0, 1);
+      if (mode === 'composition') fatAmt.set(compositionFatOverlay(thick, model.segments, r));
       geometry.setAttribute('fatAmt', new THREE.BufferAttribute(fatAmt, 1));
       const a = model.anatomy, zero3 = new THREE.BufferAttribute(new Float32Array(model.n * 3), 3);
       geometry.setAttribute('aFiber', a?.fiber ?? zero3);
@@ -1108,7 +1201,8 @@ export function mountBody(container) {
     mesh = demo ? demo.mesh : new THREE.Mesh(geometry, meshMaterial); scene.add(mesh);
     if (demo) { demoProps = demo.props; scene.add(demoProps); demo.tick(playing ? clock.getElapsedTime() : 0); }
     shadow.visible = !demo || motion.anchor !== 'lying';
-    if (demo && shownMotion !== r.motion) {
+    const motionKey=r.demo?.name||r.motion;
+    if (demo && shownMotion !== motionKey) {
       // Side-on view chosen per motion: [azimuth from the front, elevation, target height / H, zoom out].
       const [az, el, ty, far = 1] = motion.view.map((v, k) => k < 2 ? v * Math.PI / 180 : v), dist = H * 2.15 * far;
       controls.target.set(0, H * ty, motion.anchor === 'lying' ? H * 0.02 : 0);
@@ -1116,10 +1210,11 @@ export function mountBody(container) {
       camera.userData.placed = true; controls.autoRotate = false; clock.start();
     } else if (!demo) {
       controls.target.set(0, H * 0.53, 0);
-      if (!camera.userData.placed || shownMotion) { camera.position.set(H * 0.55, H * 0.7, H * 2.05); camera.userData.placed = true; }
+      if (!camera.userData.placed || shownMotion) { camera.position.set(H * 0.55, H * 0.7, H * 2.4); camera.userData.placed = true; }
     }
-    shownMotion = demo ? r.motion : null;
+    shownMotion = demo ? motionKey : null;
     controls.update();
+    if (fixedView) setView(fixedView);
     return {estimated: GIRTHS.filter(k => !r[k])};
   }
 
@@ -1129,6 +1224,7 @@ export function mountBody(container) {
   loop();
   return {
     update,
+    setView,
     hasMotion: () => !!demo,
     setPlaying(on, at = 1.4) { playing = on; if (demo) { if (on) clock.start(); demo.tick(on ? 0 : at); } },
     dispose() { demoProps?.traverse(o => o.geometry?.dispose()); cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); mesh?.geometry.dispose(); material.dispose(); anatomy.dispose(); anatomyTint.dispose(); renderer.dispose(); renderer.domElement.remove(); },

@@ -1,0 +1,45 @@
+/* Motion: pages fade in, saves answer back, the cat reacts. Loaded after the other stylesheets. */
+@keyframes view-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes entry-new{0%{opacity:0;transform:translateY(-12px) scale(.97);box-shadow:0 0 0 0 #ff702800}35%{opacity:1;transform:none;box-shadow:0 0 0 4px #ff702866}100%{box-shadow:0 0 0 0 #ff702800}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}70%{transform:scale(.95)}100%{transform:scale(1)}}
+@keyframes step-pop{0%{transform:scale(1)}35%{transform:scale(1.03);background:#ffffff66}100%{transform:scale(1)}}
+@keyframes bar-grow{from{transform:scaleX(0)}}
+@keyframes cat-float{0%,100%{transform:rotate(8deg) translateY(0)}50%{transform:rotate(4deg) translateY(-6px)}}
+@keyframes cat-jump{0%,100%{transform:rotate(8deg) translateY(0)}30%{transform:rotate(-8deg) translateY(-14px) scale(1.08)}60%{transform:rotate(10deg) translateY(0) scale(.97)}}
+@keyframes cat-hop{0%,100%{transform:none}30%{transform:rotate(-10deg) translateY(-8px) scale(1.1)}60%{transform:rotate(6deg) scale(.96)}}
+@keyframes cat-doze{0%,100%{transform:rotate(14deg) translateY(2px)}50%{transform:rotate(18deg) translateY(4px)}}
+@keyframes zzz{0%{opacity:0;transform:translate(0,0) scale(.7)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-26px) scale(1.1)}}
+@keyframes toast-in{0%{opacity:0;transform:translate(-50%,40px) scale(.9)}60%{opacity:1;transform:translate(-50%,-6px) scale(1.02)}100%{opacity:1;transform:translate(-50%,0)}}
+@keyframes toast-cat{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(10deg)}}
+
+#dashboard-panel,#food-panel,#workout-panel,#team-panel,#settings-panel{animation:view-in .32s ease-out}
+.entry-new{animation:entry-new 1.1s ease-out}
+.step-pop{animation:step-pop .6s ease-out}
+.step-pop .step-no,.chip-pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+.food-bar,.workout-bar{transform-origin:left;animation:bar-grow .7s cubic-bezier(.2,.8,.2,1)}
+.save-feedback [data-state="success"]{animation:pop .45s ease-out;color:#7fd6a0}
+#dash-meals,#dash-workouts,#food-meal-count{font-variant-numeric:tabular-nums}
+
+/* The overview cat breathes, dozes on an empty day and stands proud once the day is done. */
+.welcome-mini-cat{animation:cat-float 4s ease-in-out infinite;transition:opacity .4s,filter .4s}
+.welcome-mini-cat.is-sleepy{animation:cat-doze 3s ease-in-out infinite;filter:saturate(.6)}
+.welcome-mini-cat.is-proud{filter:drop-shadow(0 0 14px #ffd7bd) saturate(1.2)}
+.welcome-mini-cat.cat-jump{animation:cat-jump .7s ease-out}
+.brand-icon.cat-jump{animation:cat-hop .7s ease-out}
+.today-card:has(.welcome-mini-cat.is-sleepy)::after{content:"z";position:absolute;right:30px;top:22px;font-weight:800;font-size:1.3rem;color:#1d1714;animation:zzz 2.4s ease-out infinite;pointer-events:none}
+
+/* The cat that pops up after a save. */
+.cat-toast{position:fixed;left:50%;bottom:28px;z-index:60;display:flex;align-items:center;gap:12px;max-width:min(420px,calc(100% - 32px));padding:10px 18px 10px 10px;border-radius:24px;background:#262626;border:1px solid #ff702866;box-shadow:0 14px 40px #000a;color:#f6f6f6;opacity:0;transform:translate(-50%,40px);pointer-events:none;transition:opacity .3s,transform .3s;cursor:pointer}
+.cat-toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;animation:toast-in .5s cubic-bezier(.3,1.4,.5,1)}
+.cat-toast img{flex-shrink:0;width:48px;height:48px;border-radius:50%;background:#ff7028}
+.cat-toast.show img{animation:toast-cat .6s ease-in-out .2s 2}
+.cat-toast p{margin:0;font-weight:650;font-size:.95rem;line-height:1.45}
+.cat-toast[data-mood="proud"]{border-color:#7fd6a0;background:#1f2a23}
+.confetti{position:fixed;inset:0;z-index:70;pointer-events:none}
+@media(max-width:700px){.cat-toast{bottom:calc(92px + env(safe-area-inset-bottom))}}
+
+@media(prefers-reduced-motion:reduce){
+ #dashboard-panel,#food-panel,#workout-panel,#team-panel,#settings-panel,.entry-new,.step-pop,.step-pop .step-no,.chip-pop,.food-bar,.workout-bar,.save-feedback [data-state="success"],.welcome-mini-cat,.welcome-mini-cat.is-sleepy,.welcome-mini-cat.cat-jump,.brand-icon.cat-jump,.cat-toast.show,.cat-toast.show img{animation:none}
+ .today-card:has(.welcome-mini-cat.is-sleepy)::after{animation:none;opacity:.8}
+ .cat-toast{transition:opacity .2s}
+}

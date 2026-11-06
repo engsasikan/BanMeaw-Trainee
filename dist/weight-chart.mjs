@@ -1,3 +1,4 @@
+import {BOWEL_STATUS_LABELS} from './body-data.mjs';
 // Weight trend chart for the overview (single series, SVG). The range ends at the page's
 // selected day, with a crosshair tooltip, the target weight as a dashed reference line and
 // a screen-reader table of the same points.
@@ -58,7 +59,7 @@ export function createWeightChart(root){
    cross.setAttribute('x1',px);cross.setAttribute('x2',px);cross.setAttribute('visibility','visible');
    focus.setAttribute('cx',px);focus.setAttribute('cy',py);focus.setAttribute('visibility','visible');
    const diff=prev?Math.round((p.weight-prev.weight)*10)/10:null;
-   tip.replaceChildren(node('span',longDate(p.day)),node('strong',p.weight+' กก.'),...(diff!==null?[node('span',(diff===0?'เท่าเดิม':(diff<0?'▼ ':'▲ ')+Math.abs(diff)+' กก.')+' จากครั้งก่อน','wc-diff '+(diff<0?'down':diff>0?'up':''))]:[]));
+   tip.replaceChildren(node('span',longDate(p.day)),node('strong',p.weight+' กก.'+(BOWEL_STATUS_LABELS[p.bowelStatus]?' · '+BOWEL_STATUS_LABELS[p.bowelStatus]:'')),...(diff!==null?[node('span',(diff===0?'เท่าเดิม':(diff<0?'▼ ':'▲ ')+Math.abs(diff)+' กก.')+' จากครั้งก่อน','wc-diff '+(diff<0?'down':diff>0?'up':''))]:[]));
    tip.hidden=false;const left=px/W*plot.clientWidth;tip.style.left=Math.min(Math.max(left,70),plot.clientWidth-70)+'px';tip.style.top=Math.max(py/H*190-64,0)+'px';
   };
   const hide=()=>{cross.setAttribute('visibility','hidden');focus.setAttribute('visibility','hidden');tip.hidden=true;};
@@ -71,7 +72,7 @@ export function createWeightChart(root){
   if(target!=null){const left=Math.round((last.weight-target)*10)/10;items.push(['เป้าหมาย '+target,left===0?'ถึงแล้ว 🎉':(left>0?'อีก '+left+' กก.':'ต่ำกว่า '+Math.abs(left)+' กก.')]);}
   for(const [k,v,cls] of items){const c=node('div');c.append(node('span',k),node('strong',v,cls||''));stats.append(c);}
   table.append(node('caption','น้ำหนักตามวันที่'));
-  for(const p of pts){const tr=node('tr');tr.append(node('td',longDate(p.day)),node('td',p.weight+' กก.'));table.append(tr);}
+  for(const p of pts){const tr=node('tr');tr.append(node('td',longDate(p.day)),node('td',p.weight+' กก.'),node('td',BOWEL_STATUS_LABELS[p.bowelStatus]||'ไม่ระบุ'));table.append(tr);}
  }
  return {update(points,end,target){state={points:[...points].sort((a,b)=>a.day.localeCompare(b.day)),end,target};draw();}};
 }

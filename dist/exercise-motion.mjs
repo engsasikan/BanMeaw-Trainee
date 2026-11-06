@@ -3,6 +3,38 @@
 // Library exercises that match nothing fall back to a demonstration for their muscle group.
 import {LIBRARY} from './exercise-library.mjs?v=1';
 const RULES = [
+ // Specific movement families must precede the historical broad keyword rules.
+ ['swim', /swim|ว่ายน้ำ/i],
+ ['burpee', /burpee/i],
+ ['jumpRope', /jump rope|กระโดดเชือก/i],
+ ['rowingErg', /rowing machine|เครื่องกรรเชียง/i],
+ ['pulldown', /^(?!.*(?:straight.?arm|stiff.?arm)).*(?:pulldown|pull.?down)|พูลดาวน์/i],
+ ['straightArmPulldown', /(?:straight|stiff).*arm.*pull.?down/i],
+ ['facePull', /face pull|เฟซพูล/i],
+ ['invertedRow', /inverted row|suspended row|bodyweight standing.*row|one arm towel row/i],
+ ['seatedCableRow', /(?:lever|resistance band).*seated.*row/i],
+ ['standingCableRow', /(?:cable|band).*standing.*row|single arm cable row/i],
+ ['kneelingCableRow', /cable.*row.*kneeling/i],
+ ['seatedChestPress', /(?:lever|machine|cable|resistance band).*chest press|lever.*(?:incline|decline).*press|chest press machine/i],
+ ['reversePecDeck', /reverse pec deck/i],
+ ['pecDeck', /pec deck|เพ็กเด็ค/i],
+ ['seatedLegCurl', /seated.*leg curl|leg curl.*seated/i],
+ ['standingLegCurl', /standing.*leg curl/i],
+ ['hipAdduction', /adduct|หุบขา/i],
+ ['seatedHipAbduction', /(?:seated|machine).*hip abduction|hip abduction machine/i],
+ ['sidePlank', /side plank|side bridge/i],
+ ['pushup', /raise single arm push.?up/i],
+ ['legPress', /sled.*leg.*press/i],
+ ['crunch', /curl.?up|lower back curl/i],
+ ['wristCurl', /finger curls?/i],
+ ['kickback', /concentration extension/i],
+ ['kneeToChest', /hug keens|hug knees/i],
+ ['wallSit', /march sit.*wall/i],
+ ['lyingLegCurl', /assisted prone hamstring/i],
+ ['shoulderPress', /seated alternate shoulder/i],
+ ['curl', /bicep.*curl|curl.*bicep/i],
+ ['mountainClimber', /pull-in.*stability ball/i],
+ ['worldGreatest', /posterior step to overhead reach/i],
  // Stretches first: 'Calf Stretch' is not a calf raise, 'Triceps Stretch' is not an extension.
  ['lyingFigure4', /lying.*piriformis|piriformis.*lying|figure.?(4|four)|ยืดสะโพกนอน/i],
  ['kneeToChest', /(lying glutes?|knee to chest|roller hip) stretch|knee.?to.?chest|hug kn?ees to chest|กอดเข่า/i],
@@ -28,7 +60,7 @@ const RULES = [
  ['calfRaise', /calf|calves|toe raise|ankle circles|น่อง|เขย่ง/i],
  ['shrug', /shrug|ยักไหล่/i],
  ['uprightRow', /upright row|high pull(?!ey)|อัพไรท์/i],
- ['reverseFly', /reverse fly|rear delt|rear fly|deltoid rear|lateral bent.?over|[tw]-raise|cuban|w-press|face pull|เฟซพูล|ไหล่หลัง/i],
+ ['reverseFly', /reverse pec deck|reverse fly|rear delt|rear fly|deltoid rear|lateral bent.?over|[tw]-raise|cuban|w-press|face pull|เฟซพูล|ไหล่หลัง/i],
  // Core work.
  ['bicycleCrunch', /air bike|bicycle|elbow.?to.?knee|heel touch|cross body crunch|\(cross body\)/i],
  ['mountainClimber', /mountain climber|bear crawl|shoulder tap|plank tap/i],
@@ -75,11 +107,14 @@ const RULES = [
  ['cycle', /bike|cycle|cycling|ergometer|ปั่น|จักรยาน/i],
  ['kettlebellSwing', /swing|สวิง/i],
  ['pushdown', /push.?down|พุชดาวน์/i],
- ['overheadExtension', /^(?!.*(lying|skull|kickback)).*(overhead|french|standing|seated|kneeling).*(tricep|extension)|tricep.*extension|เหยียดแขน/i],
+ ['overheadExtension', /overhead extension standing|standing overhead extension|^(?!.*(lying|skull|kickback)).*(overhead|french|standing|seated|kneeling).*(tricep|extension)|tricep.*extension|เหยียดแขน/i],
  ['pushup', /push.?up|วิดพื้น/i],
  ['pullup', /pull.?up|chin.?up|\bchin\b|pulldown|pull.?down|muscle.?up|rope climb|ดึงข้อ|พูลดาวน์/i],
  ['shoulderPress', /shoulder press|overhead press|military press|arnold press|push press|\bohp\b|behind neck press|palms in press|scott press|seesaw press|side press|โชลเดอร์เพรส|ดันไหล่/i],
  ['bench', /bench press|chest press|เบนช์|เชสต์เพรส|ดันอก|(incline|decline|floor|lying|ball).*press|press.*(floor|ball)/i],
+ ['declineSeatedCableRow', /cable.*decline.*seated.*row/i],
+ ['wideSeatedCableRow', /(?:cable.*seated|seated.*cable).*wide.?grip.*row/i],
+ ['seatedCableRow', /(?:cable.*seated|seated.*cable).*row|ซีทเต็ด.*(?:โรว์|เคเบิล)|นั่งดึงเคเบิล/i],
  ['row', /^(?!.*(upright|machine row)).*\b(row|rows)\b|rowing machine|โรว์|เครื่องกรรเชียง|พายเรือ/i],
  ['curl', /^(?!.*(leg|hamstring|nordic|wrist|crunch)).*curl|concentration curl|เคิร์ล|ไบเซ|หน้าแขน/i],
  ['crunch', /crunch|sit.?up|ครันช์|ซิทอัพ/i],
@@ -90,6 +125,10 @@ const BY_GROUP = {'ท้อง': 'crunch', 'น่อง': 'calfRaise', 'ขา
  'ไหล่': 'shoulderPress', 'แขนท่อนล่าง': 'wristCurl', 'คอ': 'neckStretch'};
 const GROUP_OF = new Map(LIBRARY.map(([name, group]) => [name.toLowerCase(), group]));
 export function motionFor(name) {
+ return motionMatch(name).motion;
+}
+export function motionMatch(name) {
  name = (name || '').trim();
- return RULES.find(([, re]) => re.test(name))?.[0] ?? BY_GROUP[GROUP_OF.get(name.toLowerCase())] ?? null;
+ const direct=RULES.find(([, re]) => re.test(name))?.[0];
+ return {motion:direct??BY_GROUP[GROUP_OF.get(name.toLowerCase())]??null,source:direct?'movement':'muscle-group'};
 }

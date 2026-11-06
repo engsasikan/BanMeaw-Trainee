@@ -39,6 +39,12 @@ for (const x of data) {
  const aliases = [EQUIPMENT[x.equipment] || '', x.target, ...primary.map(m => LABEL[m])].filter(Boolean).join(' ');
  rows.push([name, group, aliases, primary.join(' '), secondary.join(' ')]);
 }
+// Common gym names and Thai search aliases; preserve them when rebuilding the dataset.
+for (const row of JSON.parse(readFileSync('src/exercise-additions.json', 'utf8'))) {
+ const existing = rows.find(r => r[0].toLowerCase() === row[0].toLowerCase());
+ if (existing) { existing[2] += ' ' + row[2]; existing[3] = row[3]; existing[4] = row[4]; }
+ else rows.push(row);
+}
 rows.sort((a, b) => a[0].localeCompare(b[0]));
 
 writeFileSync('dist/exercise-library.mjs',
