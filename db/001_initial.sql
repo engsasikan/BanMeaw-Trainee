@@ -152,3 +152,37 @@ CREATE INDEX IF NOT EXISTS team_redemptions_team ON team_redemptions(team_id,cre
 
 ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS team_visible boolean NOT NULL DEFAULT false;
 
+
+-- Apple Health / Apple Watch: daily totals and workouts per member, and the hashed key a member's iPhone Shortcut uses.
+CREATE TABLE IF NOT EXISTS health_keys (
+  user_id text PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,
+  key_hash text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz
+);
+CREATE TABLE IF NOT EXISTS health_days (
+  user_id text NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  day date NOT NULL,
+  steps integer,
+  active_kcal real,
+  exercise_min real,
+  distance_km real,
+  resting_hr real,
+  sleep_min real,
+  weight real,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, day)
+);
+CREATE TABLE IF NOT EXISTS health_workouts (
+  user_id text NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  id text NOT NULL,
+  day date NOT NULL,
+  activity text NOT NULL,
+  started_at timestamptz NOT NULL,
+  duration_min real,
+  distance_km real,
+  kcal real,
+  source text,
+  PRIMARY KEY (user_id, id)
+);
+CREATE INDEX IF NOT EXISTS health_workouts_day ON health_workouts(user_id, day);

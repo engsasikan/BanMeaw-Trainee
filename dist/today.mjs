@@ -7,7 +7,7 @@ import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=10';
 import {replay,cheer,celebrate} from './motion.mjs?v=2';
-import {loggedDays,streak,streakText,MILESTONES,weekDots} from './streak.mjs?v=2';
+import {loggedDays,streak,streakText,MILESTONES,weekDots} from './streak.mjs?v=3';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'long',day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
@@ -16,7 +16,7 @@ const MAIN_MEALS=[['มื้อเช้า','เช้า'],['มื้อก�
 const TIMING={'pre-workout':' (ก่อนฝึก)','post-workout':' (หลังฝึก)'};
 
 let bodyReady=false;
-let diary=[],body=[],me={},reportSentAt=null,reportVisible=false,quickWeigh=null,shownDay=null,lastToday=localDay();
+let diary=[],body=[],health={},me={},reportSentAt=null,reportVisible=false,quickWeigh=null,shownDay=null,lastToday=localDay();
 const today=()=>document.getElementById('day')?.value||localDay(); // the selected day
 const isToday=()=>today()===localDay();
 const todayMeals=()=>diary.filter(r=>r.day===today()&&r.kind!=='workout').sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
@@ -27,7 +27,7 @@ const say=text=>{$('today-message').textContent=text;};
 // What was done on the last render of the shown day, so only fresh ticks get animated.
 let seen={day:null,steps:{},chips:{}};
 // Streak now, from the real today (not the selected date).
-const currentStreak=(rows=diary,weights=body)=>streak(loggedDays(rows,weights),localDay());
+const currentStreak=(rows=diary,weights=body)=>streak(loggedDays(rows,weights,health),localDay());
 // Only a save made just now may bump or celebrate the streak, never data arriving on load.
 function streakGained(before){
  const now=currentStreak().current;if(now<=before)return;
@@ -87,10 +87,10 @@ function renderStreak(){
   const ring=node('div',undefined,'streak-ring');ring.append(node('span','🔥','streak-flame'),node('strong',undefined,'digits'),node('small','วันติด'));
   const week=node('ol',undefined,'streak-week');week.setAttribute('aria-label','สัปดาห์นี้');
   const bodyRow=node('div',undefined,'streak-body');bodyRow.append(ring,week);box.append(head,bodyRow);
-  $('today-card').before(box);
+  ($('health-activity')||$('today-card')).before(box);
  }
  if(!bodyReady){box.hidden=true;return;}box.hidden=false;
- const days=loggedDays(diary,body),s=streak(days,localDay()),{note}=streakText(s);
+ const days=loggedDays(diary,body,health),s=streak(days,localDay()),{note}=streakText(s);
  box.querySelector('.digits').textContent=String(s.current);box.querySelector('.streak-note').textContent=note;
  box.classList.toggle('is-cold',!s.current);box.classList.toggle('is-waiting',s.current>0&&!s.todayDone);
  const week=box.querySelector('.streak-week');week.replaceChildren();
@@ -132,6 +132,7 @@ export function initToday(account,{weigh}){
  // diary-records fires on every render of the page, including date changes.
  window.addEventListener('diary-records',e=>{diary=e.detail||[];if(today()!==shownDay){say('');loadReport();}else render();});
  window.addEventListener('body-records',e=>{body=e.detail||[];bodyReady=true;render();});
+ window.addEventListener('health-records',e=>{health=e.detail||{};render();});
  window.addEventListener('body-loading',()=>{bodyReady=false;render();});
  window.addEventListener('body-load-error',e=>{bodyReady=false;render();say('โหลดข้อมูลร่างกายไม่สำเร็จ จึงยังแชร์สรุปไม่ได้: '+e.detail);});
  $('quick-weight').onsubmit=async e=>{

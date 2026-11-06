@@ -3,6 +3,7 @@ import {handleTeamGame} from './team-game.mjs';
 import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
 import {handleFeedback,handleMemberProgress,handleOwnFeedback,handleBackup} from './coach.mjs';
 import {handlePlans} from './plans.mjs';
+import {handleHealth,handleHealthIngest} from './health.mjs';
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateRecords } from '../dist/store.mjs';
@@ -47,9 +48,10 @@ async function authProxy(request, env, url) {
 }
 export async function handleApi(request, env) {
   const url = new URL(request.url);
-  if(url.pathname==='/api/health'||url.pathname.startsWith('/api/health/'))return json({error:'ยกเลิกการเชื่อมต่อสุขภาพแล้ว'},404);
+  // The iPhone Shortcut posts from outside the site with its own key, so it comes before the same-site and sign-in checks.
+  if(url.pathname==='/api/health/ingest'){if(Number(request.headers.get('Content-Length')||0)>32768)return json({error:'ข้อมูลใหญ่เกินไป'},413);if(!env.DATABASE_URL)return json({error:'ยังไม่ได้ตั้งค่าฐานข้อมูล'},503);const sql=neon(env.DATABASE_URL);await initialize(sql);return handleHealthIngest(request,sql);}
   if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin) return json({error:'คำขอจากเว็บไซต์อื่นไม่ได้รับอนุญาต'},403);
-  if (Number(request.headers.get('Content-Length') || 0) > (url.pathname==='/api/me/avatar'?65536:url.pathname==='/api/backup'?262144:16000)) return json({error:'ข้อมูลใหญ่เกินไป'},413);
+  if (Number(request.headers.get('Content-Length') || 0) > (url.pathname==='/api/me/avatar'?65536:url.pathname==='/api/backup'||url.pathname==='/api/health/import'?262144:16000)) return json({error:'ข้อมูลใหญ่เกินไป'},413);
   if (url.pathname === '/api/config') return json({ready:Boolean(env.DATABASE_URL && env.NEON_AUTH_BASE_URL),googleLoginReady:googleLoginReady(env)});
   if(url.pathname.startsWith('/api/google/')){const response=await handleGoogleLogin(request,env,{resolveMember:profile=>resolveGoogleMember(neon(env.DATABASE_URL),profile),checkMember:user=>checkGoogleMember(neon(env.DATABASE_URL),user),storeSession:user=>storeGoogleSession(neon(env.DATABASE_URL),user),revokeSession:user=>revokeGoogleSession(neon(env.DATABASE_URL),user)});if(response)return response;}
   if (!env.DATABASE_URL || !env.NEON_AUTH_BASE_URL) return json({error:'ยังไม่ได้ตั้งค่า DATABASE_URL และ NEON_AUTH_BASE_URL ใน Worker'},503);
@@ -60,6 +62,7 @@ export async function handleApi(request, env) {
   const role = user.emailVerified === true && env.ADMIN_EMAIL?.toLowerCase() === user.email?.toLowerCase() ? 'admin' : 'trainee';
   await sql`INSERT INTO members (id, display_name, role) VALUES (${user.sub}, ${String(user.name || user.email || 'สมาชิก').slice(0,200)}, ${role}) ON CONFLICT (id) DO NOTHING`;
   if(url.pathname==='/api/backup')return handleBackup(request,sql,user);
+  if(url.pathname==='/api/health'||url.pathname.startsWith('/api/health/'))return handleHealth(request,sql,user);
   if(url.pathname==='/api/nutrition')return handleOwnNutrition(request,sql,user);
   if(url.pathname==='/api/feedback')return handleOwnFeedback(request,sql,user);
   if(url.pathname==='/api/me/avatar')return handleAvatar(request,sql,user);

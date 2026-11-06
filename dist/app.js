@@ -19,8 +19,9 @@ import {attachExercisePicker} from './exercise-picker.mjs?v=10';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
 import {initTeams} from './team.mjs?v=35';
 import {initBody,quickWeigh} from './body.mjs?v=35';
-import {initToday} from './today.mjs?v=12';
+import {initToday} from './today.mjs?v=13';
 import {initMotion} from './motion.mjs?v=2';
+import {initHealth} from './health-ui.mjs?v=1';
 import {personalRecord} from './personal-record.mjs?v=1';
 import {createAnatomyPicker} from './anatomy-picker.mjs?v=1';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
@@ -168,7 +169,7 @@ function showAccount(me){
  label.append(chip);
 }
 async function boot(){
- try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,initTeams,initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
+ try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,initTeams,initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealth]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
  catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
 }
 initPasswordReset();

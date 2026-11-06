@@ -34,3 +34,8 @@ test('week dots run Monday to Sunday around today', async () => {
   assert.equal(dots[3].future, true);
   assert.equal(weekDots(new Set(), '2026-11-08')[0].day, '2026-11-02');
 });
+
+test('Apple Health workouts and weigh-ins count as logged days; steps alone do not', () => {
+  const days = loggedDays([], [], {days: [{day: '2026-11-01', steps: 9000}, {day: '2026-11-02', weight: 61}], workouts: [{day: '2026-11-03'}]});
+  assert.deepEqual([...days].sort(), ['2026-11-02', '2026-11-03']);
+});

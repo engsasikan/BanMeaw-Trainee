@@ -1,13 +1,16 @@
-// Days in a row with something logged (a meal, a workout or a weigh-in).
+// Days in a row with something logged (a meal, a workout or a weigh-in, here or in Apple Health).
 // A day not yet logged today does not break the streak: it still counts up to yesterday.
 import {localDay} from './store.mjs';
 const shift=(day,n)=>{const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+n);return localDay(d);};
 export const MILESTONES=[3,7,14,21,30,50,75,100,150,200,365];
 
-export function loggedDays(diary=[],body=[]){
+export function loggedDays(diary=[],body=[],health={}){
  const days=new Set();
  for(const r of diary)if(r?.day)days.add(r.day);
  for(const r of body)if(r?.day&&r.weight!=null)days.add(r.day);
+ // From Apple Health: a Watch workout or a weigh-in counts; steps alone do not.
+ for(const w of health.workouts||[])if(w?.day)days.add(w.day);
+ for(const d of health.days||[])if(d?.day&&d.weight!=null)days.add(d.day);
  return days;
 }
 

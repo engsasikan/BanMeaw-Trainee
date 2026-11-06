@@ -121,11 +121,10 @@ test('team game route admits accepted players of either role and denies pending 
  }
 });
 
-test('removed health integration rejects reads, key creation and shortcut uploads',async()=>{
- for(const path of ['/api/health','/api/health/key','/api/health/ingest']){
-  for(const method of ['GET','POST','DELETE']){
-   const response=await worker.fetch(new Request('https://app.test'+path,{method}),{});
-   assert.equal(response.status,404);
-  }
+test('health Shortcut uploads come from outside the site but still need the key; other health routes need sign-in',async()=>{
+ assert.equal((await worker.fetch(new Request('https://app.test/api/health/ingest',{method:'POST',body:'{}'}),{})).status,503);
+ for(const path of ['/api/health','/api/health/key','/api/health/import']){
+  const response=await worker.fetch(new Request('https://app.test'+path,{method:'POST',headers:{Origin:'https://evil.test'}}),{DATABASE_URL:'x',NEON_AUTH_BASE_URL:'https://auth.test'});
+  assert.equal(response.status,403);
  }
 });
