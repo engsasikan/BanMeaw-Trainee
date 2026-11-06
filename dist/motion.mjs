@@ -1,6 +1,7 @@
 // Small bits of motion so the diary answers back: the cat cheers when something is saved,
 // numbers count up, new cards slide in and finishing the day throws confetti.
 // Everything here is decoration: it reads the page and never changes saved data.
+import {personalRecord,recordText} from './personal-record.mjs?v=1';
 const $=id=>document.getElementById(id);
 export const reducedMotion=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -67,7 +68,9 @@ export function cheerFor(added){
 let started=false;
 export function initMotion(){
  if(started)return;started=true;
- window.addEventListener('diary-records',()=>{
+ let records=[];
+ window.addEventListener('diary-records',e=>{
+  records=e.detail||[];
   for(const id of ['dash-meals','dash-workouts','food-meal-count'])countUp($(id));
   for(const el of document.querySelectorAll('.activity-summary strong'))countUp(el);
  });
@@ -75,6 +78,9 @@ export function initMotion(){
  window.addEventListener('diary-added',e=>{
   const added=e.detail||[];
   for(const r of added)for(const card of document.querySelectorAll('[data-id="'+CSS.escape(r.id)+'"]'))replay(card,'entry-new');
+  // A new personal record beats a plain cheer.
+  const pr=added.length<=4&&added.map(r=>[r,personalRecord(records,r)]).find(([,p])=>p);
+  if(pr){celebrate(recordText(...pr));return;}
   const text=cheerFor(added);if(text)cheer(text);
  });
  window.addEventListener('banmeaw-cheer',e=>cheer(e.detail?.text,e.detail?.mood));

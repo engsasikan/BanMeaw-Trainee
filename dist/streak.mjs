@@ -25,3 +25,10 @@ export function streakText({current,best,todayDone}){
  const note=todayDone?(current>=best?'สถิติดีที่สุดของคุณ!':'สถิติดีที่สุด '+best+' วัน'):'บันทึกวันนี้เพื่อต่อสถิติ';
  return {title:current+' วันติด',note};
 }
+
+// Monday-to-Sunday week holding today, for the row of dots on the streak card.
+export const WEEKDAY_SHORT=['จ','อ','พ','พฤ','ศ','ส','อา'];
+export function weekDots(days,today){
+ const d=new Date(today+'T12:00:00'),monday=shift(today,-((d.getDay()+6)%7));
+ return WEEKDAY_SHORT.map((label,i)=>{const day=shift(monday,i);return {day,label,date:Number(day.slice(8)),done:days.has(day),isToday:day===today,future:day>today};});
+}

@@ -5,7 +5,7 @@ import {initHistoryText} from './history-text.mjs';
 import {attachWeightUnit,formatWeight} from './weight-units.mjs';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=6';
-import {initTrainingSession} from './training-session.mjs?v=15';
+import {initTrainingSession} from './training-session.mjs?v=16';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=1';
 import {initNutrition} from './nutrition.mjs?v=1';
@@ -16,11 +16,12 @@ import {showDailyPlans} from './plans.mjs?v=11';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=14';
 import {attachExercisePicker} from './exercise-picker.mjs?v=10';
-import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
+import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
 import {initTeams} from './team.mjs?v=35';
 import {initBody,quickWeigh} from './body.mjs?v=35';
-import {initToday} from './today.mjs?v=10';
-import {initMotion} from './motion.mjs?v=1';
+import {initToday} from './today.mjs?v=12';
+import {initMotion} from './motion.mjs?v=2';
+import {personalRecord} from './personal-record.mjs?v=1';
 import {createAnatomyPicker} from './anatomy-picker.mjs?v=1';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
@@ -96,7 +97,7 @@ function renderWorkouts(){
  const rows=records.filter(r=>r.kind==='workout'&&r.day===day);$('workout-total').textContent=rows.length+' รายการ';$('workout-entries').replaceChildren();
  if(!rows.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีท่าที่บันทึก'),node('p','เลือกท่าจากกล้ามเนื้อด้านบน หรือเปิดบันทึกผล / เพิ่มท่าเอง'));$('workout-entries').append(box);return;}
  renderWorkoutGroups($('workout-entries'),rows,r=>{
-  const card=node('article',undefined,'entry');card.dataset.id=r.id;card.append(node('span',r.trainingType==='cardio'?'คาร์ดิโอ':'เวท / น้ำหนักตัว','meal-timing-badge'));card.append(node('h3',r.exercise));
+  const card=node('article',undefined,'entry');card.dataset.id=r.id;card.append(node('span',r.trainingType==='cardio'?'คาร์ดิโอ':'เวท / น้ำหนักตัว','meal-timing-badge'));const pr=personalRecord(records,r);if(pr){const badge=node('span','🏆 PR','pr-badge');badge.title='สถิติใหม่: '+pr.label;card.append(badge);}card.append(node('h3',r.exercise));
   const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of (r.trainingType==='cardio'?[['เวลา',r.duration+' นาที'],['ระยะทาง',r.distance==null?'ไม่ระบุ':r.distance+' กม.'],['ความชัน',r.incline==null?'ไม่ระบุ':r.incline+'%'],['ความเร็ว',r.speed==null?'ไม่ระบุ':r.speed+' กม./ชม.']]:[['น้ำหนัก',formatWeight(r.weight)],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]])){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.setLogs?.length){const fold=node('details'),list=node('ol');fold.append(node('summary','ดูผลแต่ละเซ็ต'+(r.sessionComplete===false?' · ยังฝึกไม่ครบ':'')));for(const set of r.setLogs)list.append(node('li',(set.weight==null?'ไม่ระบุน้ำหนัก':formatWeight(set.weight))+' · '+set.reps+' ครั้ง'));fold.append(list);card.append(fold);}if(r.notes)card.append(node('p',r.notes,'entry-text'));
   if(r.trainingType!=='cardio'){
    const historyFold=node('details',undefined,'workout-history-fold'),historySummary=node('summary','ดูกราฟน้ำหนักและจำนวนครั้งย้อนหลัง');

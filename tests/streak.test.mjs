@@ -24,3 +24,13 @@ test('streak text', () => {
   assert.equal(streakText({current: 5, best: 5, todayDone: true}).note, 'สถิติดีที่สุดของคุณ!');
   assert.equal(streakText({current: 2, best: 9, todayDone: false}).note, 'บันทึกวันนี้เพื่อต่อสถิติ');
 });
+
+test('week dots run Monday to Sunday around today', async () => {
+  const {weekDots} = await import('../dist/streak.mjs');
+  const dots = weekDots(new Set(['2026-11-02', '2026-11-04']), '2026-11-04');
+  assert.deepEqual(dots.map(d => d.day), ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08']);
+  assert.deepEqual(dots.map(d => d.done), [true, false, true, false, false, false, false]);
+  assert.equal(dots[2].isToday, true);
+  assert.equal(dots[3].future, true);
+  assert.equal(weekDots(new Set(), '2026-11-08')[0].day, '2026-11-02');
+});
