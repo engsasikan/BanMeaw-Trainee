@@ -43,3 +43,16 @@
  .today-card:has(.welcome-mini-cat.is-sleepy)::after{animation:none;opacity:.8}
  .cat-toast{transition:opacity .2s}
 }
+
+/* Streak badge on the "your day" card. */
+@keyframes streak-bump{0%{transform:scale(1)}30%{transform:scale(1.12) rotate(-2deg)}60%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes flame{0%,100%{transform:scale(1) rotate(-4deg)}50%{transform:scale(1.12) rotate(4deg)}}
+.streak-badge{position:relative;z-index:1;display:inline-flex;align-items:center;gap:4px 10px;flex-wrap:wrap;margin:-8px 0 16px;padding:8px 16px 8px 10px;border-radius:999px;background:#1d1714;color:#ffd7bd;max-width:calc(100% - 110px)}
+.streak-badge strong{font-size:1rem;color:#fff}
+.streak-badge small{font-size:.8rem;color:#ffb98f}
+.streak-flame{display:inline-block;font-size:1.3rem;line-height:1;animation:flame 1.6s ease-in-out infinite}
+.streak-badge.is-waiting .streak-flame{animation-duration:3s;opacity:.75}
+.streak-badge.is-cold .streak-flame{animation:none;filter:grayscale(1);opacity:.5}
+.streak-bump{animation:streak-bump .6s cubic-bezier(.3,1.6,.5,1)}
+@media(max-width:700px){.streak-badge{max-width:none}}
+@media(prefers-reduced-motion:reduce){.streak-flame,.streak-bump{animation:none}}

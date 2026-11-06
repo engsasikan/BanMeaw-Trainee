@@ -19,7 +19,7 @@ import {attachExercisePicker} from './exercise-picker.mjs?v=10';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=9';
 import {initTeams} from './team.mjs?v=35';
 import {initBody,quickWeigh} from './body.mjs?v=35';
-import {initToday} from './today.mjs?v=9';
+import {initToday} from './today.mjs?v=10';
 import {initMotion} from './motion.mjs?v=1';
 import {createAnatomyPicker} from './anatomy-picker.mjs?v=1';
 const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;

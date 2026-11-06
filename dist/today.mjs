@@ -7,6 +7,7 @@ import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=9';
 import {replay,cheer,celebrate} from './motion.mjs?v=1';
+import {loggedDays,streak,streakText,MILESTONES} from './streak.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'long',day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
@@ -25,6 +26,14 @@ const previousWeight=()=>body.find(r=>r.day<today()&&r.weight!=null);
 const say=text=>{$('today-message').textContent=text;};
 // What was done on the last render of the shown day, so only fresh ticks get animated.
 let seen={day:null,steps:{},chips:{}};
+// Streak now, from the real today (not the selected date).
+const currentStreak=(rows=diary,weights=body)=>streak(loggedDays(rows,weights),localDay());
+// Only a save made just now may bump or celebrate the streak, never data arriving on load.
+function streakGained(before){
+ const now=currentStreak().current;if(now<=before)return;
+ replay($('streak'),'streak-bump');
+ if(MILESTONES.includes(now))celebrate('🔥 บันทึกต่อเนื่อง '+now+' วันแล้ว! สุดยอดไปเลย');
+}
 
 function render(){
  if(!$('today-card'))return;
@@ -51,6 +60,15 @@ function render(){
  $('send-done').hidden=!reportSentAt;if(reportSentAt)$('send-done').textContent='ส่งในแอปแล้ว'+(new Date(reportSentAt).toDateString()===new Date(today()+'T12:00:00').toDateString()?' ':' ('+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(reportSentAt))+') ')+clock(reportSentAt)+' น. · '+(reportVisible?'ทุกคนในทีมเห็นอาหารและการฝึกแล้ว':'ส่งให้เทรนเนอร์แล้ว · ส่งอีกครั้งเพื่อร่วมคะแนนทีม');
  $('send-report').textContent=reportSentAt?'ส่งอีกครั้ง':'ส่งในแอป';
  animate(chips);
+ renderStreak();
+}
+function renderStreak(){
+ let box=$('streak');
+ if(!box){box=node('div',undefined,'streak-badge');box.id='streak';box.setAttribute('role','status');box.append(node('span','🔥','streak-flame'),node('strong'),node('small'));$('today-title').parentElement.after(box);}
+ if(!bodyReady){box.hidden=true;return;}box.hidden=false;
+ const s=currentStreak(),{title,note}=streakText(s);
+ box.querySelector('strong').textContent=title;box.querySelector('small').textContent=note;
+ box.classList.toggle('is-cold',!s.current);box.classList.toggle('is-waiting',s.current>0&&!s.todayDone);
 }
 function animate(chips){
  const day=today(),fresh=seen.day===day,steps={};
@@ -59,7 +77,7 @@ function animate(chips){
  const all=Object.values(steps).every(Boolean),wasAll=Object.values(seen.steps).length===3&&Object.values(seen.steps).every(Boolean);
  if(fresh&&all&&!wasAll)celebrate(isToday()?'ครบทุกขั้นของวันนี้แล้ว! เก่งที่สุดเลย 🎉':'บันทึกวันนั้นครบทุกขั้นแล้ว 🎉');
  // The cat dozes on an empty today and looks proud once everything is in.
- const cat=document.querySelector('.welcome-mini-cat');if(cat){cat.classList.toggle('is-sleepy',isToday()&&!Object.values(steps).some(Boolean)&&!todayWorkouts().length);cat.classList.toggle('is-proud',all);}
+ const cat=document.querySelector('.welcome-mini-cat');if(cat){cat.classList.toggle('is-sleepy',isToday()&&!todayWeight()&&!todayMeals().length&&!todayWorkouts().length);cat.classList.toggle('is-proud',all);}
  seen={day,steps,chips:chipState};
 }
 function openMeal(meal){
@@ -80,7 +98,7 @@ async function loadReport(){
 }
 
 export function initToday(account,{weigh}){
- me=account;quickWeigh=weigh;window.addEventListener('training-report-sent',loadReport);
+ me=account;quickWeigh=weigh;window.addEventListener('diary-added',e=>{const ids=new Set((e.detail||[]).map(r=>r.id));streakGained(currentStreak(diary.filter(r=>!ids.has(r.id))).current);});window.addEventListener('training-report-sent',loadReport);
  // diary-records fires on every render of the page, including date changes.
  window.addEventListener('diary-records',e=>{diary=e.detail||[];if(today()!==shownDay){say('');loadReport();}else render();});
  window.addEventListener('body-records',e=>{body=e.detail||[];bodyReady=true;render();});
@@ -89,7 +107,7 @@ export function initToday(account,{weigh}){
  $('quick-weight').onsubmit=async e=>{
   e.preventDefault();const input=$('quick-weight-input'),kg=Number(input.value),btn=e.submitter||$('quick-weight').querySelector('button');
   if(!(kg>=10&&kg<=400)){say('กรุณาใส่น้ำหนัก 10–400 กก.');return;}
-  btn.disabled=true;try{await quickWeigh(kg,today(),$('quick-weight-bowel').value);input.value='';$('quick-weight-bowel').value='';say(isToday()?'บันทึกน้ำหนักเช้านี้แล้ว':'บันทึกน้ำหนักวันนั้นแล้ว');cheer('บันทึกน้ำหนัก '+kg+' กก. แล้ว · เริ่มวันได้ดีมาก!');}catch(error){say(error.message);}finally{btn.disabled=false;}
+  btn.disabled=true;try{const before=bodyReady?currentStreak().current:Infinity;await quickWeigh(kg,today(),$('quick-weight-bowel').value);input.value='';$('quick-weight-bowel').value='';say(isToday()?'บันทึกน้ำหนักเช้านี้แล้ว':'บันทึกน้ำหนักวันนั้นแล้ว');streakGained(before);cheer('บันทึกน้ำหนัก '+kg+' กก. แล้ว · เริ่มวันได้ดีมาก!');}catch(error){say(error.message);}finally{btn.disabled=false;}
  };
  $('weight-done').onclick=()=>switchView('settings');
  document.querySelectorAll('[data-view="dashboard"]').forEach(b=>b.addEventListener('click',render)); // keep the dated heading
