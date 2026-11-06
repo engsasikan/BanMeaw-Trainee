@@ -164,3 +164,78 @@ body:has(#dashboard-panel[hidden]) #hello{display:none}
 .health-message{color:#ffb98f;min-height:1.4em;margin:14px 0 0}
 @media(max-width:700px){.health-card{padding:18px 14px}.health-rings{gap:6px}.ring-text strong{font-size:1rem}.health-secret>div{grid-template-columns:1fr auto}.health-secret span{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.ring .ring-fill{transition:none}}
+
+/* The overview cat's moods. The stage holds the cat and three effect layers (.fx-a/b/c). */
+.today-card .cat-stage{position:absolute;right:22px;top:22px;width:120px;aspect-ratio:1;z-index:1;pointer-events:none}
+.cat-stage .welcome-mini-cat{position:static;display:block;width:100%!important;height:100%!important;transition:filter .5s}
+.cat-stage .fx{position:absolute;font-size:1.5rem;line-height:1;opacity:0;pointer-events:none}
+.cat-stage .fx::before{display:block}
+.cat-say{position:relative;z-index:1;display:inline-block;margin:-6px 0 14px;padding:7px 14px;border-radius:14px 14px 4px 14px;background:var(--card-2);border:1px solid var(--line-2);font-size:.9rem;font-weight:650;max-width:calc(100% - 150px)}
+.cat-say[data-mood=cry]{border-color:#5aa9ff66;color:#bcdcff}
+.cat-say[data-mood=free]{border-color:#ff9ad566;color:#ffd1ec}
+.cat-say[data-mood=runner]{border-color:#2fd7ff66;color:#bff3ff}
+.cat-say[data-mood=buff]{border-color:#ff702899;color:#ffc9a6}
+.cat-say[data-mood=trained]{border-color:#ffcf3f66;color:#ffe9a6}
+.say-pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+
+@keyframes tear{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1}100%{opacity:0;transform:translateY(46px) scale(1)}}
+@keyframes sob{0%,100%{transform:rotate(-6deg) translateY(4px)}50%{transform:rotate(-3deg) translateY(6px)}}
+@keyframes float-up{0%{opacity:0;transform:translateY(10px) scale(.6)}25%{opacity:1}100%{opacity:0;transform:translateY(-46px) scale(1.1)}}
+@keyframes happy-hop{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-10px) rotate(-6deg)}60%{transform:translateY(0) rotate(5deg)}}
+@keyframes jog{0%,100%{transform:translate(0,0) rotate(-4deg)}25%{transform:translate(-3px,-7px) rotate(-8deg)}50%{transform:translate(0,0) rotate(-4deg)}75%{transform:translate(-3px,-7px) rotate(0)}}
+@keyframes dust{0%{opacity:0;transform:translateX(0) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translateX(38px) scale(1.2)}}
+@keyframes shoe{0%,100%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-6px) rotate(10deg)}}
+@keyframes flex-l{0%,100%{transform:rotate(-10deg) scale(1)}50%{transform:rotate(12deg) scale(1.25)}}
+@keyframes flex-r{0%,100%{transform:scaleX(-1) rotate(-10deg) scale(1)}50%{transform:scaleX(-1) rotate(12deg) scale(1.25)}}
+@keyframes pump{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes flame-flick{0%,100%{opacity:.85;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.15,1.25)}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.4) rotate(0)}50%{opacity:1;transform:scale(1) rotate(30deg)}}
+
+/* Crying: blue and droopy, tears from both eyes. */
+.cat-stage[data-mood=cry]{animation:sob 2.2s ease-in-out infinite}
+.cat-stage[data-mood=cry] .welcome-mini-cat{filter:grayscale(.55) hue-rotate(185deg) saturate(.7) brightness(.85)}
+.cat-stage[data-mood=cry] .fx-a,.cat-stage[data-mood=cry] .fx-b{font-size:1.1rem;top:46%;animation:tear 1.6s ease-in infinite}
+.cat-stage[data-mood=cry] .fx-a{left:30%}.cat-stage[data-mood=cry] .fx-b{left:58%;animation-delay:.8s}
+.cat-stage[data-mood=cry] .fx-a::before,.cat-stage[data-mood=cry] .fx-b::before{content:"💧"}
+.cat-stage[data-mood=cry] .fx-c{opacity:1;top:-14px;right:-6px;font-size:1.4rem}
+.cat-stage[data-mood=cry] .fx-c::before{content:"🌧️"}
+
+/* Sleepy: dozing with z's. */
+.cat-stage[data-mood=sleepy] .welcome-mini-cat{animation:cat-doze 3s ease-in-out infinite;filter:saturate(.6)}
+.cat-stage[data-mood=sleepy] .fx-a,.cat-stage[data-mood=sleepy] .fx-b{top:0;right:2px;font-weight:900;color:var(--accent);animation:zzz 2.4s ease-out infinite}
+.cat-stage[data-mood=sleepy] .fx-b{animation-delay:1.2s;font-size:1.1rem}
+.cat-stage[data-mood=sleepy] .fx-a::before{content:"Z"}.cat-stage[data-mood=sleepy] .fx-b::before{content:"z"}
+
+/* Free day: hopping, hearts floating up. */
+.cat-stage[data-mood=free]{animation:happy-hop 1.6s ease-in-out infinite}
+.cat-stage[data-mood=free] .fx{top:10%;animation:float-up 2.4s ease-out infinite}
+.cat-stage[data-mood=free] .fx-a{left:-8px}.cat-stage[data-mood=free] .fx-b{right:-6px;animation-delay:.8s}.cat-stage[data-mood=free] .fx-c{left:42%;top:-10%;animation-delay:1.6s;font-size:1.1rem}
+.cat-stage[data-mood=free] .fx-a::before{content:"💕"}.cat-stage[data-mood=free] .fx-b::before{content:"🎈"}.cat-stage[data-mood=free] .fx-c::before{content:"✨"}
+
+/* Runner: jogging in place, shoes kicking, dust behind. */
+.cat-stage[data-mood=runner]{animation:jog .55s ease-in-out infinite}
+.cat-stage[data-mood=runner] .fx-a{opacity:1;bottom:-8px;left:18%;animation:shoe .55s ease-in-out infinite}
+.cat-stage[data-mood=runner] .fx-b{opacity:1;bottom:-8px;right:18%;animation:shoe .55s ease-in-out infinite reverse}
+.cat-stage[data-mood=runner] .fx-a::before,.cat-stage[data-mood=runner] .fx-b::before{content:"👟"}
+.cat-stage[data-mood=runner] .fx-c{bottom:4px;right:-30px;animation:dust .9s ease-out infinite}
+.cat-stage[data-mood=runner] .fx-c::before{content:"💨"}
+
+/* Buff: pumped up, flexing arms on both sides, fire underneath. */
+.cat-stage[data-mood=buff] .welcome-mini-cat{animation:pump 1.1s ease-in-out infinite;filter:drop-shadow(0 0 16px #ff7028aa) saturate(1.25) contrast(1.05)}
+.cat-stage[data-mood=buff] .fx-a,.cat-stage[data-mood=buff] .fx-b{opacity:1;top:38%;font-size:1.9rem}
+.cat-stage[data-mood=buff] .fx-a{left:-26px;animation:flex-r 1.1s ease-in-out infinite}
+.cat-stage[data-mood=buff] .fx-b{right:-26px;animation:flex-l 1.1s ease-in-out infinite}
+.cat-stage[data-mood=buff] .fx-a::before,.cat-stage[data-mood=buff] .fx-b::before{content:"💪"}
+.cat-stage[data-mood=buff] .fx-c{opacity:1;bottom:-14px;left:50%;font-size:1.6rem;animation:flame-flick .5s ease-in-out infinite}
+.cat-stage[data-mood=buff] .fx-c::before{content:"🔥"}
+
+/* Trained: proud glow and twinkles. */
+.cat-stage[data-mood=trained] .welcome-mini-cat{filter:drop-shadow(0 0 12px #ffcf3f88) saturate(1.15)}
+.cat-stage[data-mood=trained] .fx{font-size:1.1rem;animation:twinkle 1.8s ease-in-out infinite}
+.cat-stage[data-mood=trained] .fx-a{top:-4px;left:4px}.cat-stage[data-mood=trained] .fx-b{top:20%;right:-10px;animation-delay:.6s}.cat-stage[data-mood=trained] .fx-c{bottom:0;left:-8px;animation-delay:1.2s}
+.cat-stage .fx::before{content:none}
+.cat-stage[data-mood=trained] .fx::before{content:"✨"}
+
+@media(max-width:1150px){.today-card .cat-stage{width:96px}}
+@media(max-width:700px){.today-card .cat-stage{width:78px;right:16px;top:20px}.cat-say{max-width:calc(100% - 96px);font-size:.82rem}.cat-stage .fx{font-size:1.15rem}.cat-stage[data-mood=buff] .fx-a,.cat-stage[data-mood=buff] .fx-b{font-size:1.4rem}.cat-stage[data-mood=buff] .fx-a{left:-20px}.cat-stage[data-mood=buff] .fx-b{right:-20px}}
+@media(prefers-reduced-motion:reduce){.cat-stage,.cat-stage .welcome-mini-cat,.cat-stage .fx{animation:none!important}.cat-stage .fx{opacity:1}.say-pop{animation:none}}

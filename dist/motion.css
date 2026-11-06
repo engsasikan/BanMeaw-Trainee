@@ -22,11 +22,8 @@
 
 /* The overview cat breathes, dozes on an empty day and stands proud once the day is done. */
 .welcome-mini-cat{animation:cat-float 4s ease-in-out infinite;transition:opacity .4s,filter .4s}
-.welcome-mini-cat.is-sleepy{animation:cat-doze 3s ease-in-out infinite;filter:saturate(.6)}
-.welcome-mini-cat.is-proud{filter:drop-shadow(0 0 14px #ffd7bd) saturate(1.2)}
 .welcome-mini-cat.cat-jump{animation:cat-jump .7s ease-out}
 .brand-icon.cat-jump{animation:cat-hop .7s ease-out}
-.today-card:has(.welcome-mini-cat.is-sleepy)::after{content:"z";position:absolute;right:30px;top:22px;font-weight:800;font-size:1.3rem;color:#1d1714;animation:zzz 2.4s ease-out infinite;pointer-events:none}
 
 /* The cat that pops up after a save. */
 .cat-toast{position:fixed;left:50%;bottom:28px;z-index:60;display:flex;align-items:center;gap:12px;max-width:min(420px,calc(100% - 32px));padding:10px 18px 10px 10px;border-radius:24px;background:#262626;border:1px solid #ff702866;box-shadow:0 14px 40px #000a;color:#f6f6f6;opacity:0;transform:translate(-50%,40px);pointer-events:none;transition:opacity .3s,transform .3s;cursor:pointer}
@@ -39,8 +36,7 @@
 @media(max-width:700px){.cat-toast{bottom:calc(92px + env(safe-area-inset-bottom))}}
 
 @media(prefers-reduced-motion:reduce){
- #dashboard-panel,#food-panel,#workout-panel,#team-panel,#settings-panel,.entry-new,.step-pop,.step-pop .step-no,.chip-pop,.food-bar,.workout-bar,.save-feedback [data-state="success"],.welcome-mini-cat,.welcome-mini-cat.is-sleepy,.welcome-mini-cat.cat-jump,.brand-icon.cat-jump,.cat-toast.show,.cat-toast.show img{animation:none}
- .today-card:has(.welcome-mini-cat.is-sleepy)::after{animation:none;opacity:.8}
+ #dashboard-panel,#food-panel,#workout-panel,#team-panel,#settings-panel,.entry-new,.step-pop,.step-pop .step-no,.chip-pop,.food-bar,.workout-bar,.save-feedback [data-state="success"],.welcome-mini-cat,.welcome-mini-cat.cat-jump,.brand-icon.cat-jump,.cat-toast.show,.cat-toast.show img{animation:none}
  .cat-toast{transition:opacity .2s}
 }
 

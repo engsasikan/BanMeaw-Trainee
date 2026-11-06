@@ -8,6 +8,7 @@ import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=10';
 import {replay,cheer,celebrate} from './motion.mjs?v=2';
 import {loggedDays,streak,streakText,MILESTONES,weekDots} from './streak.mjs?v=3';
+import {catMood,moodText} from './cat-mood.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const thaiDate=day=>new Intl.DateTimeFormat('th-TH',{weekday:'long',day:'numeric',month:'short',year:'2-digit'}).format(new Date(day+'T12:00:00'));
@@ -62,6 +63,18 @@ function render(){
  animate(chips);
  renderGreeting();renderStreak();
 }
+// The overview cat shows how the day went: crying, sleepy, free day, runner, buff or proud.
+// It sits in a small stage with effect layers (tears, hearts, arms, shoes) and says it in a bubble.
+function renderMood(){
+ const img=document.querySelector('.today-card .welcome-mini-cat');if(!img)return;
+ let stage=img.closest('.cat-stage');
+ if(!stage){stage=node('div',undefined,'cat-stage');stage.setAttribute('aria-hidden','true');img.before(stage);stage.append(img);for(const c of ['fx fx-a','fx fx-b','fx fx-c'])stage.append(node('span',undefined,c));}
+ let say=$('cat-say');if(!say){say=node('p',undefined,'cat-say');say.id='cat-say';$('today-title').parentElement.after(say);}
+ if(!bodyReady){stage.dataset.mood='';say.hidden=true;return;}
+ const mood=catMood({day:today(),today:localDay(),hour:new Date().getHours(),diary,body,health});
+ if(stage.dataset.mood!==mood){stage.dataset.mood=mood;say.dataset.mood=mood;replay(say,'say-pop');}
+ say.hidden=false;say.textContent=moodText(mood,isToday());
+}
 // Greeting at the top of the overview: photo, time-of-day hello and the member's name.
 function renderGreeting(){
  let box=$('hello');
@@ -106,8 +119,7 @@ function animate(chips){
  const chipState={};for(const b of chips.children){const key=b.getAttribute('aria-label').replace(/^.*: |^บันทึก/,''),done=b.classList.contains('done');chipState[key]=done;if(fresh&&done&&!seen.chips[key])replay(b,'chip-pop');}
  const all=Object.values(steps).every(Boolean),wasAll=Object.values(seen.steps).length===3&&Object.values(seen.steps).every(Boolean);
  if(fresh&&all&&!wasAll)celebrate(isToday()?'ครบทุกขั้นของวันนี้แล้ว! เก่งที่สุดเลย 🎉':'บันทึกวันนั้นครบทุกขั้นแล้ว 🎉');
- // The cat dozes on an empty today and looks proud once everything is in.
- const cat=document.querySelector('.welcome-mini-cat');if(cat){cat.classList.toggle('is-sleepy',isToday()&&!todayWeight()&&!todayMeals().length&&!todayWorkouts().length);cat.classList.toggle('is-proud',all);}
+ renderMood();
  seen={day,steps,chips:chipState};
 }
 function openMeal(meal){
