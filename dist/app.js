@@ -17,7 +17,7 @@ import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=15';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
-import {initTeams,loadTeams} from './team.mjs?v=67';
+import {initTeams,loadTeams} from './team.mjs?v=68';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=5';
 import {initBody,quickWeigh} from './body.mjs?v=37';
 import {initToday} from './today.mjs?v=17';
@@ -33,6 +33,12 @@ initHistoryText({api});
 const workoutWeight=attachWeightUnit($('weight'),$('strength-fields'));
 const workoutComposer=node('details',undefined,'workout-composer');workoutComposer.id='workout-composer';
 workoutComposer.append(node('summary','＋ เพิ่มท่า / Super set / คาร์ดิโอ'));
+// Trainers kept logging moves here expecting their team to get them; this is only their own diary.
+const coachLogNote=node('div',undefined,'coach-log-note');coachLogNote.hidden=true;coachLogNote.setAttribute('role','note');
+coachLogNote.append(node('p','ส่วนนี้บันทึกการฝึกของคุณเอง ลูกเทรนจะไม่เห็นท่าที่บันทึกตรงนี้ ถ้าจะจัดท่าให้ลูกเทรน ให้ไปที่ ทีม → เลือกทีม → จัดแผนฝึกทั้งทีม'));
+const coachLogGo=node('button','ไปจัดแผนให้ทีม →','quiet');coachLogGo.type='button';coachLogGo.onclick=()=>document.querySelector('[data-view="team"]')?.click();coachLogNote.append(coachLogGo);
+workoutComposer.append(coachLogNote);
+window.addEventListener('teams-loaded',e=>{coachLogNote.hidden=!e.detail.some(t=>t.status==='active'&&(t.my_role==='owner'||t.my_role==='trainer'));});
 const compose=$('workout-form').closest('.compose');compose.before(workoutComposer);workoutComposer.append(compose);
 function openWorkoutComposer(){showWorkoutSection('log');}
 

@@ -73,7 +73,7 @@ const refresh=()=>openTeam?showTeam(openTeam):loadTeams();
 export async function loadTeams(){
  const request=++teamRequest;say('กำลังโหลดรายชื่อทีม…',true);bodyView?.dispose();bodyView=null;openTeam=null;$('team-detail-view').hidden=true;$('team-list-view').hidden=false;
  const {teams}=await api('/api/teams');if(request!==teamRequest)return;
- say('');const box=$('team-list');box.replaceChildren();
+ say('');window.dispatchEvent(new CustomEvent('teams-loaded',{detail:teams}));const box=$('team-list');box.replaceChildren();
  document.querySelectorAll('.team-dot').forEach(dot=>{dot.hidden=!teams.some(t=>t.status==='invited');});
  if(!teams.length){const empty=node('div',undefined,'empty');empty.append(node('h3','ยังไม่มีทีม'),node('p','กด + สร้างทีม หรือส่ง ID (มุมขวาบน) ให้ผู้สร้างทีมเพื่อรับคำเชิญ'));box.append(empty);return;}
  for(const t of teams){

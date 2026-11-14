@@ -342,3 +342,7 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 .training-day-locked{display:grid;gap:10px;padding:14px 16px;border-radius:16px;background:#ffffff0a;border:1px dashed var(--line-2)}
 .training-day-locked p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
 .training-day-locked button{min-height:44px;width:100%}
+.coach-log-note{display:grid;gap:10px;margin:0 22px 16px;padding:14px 16px;border-radius:16px;background:#ff70280f;border:1px solid #ff702840}
+.coach-log-note[hidden]{display:none}
+.coach-log-note p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
+.coach-log-note button{justify-self:start;min-height:40px}
