@@ -4,7 +4,7 @@
 @media(max-width:900px){.team-member-grid{grid-template-columns:1fr}.team-summary>div{padding:16px;gap:10px}.team-summary strong{font-size:26px}}
 @media(max-width:520px){.team-detail-head{padding:20px;gap:16px}.team-detail-head h2{font-size:25px}.team-detail-head .role-badge{font-size:10px;padding:6px 10px}.team-summary{gap:8px}.team-summary>div{display:grid;gap:7px;padding:14px 12px;border-radius:14px}.team-summary span{font-size:10px}.team-summary strong{font-size:25px}.team-invite-card{padding:22px 20px}.team-invite-card h3{font-size:18px}.team-detail .team-invite{flex-direction:column}.team-invite input,.team-invite select,.team-invite .primary{flex:auto;width:100%;min-height:48px}.team-members{padding:20px}.team-row{grid-template-columns:38px minmax(0,1fr)}.team-avatar{width:38px;height:38px;border-radius:12px}.team-actions{grid-column:1/-1;margin-top:4px}.team-actions button{flex:1}.team-actions select{flex:1;min-width:90px}.team-create{padding:16px}.team-message{font-size:12px}}
 
-.training-planner{margin-top:20px;min-width:0;padding:24px}.plan-header{margin-bottom:22px}.plan-header h2{font-size:23px;line-height:1.35;overflow-wrap:anywhere;margin:6px 0 8px}.plan-header p{margin:0}.training-planner form{display:grid;gap:16px}.training-planner label{display:grid;gap:7px;margin:0;font-size:13px;min-width:0}.training-planner input,.training-planner select{width:100%;min-width:0;max-width:100%;min-height:48px;height:48px;border-radius:12px;padding:10px 12px;font-size:16px;background:#292b2c}.plan-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}.plan-list-heading,.plan-exercise-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.plan-list-heading h3{font-size:15px;margin:4px 0}.plan-list-heading span{font-size:12px}.plan-exercises{display:grid;gap:12px}.plan-exercise{display:grid;gap:14px;padding:16px;border:1px solid #3d4140;background:#242626;border-radius:16px}.plan-exercise-top strong{font-size:12px;color:#ffa668}.training-planner .plan-remove{font-size:12px;min-height:32px;padding:5px 10px;border:0;border-radius:8px;background:transparent;color:#b8b8b8}.plan-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.training-planner .plan-add{border:1px dashed #655043;border-radius:12px;color:#ffa668;background:#ff70280a}.training-planner .primary{border-radius:12px}.training-planner .plan-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:0;margin:0;padding:12px 0;border:0}.plan-weekdays legend{font-size:13px;margin-bottom:8px}.training-planner .plan-weekdays label{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;border:1px solid #414444;border-radius:10px;font-size:12px;background:#292b2c}.training-planner .plan-weekdays label:has(:checked){border-color:#ff7028;background:#ff702818;color:#ffa668}.training-planner .plan-weekdays input{width:16px;height:16px;min-height:16px;margin:0;accent-color:#ff7028}.plan-message{font-size:13px;color:#ffa668;margin:0;overflow-wrap:anywhere}.plan-message:empty{display:none}.plan-saved{margin-top:26px;border-top:1px solid #383b3b;padding-top:20px}.plan-saved>h3{font-size:15px;margin:0 0 14px}.plan-saved .entry{padding:16px;border-radius:14px}.plan-saved-exercise{display:grid;gap:2px;padding:12px 0;border-bottom:1px solid #3c3e3d}.plan-saved-exercise strong{font-size:14px;overflow-wrap:anywhere}.plan-saved-exercise span{font-size:12px}.plan-saved .entry>button{margin-top:12px;font-size:12px;min-height:36px;padding:6px 12px}@media(min-width:850px){.plan-exercise{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:end}.plan-exercise-top{grid-column:1/-1}}@media(max-width:520px){.training-planner{padding:16px;border-radius:20px}.plan-header h2{font-size:21px}.plan-header .muted{font-size:13px}.plan-exercise{padding:12px}.plan-metrics{gap:8px}.plan-metrics label{font-size:12px}.plan-metrics input{padding:10px 8px}.plan-dates{gap:10px}.plan-weekdays{gap:4px}}
+.training-planner{margin-top:20px;min-width:0;padding:24px}.plan-header{margin-bottom:22px}.plan-header h2{font-size:23px;line-height:1.35;overflow-wrap:anywhere;margin:6px 0 8px}.plan-header p{margin:0}.training-planner form{display:grid;gap:16px}.training-planner label{display:grid;gap:7px;margin:0;font-size:13px;min-width:0}.training-planner input,.training-planner select{width:100%;min-width:0;max-width:100%;min-height:48px;height:48px;border-radius:12px;padding:10px 12px;font-size:16px;background:#292b2c}.plan-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}.plan-list-heading,.plan-exercise-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.plan-list-heading h3{font-size:15px;margin:4px 0}.plan-list-heading span{font-size:12px}.plan-exercises{display:grid;gap:12px}.plan-exercise{display:grid;gap:14px;padding:16px;border:1px solid #3d4140;background:#242626;border-radius:16px}.plan-exercise-top strong{font-size:12px;color:#ffa668}.training-planner .plan-remove{font-size:12px;min-height:32px;padding:5px 10px;border:0;border-radius:8px;background:transparent;color:#b8b8b8}.plan-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.training-planner .plan-add{border:1px dashed #655043;border-radius:12px;color:#ffa668;background:#ff70280a}.training-planner .primary{border-radius:12px}.training-planner .plan-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:0;margin:0;padding:12px 0;border:0}.plan-weekdays legend{font-size:13px;margin-bottom:8px}.training-planner .plan-weekdays label{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;border:1px solid #414444;border-radius:10px;font-size:12px;background:#292b2c}.training-planner .plan-weekdays label:has(:checked){border-color:#ff7028;background:#ff702818;color:#ffa668}.training-planner .plan-weekdays input{width:16px;height:16px;min-height:16px;margin:0;accent-color:#ff7028}.plan-message{font-size:13px;color:#ffa668;margin:0;overflow-wrap:anywhere}.plan-message:empty{display:none}.plan-saved{margin-top:26px}.plan-saved>h3{font-size:15px;margin:0 0 14px}.plan-saved .entry{padding:16px;border:0;border-radius:14px}.plan-saved-exercise{display:grid;gap:2px;padding:10px 0}.plan-saved-exercise strong{font-size:14px;overflow-wrap:anywhere}.plan-saved-exercise span{font-size:12px}.plan-saved .entry>button{margin-top:12px;font-size:12px;min-height:36px;padding:6px 12px}@media(min-width:850px){.plan-exercise{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:end}.plan-exercise-top{grid-column:1/-1}}@media(max-width:520px){.training-planner{padding:16px;border-radius:20px}.plan-header h2{font-size:21px}.plan-header .muted{font-size:13px}.plan-exercise{padding:12px}.plan-metrics{gap:8px}.plan-metrics label{font-size:12px}.plan-metrics input{padding:10px 8px}.plan-dates{gap:10px}.plan-weekdays{gap:4px}}
 
 .plan-advanced{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.plan-superset-hint{font-size:12px;margin:0;line-height:1.7}.plan-superset-badge{font-size:11px;color:#ffad7b;background:#ff70281a;border:1px solid #ff702844;border-radius:7px;padding:3px 8px;width:fit-content}@media(min-width:850px){.plan-advanced{grid-column:1/-1}}
 
@@ -23,3 +23,219 @@
 .training-planner .plan-cardio{grid-template-columns:1fr 1fr}.plan-cardio[hidden],.plan-metrics[hidden],.plan-advanced[hidden]{display:none}
 
 .plan-pair{grid-column:1/-1;justify-self:start;border:1px dashed #ff9b61;color:#ffad7b}.plan-pair:disabled{opacity:.45}.plan-picker-panel>button{width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere}
+
+.team-section-panel .team-daily{margin:0 0 12px}
+.team-section-panel .team-filters{margin:0 0 12px;padding:12px 16px}
+.team-filters>summary,.team-member-manage>summary{min-height:44px;cursor:pointer;color:#d5d7d6;font-weight:650}
+.team-filters>summary{padding-block:9px}
+.team-filters[open]>summary{margin-bottom:10px}
+.team-member-manage .team-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.team-member-manage .team-actions>*{min-width:0;width:100%;min-height:44px}
+.team-members .team-row>.team-actions button{min-height:44px}
+.team-working>.team-section-tabs{display:none}
+@media(max-width:520px){
+ .team-member-grid{gap:12px}
+ .team-members{padding:14px}
+ .team-members .list-heading{margin-bottom:6px}
+ .team-member-fold>summary{min-height:44px}
+}
+.team-copy-workout{justify-self:start;width:fit-content;min-height:44px;margin-top:6px;color:#ffb285}
+
+.team-workout-copy{width:min(480px,calc(100% - 24px));max-width:none;max-height:88dvh;padding:0;overflow:hidden;border:0;border-radius:24px;background:#202121;box-shadow:0 18px 60px #0009}
+.team-workout-copy>form{display:grid;grid-template-rows:auto minmax(0,1fr) auto;max-height:88dvh}
+.team-copy-header,.team-copy-footer{background:#232424;padding:14px 16px}
+.team-copy-header h2{margin:0;font-size:1.2rem}
+.team-copy-header p{margin:2px 0 0;color:#bcbfbd;font-size:.87rem}
+.team-copy-scroll{overflow:auto;overscroll-behavior:contain;padding:0 16px 14px}
+.team-copy-scroll>label{margin:8px 0 14px;color:#d7d9d8}
+.team-copy-scroll input,.team-copy-scroll select{min-width:0;min-height:44px;padding:8px 10px;border:0;border-radius:10px;background:#373939;font-size:1rem}
+.team-copy-list,.team-copy-group{display:grid;gap:8px}
+.team-copy-group{padding:10px;border-radius:16px;background:#302823}
+.team-copy-group h3{margin:0;padding:2px 4px;color:#ffb58a;font-size:.88rem}
+.team-copy-list fieldset{min-width:0;margin:0;padding:10px 12px;border:0;border-radius:12px;background:#2a2b2b}
+.team-copy-group fieldset{background:#302d2a}
+.team-copy-list legend{float:left;width:100%;font-weight:700;overflow-wrap:anywhere}
+.team-copy-list p{clear:both;margin:0;color:#bcbfbd;font-size:.82rem}
+.team-copy-list p:empty{display:none}
+.team-copy-list label{margin:8px 0 4px;font-size:.8rem}
+.team-copy-load{display:grid;grid-template-columns:minmax(0,1fr) 62px;gap:6px}
+.team-copy-previous{margin-top:6px;padding:4px 8px;border:0;background:transparent;color:#ffc49f;font-size:.8rem}
+.team-copy-footer .profile-operation{margin:0 0 8px}
+.team-copy-footer button{min-height:44px;padding-block:8px}
+.team-workout-copy [data-loading="true"]::before{content:"";display:inline-block;width:.85em;height:.85em;margin-inline-end:.55em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%}
+@media(prefers-reduced-motion:no-preference){.team-workout-copy [data-loading="true"]::before{animation:profile-spin .8s linear infinite}}
+
+/* Member diary */
+.team-workout-toolbar,.team-superset-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px}
+.team-workout-toolbar{margin:20px 0 12px}
+.team-workout-toolbar h3,.team-superset-header h4{margin:0;line-height:1.4}
+.team-copy-workout.primary{color:#1b130e;padding:9px 14px;margin:0;min-height:44px}
+.team-copy-workout.quiet{font-size:.8rem;padding:6px 10px;margin:0;white-space:nowrap}
+.team-workout-records{display:grid;gap:8px}
+.team-workout-records .team-log{margin:0}
+.team-workout-records .team-log.workout{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px 12px;border:1px solid #3b3d3d;border-radius:12px}
+.team-workout-info{min-width:0;display:grid;gap:2px;overflow-wrap:anywhere}
+.team-workout-info span{font-size:.82rem}
+.team-workout-info .team-workout-note{color:#b4b6b5}
+.team-superset{margin-block:4px;border:1px solid #60412e;border-radius:16px;background:#29231f;min-width:0;overflow:hidden}
+.team-superset-header{padding:10px 12px;border-bottom:1px solid #513a2c;color:#ffb385}
+.team-superset-header .muted{font-size:.78rem}
+.team-superset-sequence{margin:0;padding:0 12px 0 34px}
+.team-superset-sequence>li{padding-block:5px}
+.team-superset-sequence>li::marker{color:#ffb385;font-size:.8rem;font-weight:700}
+.team-superset-sequence>li+li{border-top:1px solid #49372c}
+.team-workout-records .team-superset .team-log.workout,.team-superset .trainee-meal{background:transparent;border:0;padding:4px 0}
+.team-body-preview>summary{cursor:pointer;padding-block:8px;color:#d7d9d8}
+.team-body-preview[open]>summary{margin-bottom:8px}
+@media(max-width:360px){
+ .team-workout-toolbar>.primary{width:100%}
+ .team-workout-records .team-log.workout{grid-template-columns:minmax(0,1fr)}
+}
+
+.team-copy-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+
+#team-create-open{display:none}
+body:has(#team-panel:not([hidden])):has(#team-list-view:not([hidden])) .heading{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+body:has(#team-panel:not([hidden])):has(#team-list-view:not([hidden])) #view-heading{margin:0}
+body:has(#team-panel:not([hidden])):has(#team-list-view:not([hidden])) #team-create-open{display:inline-flex;align-items:center;flex:none}
+#team-create-open{min-height:44px;padding:6px 12px;border:1px solid #65432e;border-radius:12px;background:#2b211b;color:#ffc39f;font-size:.82rem;font-weight:700}
+body:has(#team-panel:not([hidden])){background:#101010}
+#team-list .team-tile{gap:10px;padding:14px;border-radius:16px;border-color:#343433;background:#222322}
+#team-list .team-tile:hover,#team-list .team-tile:focus-visible{border-color:#b5724d}
+.team-tile-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;background:#39291f;color:#ffba90;font-weight:750}
+#team-list .team-tile h3{margin:0 0 2px;overflow-wrap:anywhere}
+#team-list .team-tile .role-badge{background:#342720;color:#ffc3a0;border:0;padding:4px 8px;font-size:.72rem}
+#team-list .team-tile-arrow{font-size:1.15rem}
+@media(max-width:380px){.team-tile-mark{width:34px;height:34px}#team-list .team-tile{padding:12px}}
+#team-create-dialog{padding:20px}
+#team-create-title{margin:0}
+#team-create-status{color:#ffbf99;font-size:.85rem;margin:8px 0}
+#team-create-status:empty{display:none}
+.team-create-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+
+.program-calendar{background:#262320;border-radius:16px;padding:14px;margin-bottom:14px}
+.program-calendar h3{margin:0 0 8px;font-size:.95rem}
+.program-calendar .plan-dates{margin:0 0 16px;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.program-calendar .plan-dates label{margin:0;min-width:0}
+.program-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.program-week button{position:relative;min-width:0;min-height:44px;padding:0 0 6px;border-radius:9px;font-size:.78rem}
+.program-week .has-plan::after{content:"";position:absolute;bottom:6px;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#ffa878}
+.program-week [aria-pressed="true"]{background:#ff7623;color:#1b130e;border-color:#ff7623;font-weight:750}
+.program-week [aria-pressed="true"]::after{background:#472716}
+.program-day{min-width:0}
+.program-day>label{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 8px;font-weight:700;cursor:pointer}
+.program-day>label input{width:18px;min-height:18px;accent-color:#ff7623}
+.program-day-fields{min-width:0;border:0;margin:0;padding:0}
+.program-day-fields .plan-list-heading h3{font-size:.95rem}
+.program-day-fields .plan-exercise{background:#272828;border:0;border-radius:14px;padding:12px}
+.plan-exercise-options{margin-top:10px}
+.plan-exercise-options summary{cursor:pointer;padding:6px 0;color:#ffba92;font-size:.85rem}
+.program-footer{margin-top:14px}
+.program-footer .plan-message:empty{display:none}
+@media(max-width:520px){
+ #team-viewer:has(.training-planner){padding:4px;background:transparent;border:0}
+ #team-viewer .training-planner{padding:12px}
+ .program-calendar{padding:10px}
+ .program-calendar .plan-date-control{min-width:0;padding-inline:8px}
+}
+
+.program-day-fields .plan-exercises{gap:14px}
+.program-day-fields .plan-exercise{padding:14px}
+.program-day-fields .plan-advanced:not([hidden]){grid-template-columns:minmax(0,1fr);max-width:160px}
+.program-day-fields .plan-exercise-options{margin-top:14px;background:#302622;border-radius:12px;padding:4px 12px}
+.program-day-fields .plan-exercise-options summary{padding:10px 0;font-weight:700}
+.plan-exercise-options p{margin:0 0 8px;font-size:.8rem}
+.plan-exercise-options label{margin:0}
+.plan-exercise-options .plan-pair{display:block;margin:10px 0;border:0;border-radius:10px;background:#493126;color:#ffc6a6;min-height:44px}
+.plan-day-actions{display:grid;gap:8px;margin-top:14px}
+.plan-day-actions .plan-add{width:100%;margin:0;border:1px solid #6c4532;background:#37271f;color:#ffc19b;min-height:44px}
+.plan-day-actions .plan-anatomy{margin:0;padding:0 12px;border-radius:10px;background:#252626}
+.plan-day-actions .plan-anatomy>summary{font-size:.85rem;font-weight:600}
+
+.plan-inline-picker{position:relative;min-width:0}
+.plan-inline-picker label{margin:0}
+.plan-inline-picker input{width:100%;min-width:0}
+.plan-inline-picker .exercise-dropdown{position:static;margin-top:5px}
+.plan-inline-picker .plan-custom-exercise{min-height:44px;width:100%;text-align:left;color:#ffbf99}
+
+.program-day-fields fieldset.plan-exercise{min-width:0;margin:0;padding:12px;border:1px solid #5a493d;background:#262626}
+.program-day-fields .plan-exercise>legend{padding:0 6px;color:#ffad7b;font-size:.85rem;font-weight:650}
+.plan-inline-picker>button{display:block;width:100%;min-height:44px;margin-top:8px;border-radius:12px;background:#303030;color:#ffad7b}
+.program-day-fields .plan-exercise .plan-metrics{gap:8px}
+.program-day-fields .plan-exercise .plan-metrics label{min-width:0}
+.program-day-fields .plan-exercise .plan-metrics input{min-width:0;padding-inline:8px}
+.program-day-fields .plan-remove{justify-self:start;min-height:44px;margin-top:8px}
+
+.program-day-fields .plan-pair{width:100%;margin-top:10px;min-height:44px;border-radius:12px;background:#33271f}
+
+/* Team workspace */
+#team-detail-view{display:grid;gap:12px}
+body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .heading{display:none}
+#team-detail-view .team-detail-head{display:grid;gap:4px;justify-content:stretch;padding:8px 12px 14px;border:0;border-radius:16px;background:#232425}
+#team-detail-view .team-back{justify-self:start;min-height:44px;padding:0 4px;color:#ffc6a3;font-size:.84rem}
+.team-identity{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px}
+.team-identity h2{margin:0;overflow-wrap:anywhere;font-size:1.4rem;line-height:1.3}
+.team-identity p{margin:3px 0 0;overflow-wrap:anywhere}
+.team-identity .role-badge{padding:4px 8px}
+#team-detail-view .team-section-tabs{margin:0;gap:4px}
+#team-detail-view .team-section-tabs button{font-size:.81rem}
+.team-member-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.team-member-shortcuts button{flex:1 1 auto;width:auto;min-height:44px;padding:8px 10px;border-radius:10px;font-size:.85rem}
+#team-section-members .team-daily{display:grid;gap:8px;padding:12px;border-radius:14px}
+.team-daily-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 8px}
+.team-daily-heading h3{margin:0;font-size:.95rem}
+.team-daily-heading .team-daily-stats{margin:0}
+#team-section-members .team-filters{padding:0 10px;border:0;background:#202121;border-radius:10px}
+#team-section-members .team-filters>summary{font-size:.85rem}
+#team-section-members .team-filters[open]{padding-bottom:10px}
+#team-section-members .team-member-grid{gap:22px}
+#team-section-members .team-members{min-width:0;padding:0;background:transparent;border:0}
+#team-section-members .team-members>.list-heading{margin:0 0 8px;padding:0 2px;border:0}
+#team-section-members .team-members>.team-row{grid-template-columns:42px minmax(0,1fr);gap:10px 12px;padding:14px;border:0;border-radius:14px;background:#232425}
+#team-section-members .team-members>.team-row+.team-row{margin-top:8px}
+#team-section-members .team-row>div:nth-child(2){gap:4px}
+#team-section-members .team-row strong{font-size:.97rem}
+#team-section-members .team-row .muted{font-size:.77rem;color:#b9bcba}
+#team-section-members .team-roster-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin:0}
+#team-section-members .team-roster-actions button{flex:1 1 auto;width:auto;min-height:44px;padding:6px 9px;font-size:.78rem}
+#team-section-members .team-roster-actions .primary{background:#493125;color:#ffbd97}
+#team-section-members .team-roster-actions [aria-expanded="true"]{background:#343535;border-color:#767875;color:#fff}
+#team-section-members .team-row>.team-member-manage,#team-section-members .team-row>.trainee-summary{grid-column:1/-1;min-width:0}
+#team-section-members .team-row>.team-member-manage{padding-top:6px}
+#team-section-members .team-member-manage .team-actions{margin:0}
+#team-section-manage .team-delete{min-height:44px;margin-top:12px;color:#ffb2a2;border-color:#614039}
+@media(max-width:520px){
+ .team-identity{gap:8px}
+ .team-identity .role-badge{font-size:.7rem}
+ #team-detail-view .team-viewer{min-width:0}
+}
+
+.team-invite-id{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.team-invite-id input{min-width:0;flex:1}
+.team-invite-id button{flex:none;min-height:44px;padding:6px 10px;border-radius:10px}
+.member-qr-dialog{text-align:center}
+.member-qr-dialog img,.member-qr-dialog video{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:12px}
+.member-qr-dialog video{width:100%;aspect-ratio:4/3;object-fit:cover;background:#191919}
+.member-qr-dialog .quiet{width:100%}
+@media(max-width:520px){.team-invite-id{width:100%}}
+
+.team-invite-card details{margin-top:12px}
+.team-invite-card summary{cursor:pointer;padding:10px 0}
+.member-qr-dialog input{margin-bottom:12px}
+
+.team-avatar,.team-tile-mark{position:relative;overflow:hidden}
+.team-avatar img,.team-tile-mark img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.team-photo-settings{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px 12px;padding:14px;margin-bottom:12px}
+.team-photo-settings h3{margin:0}
+.team-photo-actions,.team-photo-settings>p{grid-column:1/-1;margin:0}
+.team-photo-actions{display:flex;flex-wrap:wrap;gap:8px}
+.team-photo-settings>p:empty{display:none}
+
+.plan-metrics:not(.plan-cardio)>label:has(select){grid-column:1/-1}
+
+.program-day-fields .plan-remove{justify-self:end;margin-top:0}
+.program-day-fields .plan-exercise-options{margin-top:0;background:transparent;padding:0}
+
+.plan-order{display:flex;flex-wrap:wrap;gap:6px}
+.plan-order .quiet{min-height:44px;padding:6px 10px;border-radius:9px;font-size:.8rem}
+.plan-order button:disabled{opacity:.45}

@@ -1,5 +1,5 @@
 import {BOWEL_STATUS_LABELS} from './body-data.mjs';
-import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=5';
+import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=6';
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
 // It follows the page's selected date (date bar / calendar), like the rest of the overview.
@@ -7,7 +7,7 @@ import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=10';
 import {switchView} from './dashboard.mjs?v=10';
 import {replay,cheer,celebrate} from './motion.mjs?v=2';
-import {loggedDays,streak,streakText,MILESTONES,weekDots} from './streak.mjs?v=3';
+import {loggedDays,streak,streakText,MILESTONES} from './streak.mjs?v=3';
 import {catMood,moodText} from './cat-mood.mjs?v=1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -91,27 +91,22 @@ function renderGreeting(){
  box.querySelector('.hello-time').textContent=isToday()?(hour<12?'สวัสดีตอนเช้า':hour<17?'สวัสดีตอนบ่าย':'สวัสดีตอนเย็น'):'ดูบันทึกย้อนหลัง · '+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(today()+'T12:00:00'));
  box.querySelector('.hello-name').textContent=me.display_name||'BanMeaw';
 }
-// Streak card: a flame with the day count and this week's days as dots.
+// Streak card: a flame and the consecutive day count.
 function renderStreak(){
  let box=$('streak');
  if(!box){
   box=node('section',undefined,'streak-card');box.id='streak';box.setAttribute('aria-label','สถิติบันทึกต่อเนื่อง');
-  const head=node('div',undefined,'streak-head');head.append(node('p','YOUR STREAK','eyebrow'),node('small',undefined,'streak-note'));
-  const ring=node('div',undefined,'streak-ring');ring.append(node('span','🔥','streak-flame'),node('strong',undefined,'digits'),node('small','วันติด'));
-  const week=node('ol',undefined,'streak-week');week.setAttribute('aria-label','สัปดาห์นี้');
-  const bodyRow=node('div',undefined,'streak-body');bodyRow.append(ring,week);box.append(head,bodyRow);
-  ($('health-activity')||$('today-card')).before(box);
+  const title=node('div',undefined,'streak-title');title.append(node('p','บันทึกต่อเนื่อง','eyebrow'),node('small',undefined,'streak-note'));
+  const count=node('div',undefined,'streak-count'),flame=node('span','🔥','streak-flame');flame.setAttribute('aria-hidden','true');count.append(flame,node('strong',undefined,'digits'),node('small','วันติด'));
+  const head=node('div',undefined,'streak-head');head.append(title,count);
+   box.append(head);
+  $('today-card').before(box);
  }
  if(!bodyReady){box.hidden=true;return;}box.hidden=false;
  const days=loggedDays(diary,body,health),s=streak(days,localDay()),{note}=streakText(s);
  box.querySelector('.digits').textContent=String(s.current);box.querySelector('.streak-note').textContent=note;
  box.classList.toggle('is-cold',!s.current);box.classList.toggle('is-waiting',s.current>0&&!s.todayDone);
- const week=box.querySelector('.streak-week');week.replaceChildren();
- for(const d of weekDots(days,localDay())){
-  const li=node('li',undefined,'streak-day'+(d.done?' done':'')+(d.isToday?' today':'')+(d.future?' future':''));
-  li.setAttribute('aria-label',d.label+' '+d.date+(d.done?' บันทึกแล้ว':d.future?'':' ไม่มีบันทึก'));
-  li.append(node('span',d.label),node('i',String(d.date)));week.append(li);
- }
+
 }
 function animate(chips){
  const day=today(),fresh=seen.day===day,steps={};

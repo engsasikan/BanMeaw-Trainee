@@ -1,6 +1,6 @@
 import {previousExercise} from './diary-tools.mjs?v=1';
 import {api} from './account.js?v=2';
-import {weeklyProgress,comparePlan,workoutDescription} from './progress.mjs?v=2';
+import {weeklyProgress,comparePlan,workoutDescription} from './progress.mjs?v=3';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function weeklyCard(records,body,day){
  const data=weeklyProgress(records,body,day),card=el('section',undefined,'weekly-progress');
@@ -27,7 +27,7 @@ export function planComparison(plans,records,{onStart}={}){
    row.append(el('strong',target.exercise),el('p','แผน: '+workoutDescription(target)));
    row.append(el('p',actual?'ทำจริง: '+workoutDescription(actual):'ยังไม่ได้บันทึก','muted'));
    if(onStart){const previous=previousExercise(records,target.exercise,target.trainingType||'strength',plan.day);row.append(el('p',previous?'ครั้งก่อน: '+workoutDescription(previous):'ยังไม่มีผลครั้งก่อน','muted'));}
-   if(actual?.setLogs?.length){const fold=el('details'),list=el('ol');fold.append(el('summary','ดูผลแต่ละเซ็ต'));for(const set of actual.setLogs)list.append(el('li',(set.weight==null?'ไม่ระบุน้ำหนัก':set.weight+' กก.')+' · '+set.reps+' ครั้ง'));fold.append(list);row.append(fold);}
+   if(actual?.setLogs?.length){const fold=el('details'),list=el('ol');fold.append(el('summary','ดูผลแต่ละเซ็ต'));for(const set of actual.setLogs)list.append(el('li',(set.weight==null?'ไม่ระบุน้ำหนัก':set.weight+' '+(set.weightUnit||'กก.'))+' · '+set.reps+' ครั้ง'));fold.append(list);row.append(fold);}
    if(actual?.notes)row.append(el('p',actual.notes,'muted'));
    if(onStart){const button=el('button',actual?'แก้ไขผลท่านี้':'บันทึกผลท่านี้','quiet');button.type='button';button.onclick=()=>onStart({plan,target,index,actual});row.append(button);}
    card.append(row);

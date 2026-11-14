@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS trainer_teams (
 );
 CREATE INDEX IF NOT EXISTS trainer_teams_owner ON trainer_teams(owner_id);
 -- The owner's own role inside the team (the owner always keeps management rights).
+ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS avatar text;
 ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS owner_role text NOT NULL DEFAULT 'trainer' CHECK (owner_role IN ('trainer', 'trainee'));
+ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS qr_invite uuid;
+ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS qr_invite_expires timestamptz;
 
 -- team_members: people in a team (team_role trainer | trainee); status invited until they accept, then active.
 CREATE TABLE IF NOT EXISTS team_members (
@@ -89,6 +92,8 @@ CREATE TABLE IF NOT EXISTS training_plans (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS training_plans_user_day ON training_plans(user_id,day);
+ALTER TABLE training_plans ADD COLUMN IF NOT EXISTS team_wide boolean NOT NULL DEFAULT false;
+ALTER TABLE training_plans ALTER COLUMN team_id DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS trainer_feedback (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

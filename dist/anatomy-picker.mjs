@@ -7,12 +7,13 @@ const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefine
 export function exercisesForMuscle(muscle,query=''){
  return searchExercises(query).filter(x=>x.group!=='คาร์ดิโอ'&&musclesFor(x.name,x.aliases)?.primary.includes(muscle));
 }
-export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข้าโปรแกรม'}={}){
+export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข้าโปรแกรม',compact=false}={}){
  const root=el('section',undefined,'anatomy-picker'),title=el('h3','เลือกกล้ามเนื้อ → เลือกท่าฝึก');
  const layout=el('div',undefined,'anatomy-layout'),left=el('div'),right=el('div'),views=el('div',undefined,'anatomy-views'),map=el('div',undefined,'anatomy-map'),chips=el('div',undefined,'anatomy-chips');
  const heading=el('h4'),search=el('input'),list=el('div',undefined,'anatomy-results'),status=el('p','','muted'),more=el('button','ดูท่าเพิ่มเติม','quiet');
  search.type='search';search.placeholder='ค้นหาท่าในกล้ามเนื้อที่เลือก';search.setAttribute('aria-label','ค้นหาท่าตามกล้ามเนื้อ');status.setAttribute('role','status');more.type='button';
- let selected='pec',side='front',limit=6,preview=null,figure=null,mounting=null,drawTicket=0;
+ const pageSize=compact?3:6;
+ let selected='pec',side='front',limit=pageSize,preview=null,figure=null,mounting=null,drawTicket=0;
  map.setAttribute('aria-label','หุ่นกล้ามเนื้อ 3D หมุนดูและแตะเลือกกล้ามเนื้อได้');
  map.append(el('p','กำลังเตรียมหุ่นกล้ามเนื้อ 3D…','anatomy-loading'));
  async function drawFigure(){
@@ -29,7 +30,7 @@ export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข
  const groupButtons=[],viewButtons=[];
  for(const [value,label] of [['front','ด้านหน้า'],['back','ด้านหลัง']]){const b=el('button',label,'quiet');b.type='button';b.onclick=()=>{side=value;if(!SIDES[side].includes(selected))select(side==='front'?'pec':'lat');else drawMap();};views.append(b);viewButtons.push([value,b]);}
  for(const [key,label] of GROUPS){const b=el('button',label,'quiet');b.type='button';b.onclick=()=>select(key);chips.append(b);groupButtons.push([key,b]);}
- function select(key){selected=key;limit=6;search.value='';if(!SIDES[side].includes(key))side=side==='front'?'back':'front';drawMap();render();}
+ function select(key){selected=key;limit=pageSize;search.value='';if(!SIDES[side].includes(key))side=side==='front'?'back':'front';drawMap();render();}
  function drawMap(){
   if(figure||mounting)drawFigure();
   for(const [key,b] of viewButtons)b.setAttribute('aria-pressed',String(key===side));
@@ -37,7 +38,7 @@ export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข
  }
  async function showPreview(name,button){
   button.disabled=true;
-  try{const {createMuscleFocus}=await import('./exercise-preview.mjs?v=8');if(!preview){preview=createMuscleFocus();right.append(preview.el);}preview.show(name);preview.el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  try{const {createMuscleFocus}=await import('./exercise-preview.mjs?v=15');if(!preview){preview=createMuscleFocus();right.append(preview.el);}preview.show(name);preview.el.scrollIntoView({behavior:'smooth',block:'nearest'});}
   catch{status.textContent='เปิดตัวอย่างท่าไม่ได้ กรุณาลองอีกครั้ง';}finally{button.disabled=false;}
  }
  function render(){
@@ -45,13 +46,16 @@ export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข
   for(const x of matches.slice(0,limit)){
    const row=el('article',undefined,'anatomy-exercise'),info=el('div'),actions=el('div',undefined,'anatomy-actions');
    const muscles=musclesFor(x.name,x.aliases);info.append(el('strong',x.name),el('small','กล้ามเนื้อหลัก: '+muscles.primary.map(k=>MUSCLE_LABELS[k]||k).join(' · ')));
-   const add=el('button',actionLabel,'primary'),view=el('button','ดูท่า 3D','quiet');add.type=view.type='button';
+   const add=el('button',actionLabel,'primary'),view=el('button','ดูตัวอย่างท่า','quiet');add.type=view.type='button';
    add.setAttribute('aria-label',actionLabel+' '+x.name);add.onclick=()=>{status.textContent=onChoose?.(x)===false?'ยังไม่ได้เพิ่มท่า กรุณาตรวจข้อความในแบบฟอร์ม':'เพิ่ม '+x.name+' แล้ว';};view.onclick=()=>showPreview(x.name,view);
    actions.append(view,add);row.append(info,actions);list.append(row);
   }
   status.textContent=matches.length?'แสดง '+Math.min(limit,matches.length)+' จาก '+matches.length+' ท่า · กล้ามเนื้อหลักตรงกับส่วนที่เลือก':'ไม่พบท่า ลองค้นหาคำอื่น';more.hidden=matches.length<=limit;
   if(preview)preview.show('');
  }
- search.addEventListener('input',()=>{limit=6;render();});more.onclick=()=>{limit+=6;render();};
- left.append(views,map,el('p','ลากเพื่อหมุน · แตะกล้ามเนื้อเพื่อเลือก · สีส้มคือส่วนที่เลือก','muted'),chips);right.append(heading,search,list,more,status);layout.append(left,right);root.append(title,layout);drawMap();render();return root;
+ search.addEventListener('input',()=>{limit=pageSize;render();});more.onclick=()=>{limit+=pageSize;render();};
+ const hint=el('p','ลากเพื่อหมุน · แตะกล้ามเนื้อเพื่อเลือก','muted');
+ if(compact){const figureDetails=el('details',undefined,'anatomy-figure');figureDetails.append(el('summary','เปิดแผนผังกล้ามเนื้อ 3D'),views,map,hint);left.append(chips,figureDetails);}
+ else left.append(views,map,hint,chips);
+ right.append(heading,search,list,more,status);layout.append(left,right);root.append(title,layout);drawMap();render();return root;
 }

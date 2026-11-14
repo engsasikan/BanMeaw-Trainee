@@ -35,9 +35,9 @@ test('workout validation, ID mismatch and invalid dates reject without writes',a
  for(const bad of [{...workout,weight:-1},{...meal,day:'2026-02-31'},{...meal,id:'other'}])assert.equal((await handleEntries(req('PUT',meal.id,bad),sql,user)).status,400);
 });
 test('individual set progress can be reloaded, completed and remains private',async()=>{
- const db=database(),sql=async (strings,...values)=>strings.join('').includes('FROM training_plans p')?[{day:'2026-10-04',exercises:[{exercise:'Squat'}]}]:db(strings,...values),user={sub:'trainee'},row={id:'session',day:'2026-10-04',kind:'workout',exercise:'Squat',weight:20,sets:1,reps:12,notes:'',planId:'11111111-1111-4111-8111-111111111111',planExerciseIndex:0,setLogs:[{weight:20,reps:12}],sessionComplete:false};
+ const db=database(),sql=async (strings,...values)=>strings.join('').includes('FROM training_plans p')?[{day:'2026-10-04',exercises:[{exercise:'Squat'}]}]:db(strings,...values),user={sub:'trainee'},row={id:'session',day:'2026-10-04',kind:'workout',exercise:'Squat',weight:100,weightUnit:'lb',sets:1,reps:12,notes:'',planId:'11111111-1111-4111-8111-111111111111',planExerciseIndex:0,setLogs:[{weight:100,weightUnit:'lb',reps:12}],sessionComplete:false};
  assert.equal((await handleEntries(req('PUT',row.id,row),sql,user)).status,200);
- const [saved]=(await (await handleEntries(req('GET'),sql,user)).json()).records;assert.deepEqual(saved.setLogs,row.setLogs);assert.equal(saved.sessionComplete,false);
+ const [saved]=(await (await handleEntries(req('GET'),sql,user)).json()).records;assert.deepEqual(saved.setLogs,row.setLogs);assert.equal(saved.weight,100);assert.equal(saved.weightUnit,'lb');assert.equal(saved.sessionComplete,false);
  assert.deepEqual((await (await handleEntries(req('GET'),sql,{sub:'other'})).json()).records,[]);
  const finished={...row,sets:2,setLogs:[...row.setLogs,{weight:22,reps:10}],sessionComplete:true};assert.equal((await handleEntries(req('PUT',row.id,finished,1),sql,user)).status,200);
  const [loaded]=(await (await handleEntries(req('GET'),sql,user)).json()).records;assert.equal(loaded.sessionComplete,true);assert.equal(loaded.setLogs.length,2);
@@ -82,7 +82,7 @@ test('profile avatar writes only the signed-in member and permits removal',async
  assert.equal(response.status,200);assert.equal((await response.json()).avatar,'data:image/jpeg;base64,/9j/2Q==');
  assert.deepEqual(writes[0].values,['data:image/jpeg;base64,/9j/2Q==','owner']);
  assert.equal((await handleAvatar(new Request('https://example.com/api/me/avatar',{method:'DELETE'}),sql,{sub:'owner'})).status,200);
- assert.deepEqual(writes[1].values,['owner']);
+ assert.deepEqual(writes[1].values,[null,'owner']);
 });
 test('profile avatar rejects unsupported, invalid and oversized uploads without writing',async()=>{
  const sql=async()=>{throw Error('Unexpected write');};

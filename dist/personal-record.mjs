@@ -1,10 +1,10 @@
 // Personal records: did this workout beat everything logged for the same exercise up to its day?
 // Needs at least one earlier record of the exercise; a first try is not a record.
-import {fromKg,preferredWeightUnit} from './weight-units.mjs';
+import {fromKg,toKg,preferredWeightUnit} from './weight-units.mjs';
 const normalize=s=>(s||'').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');
 const num=n=>typeof n==='number'&&Number.isFinite(n);
 const type=r=>r.trainingType||'strength';
-const sets=r=>(r.setLogs?.length?r.setLogs:[{weight:r.weight,reps:r.reps}]).filter(s=>num(s.weight)||num(s.reps));
+const sets=r=>(r.setLogs?.length?r.setLogs:[{weight:r.weight,weightUnit:r.weightUnit,reps:r.reps}]).filter(s=>num(s.weight)||num(s.reps)).map(s=>({...s,weight:toKg(s.weight,s.weightUnit)}));
 const top=(list,key)=>{const v=list.map(x=>x[key]).filter(num);return v.length?Math.max(...v):null;};
 // Most reps done at exactly this weight (or more) in a list of sets.
 const repsAt=(list,w)=>top(list.filter(s=>num(s.weight)&&s.weight>=w),'reps');

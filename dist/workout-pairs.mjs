@@ -2,15 +2,22 @@ import {attachWeightUnit} from './weight-units.mjs';
 import {searchExercises} from './exercise-picker.mjs?v=11';
 export function pairedWorkoutRows(first, partners, groupId) {
  if(!partners.length)return [first];
- return [first,...partners.map(p=>({id:p.id,day:first.day,kind:'workout',trainingType:'strength',exercise:p.exercise.trim(),weight:p.weight,sets:p.sets,reps:p.reps,notes:''}))].map(r=>({...r,supersetId:groupId}));
+ return [first,...partners.map(p=>({id:p.id,day:first.day,kind:'workout',trainingType:'strength',exercise:p.exercise.trim(),weight:p.weight,...(p.weightUnit?{weightUnit:p.weightUnit}:{}),sets:p.sets,reps:p.reps,notes:''}))].map(r=>({...r,supersetId:groupId}));
 }
 export function initWorkoutPairs({form,anchor,isEditing}) {
  const el=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e;};
  const button=el('button','+ เพิ่มท่าใน Super set');button.type='button';button.id='workout-add-pair';button.className='quiet';
  const box=el('section'),hint=el('p','ท่าแรกอยู่ด้านบน กดเพิ่มท่าได้ตามต้องการ แล้วกดบันทึก Super set');box.hidden=true;box.className='workout-pairs';box.append(hint);anchor.after(box,button);
- let partners=[],groupId=null;
- function sync(){const enabled=document.getElementById('training-type').value==='strength'&&(!isEditing()||partners.length>0);button.hidden=!enabled;box.hidden=!enabled||!partners.length;partners.forEach((p,i)=>{p.legend.textContent='Super set · ท่าที่ '+(i+2);for(const field of p.fields)field.disabled=!enabled;});document.getElementById('workout-save').textContent=enabled&&partners.length?'บันทึก Super set':isEditing()?'บันทึกการแก้ไข':'บันทึกท่าออกกำลังกาย';}
- function clear(){for(const p of partners){p.dispose();p.row.remove();}partners=[];groupId=null;sync();}
+ let partners=[],groupId=null,existingCount=1;
+ function sync(){const enabled=document.getElementById('training-type').value==='strength';button.hidden=!enabled;box.hidden=!enabled||!partners.length;partners.forEach((p,i)=>{p.legend.textContent='Super set · ท่าที่ '+(existingCount+i+1);for(const field of p.fields)field.disabled=!enabled;});document.getElementById('workout-save').textContent=enabled&&partners.length?'บันทึก Super set':isEditing()?'บันทึกการแก้ไข':'บันทึกท่าออกกำลังกาย';}
+ const newSetHint=hint.textContent;
+ function clear(){for(const p of partners){p.dispose();p.row.remove();}partners=[];groupId=null;existingCount=1;hint.textContent=newSetHint;sync();}
+ function resume(row,records){
+  groupId=row.supersetId??null;
+  existingCount=groupId?records.filter(record=>record.day===row.day&&record.supersetId===groupId).length:1;
+  hint.textContent=groupId?'ท่าใหม่จะเพิ่มเข้า Super set เดิมเมื่อบันทึก':newSetHint;
+  sync();
+ }
  button.onclick=()=>{groupId??=crypto.randomUUID();const row=el('fieldset'),legend=el('legend','ท่าคู่ Super set'),fields=[];row.append(legend);
  const field=(label,type,min,max)=>{const l=el('label',label),i=el('input');i.type=type;if(min!=null)i.min=min;if(max!=null)i.max=max;fields.push(i);l.append(i);row.append(l);return i;};
  const exercise=field('ชื่อท่า','text',null,150);exercise.maxLength=150;exercise.required=true;exercise.placeholder='เช่น Machine Fly หรือพิมพ์ชื่อท่าเอง';
@@ -24,7 +31,7 @@ export function initWorkoutPairs({form,anchor,isEditing}) {
  const close=()=>{dropdown.hidden=true;exercise.setAttribute('aria-expanded','false');toggle.setAttribute('aria-expanded','false');exercise.removeAttribute('aria-activedescendant');active=-1;};
  async function showPreview(){
   const name=exercise.value.trim();if(!name||removed){preview?.show('');return;}
-  const {createMuscleFocus}=await import('./exercise-preview.mjs?v=14');
+  const {createMuscleFocus}=await import('./exercise-preview.mjs?v=15');
   if(removed)return;
   if(!preview){preview=createMuscleFocus({collapsed:true});picker.after(preview.el);}
   preview.show(exercise.value);
@@ -49,5 +56,5 @@ export function initWorkoutPairs({form,anchor,isEditing}) {
  const weight=field('น้ำหนักที่ยก','number',0,2000);const weightUnit=attachWeightUnit(weight,row);fields.push(weightUnit.select);const sets=field('เซ็ต','number',1,1000),reps=field('ครั้ง / เซ็ต','number',1,1000);sets.step=reps.step=1;sets.required=reps.required=true;sets.value=document.getElementById('sets').value||3;reps.value=document.getElementById('reps').value||12;
  const remove=el('button','นำท่านี้ออก');remove.type='button';remove.className='quiet';row.append(remove);const p={id:crypto.randomUUID(),row,legend,fields,exercise,weight,weightUnit,sets,reps,dispose};partners.push(p);remove.onclick=()=>{partners=partners.filter(x=>x!==p);dispose();row.remove();sync();};box.append(row);sync();exercise.focus();};
  form.addEventListener('reset',clear);sync();
- return {sync,clear,rows(first){if(document.getElementById('training-type').value!=='strength'||!partners.length)return [first];return pairedWorkoutRows(first,partners.map(p=>({id:p.id,exercise:p.exercise.value,weight:p.weightUnit.read(),sets:Number(p.sets.value),reps:Number(p.reps.value)})),groupId);}};
+ return {sync,clear,resume,rows(first){if(document.getElementById('training-type').value!=='strength'||!partners.length)return [first];return pairedWorkoutRows(first,partners.map(p=>({id:p.id,exercise:p.exercise.value,...p.weightUnit.read(),sets:Number(p.sets.value),reps:Number(p.reps.value)})),first.supersetId??groupId);}};
 }

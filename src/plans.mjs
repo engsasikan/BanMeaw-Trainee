@@ -13,8 +13,10 @@ export function planExercises(body){
    if(typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||typeof r.duration!=='number'||!ok(r.duration,600)||r.duration<=0||!ok(r.incline,100)||!ok(r.speed,50)||!ok(r.distance,1000))throw Error('ตรวจชื่อท่า เวลา ความชัน และความเร็วของคาร์ดิโอ');
    const out={trainingType:'cardio',exercise:r.exercise.trim(),duration:r.duration};for(const k of ['incline','speed','distance'])if(r[k]!=null)out[k]=r[k];return out;
   }
-  if(!r||typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||!Number.isInteger(r.sets)||r.sets<1||r.sets>100||!Number.isInteger(r.reps)||r.reps<1||r.reps>1000||!(r.weight===null||(typeof r.weight==='number'&&Number.isFinite(r.weight)&&r.weight>=0&&r.weight<=2000)))throw Error('ตรวจชื่อท่า น้ำหนัก จำนวนครั้ง และเซ็ต');
+  const unit=r?.weightUnit??'kg';
+  if(!r||!['kg','lb'].includes(unit)||typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||!Number.isInteger(r.sets)||r.sets<1||r.sets>100||!Number.isInteger(r.reps)||r.reps<1||r.reps>1000||!(r.weight===null||(typeof r.weight==='number'&&Number.isFinite(r.weight)&&r.weight>=0&&r.weight<=(unit==='lb'?4409.25:2000))))throw Error('ตรวจชื่อท่า น้ำหนัก หน่วย จำนวนครั้ง และเซ็ต');
   const out={exercise:r.exercise.trim(),weight:r.weight,sets:r.sets,reps:r.reps};
+  if(r.weightUnit!=null)out.weightUnit=unit;
   if(r.rest_seconds!=null){if(!Number.isInteger(r.rest_seconds)||r.rest_seconds<0||r.rest_seconds>3600)throw Error('เวลาพักต้องเป็น 0–3600 วินาที');out.rest_seconds=r.rest_seconds;}
   if(r.superset!=null&&r.superset!==''){if(typeof r.superset!=='string'||! /^[A-O]$/.test(r.superset))throw Error('กลุ่ม Super set ไม่ถูกต้อง');out.superset=r.superset;}
   return out;
@@ -24,13 +26,104 @@ export function planExercises(body){
  }
  return exercises;
 }
+export function weeklyProgram({start,end,schedule}){
+ const valid=day=>typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day)&&localDay(new Date(day+'T12:00:00'))===day;
+ if(!valid(start)||!valid(end)||end<start)throw Error('ตรวจวันเริ่มและวันสิ้นสุด');
+ const first=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00');
+ const limit=new Date(first);limit.setDate(limit.getDate()+365);
+ if(last>limit)throw Error('กำหนดช่วงได้สูงสุด 366 วัน');
+ if(!Array.isArray(schedule)||!schedule.length||schedule.length>7)throw Error('เลือกวันฝึกอย่างน้อยหนึ่งวัน');
+ const byWeekday=new Map();
+ for(const day of schedule){
+  const weekday=day?.weekday;
+  if(!Number.isInteger(weekday)||weekday<0||weekday>6||byWeekday.has(weekday))throw Error('วันฝึกไม่ถูกต้อง');
+  byWeekday.set(weekday,planExercises(day));
+ }
+ const plans=[],used=new Set();
+ for(const day=new Date(first);day<=last;day.setDate(day.getDate()+1)){
+  const weekday=day.getDay(),exercises=byWeekday.get(weekday);
+  if(exercises){plans.push({day:localDay(day),exercises});used.add(weekday);}
+ }
+ if(used.size!==byWeekday.size)throw Error('บางวันฝึกไม่อยู่ในช่วงวันที่เลือก');
+ return plans;
+}
 export async function handlePlans(request,sql,user,team,mine,memberId){
- const me=user.sub,owner=team.owner_id===me,trainer=owner||(mine?.status==='active'&&mine.team_role==='trainer');
- const [target]=memberId===team.owner_id?[{team_role:team.owner_role}]:await sql`SELECT team_role FROM team_members WHERE team_id=${team.id} AND user_id=${memberId} AND status='active'`;
- if(!target||(target.team_role!=='trainee'&&!(trainer&&memberId===me))||(!trainer&&memberId!==me))return Response.json({error:'ไม่มีสิทธิ์เข้าถึงแผนนี้'},{status:403});
+ const me=user.sub,personal=!team,teamId=team?.id??null;
+ const owner=team?.owner_id===me,trainer=personal||owner||(mine?.status==='active'&&mine.team_role==='trainer');
  const json=(v,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
- if(request.method==='GET')return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by FROM training_plans WHERE team_id=${team.id} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
+ if(personal)memberId=me;
+ else if(memberId){
+  const [target]=memberId===team.owner_id?[{team_role:team.owner_role}]:await sql`SELECT team_role FROM team_members WHERE team_id=${team.id} AND user_id=${memberId} AND status='active'`;
+  if(!target||(target.team_role!=='trainee'&&!(trainer&&memberId===me))||(!trainer&&memberId!==me))return json({error:'ไม่มีสิทธิ์เข้าถึงแผนนี้'},403);
+ }else if(!trainer)return json({error:'เฉพาะผู้สร้างทีมหรือเทรนเนอร์เท่านั้น'},403);
+ if(request.method==='GET'){
+  if(memberId)return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
+  return json({plans:await sql`
+   SELECT DISTINCT ON (batch_id,day) batch_id AS id,day::text AS day,exercises
+   FROM training_plans WHERE team_id=${team.id} AND (team_wide OR batch_id IN (
+    SELECT batch_id FROM training_plans WHERE team_id=${team.id} GROUP BY batch_id HAVING count(DISTINCT user_id)>1
+   ))
+   ORDER BY batch_id,day,user_id LIMIT 1000`});
+ }
  if(!trainer)return json({error:'เฉพาะเทรนเนอร์เท่านั้น' },403);
- if(request.method==='POST'){let body,days,exercises;try{const text=await request.text();if(text.length>16000)throw Error('ข้อมูลใหญ่เกินไป');body=JSON.parse(text);days=planDays(body);exercises=planExercises(body);}catch(e){return json({error:e.message},400);}const batch=crypto.randomUUID();await sql.transaction(days.map(day=>sql`INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id) VALUES (${team.id},${memberId},${day},${JSON.stringify(exercises)}::jsonb,${me},${batch})`));return json({ok:true,count:days.length});}
- if(request.method==='DELETE'){const id=new URL(request.url).searchParams.get('id');if(!/^[0-9a-f-]{36}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);await sql`DELETE FROM training_plans WHERE id=${id} AND team_id=${team.id} AND user_id=${memberId}`;return json({ok:true});}return json({error:'ไม่พบ API'},404);
+ if(request.method==='PATCH'){
+  const id=new URL(request.url).searchParams.get('id');
+  if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);
+  let day,exercises;
+  try{
+   const text=await request.text();if(text.length>16000)throw Error('ข้อมูลใหญ่เกินไป');
+   const body=JSON.parse(text);
+   [day]=planDays({start:body.day,period:'day'});exercises=planExercises(body);
+  }catch(error){return json({error:error.message},400);}
+  const payload=JSON.stringify(exercises);
+  // Exercise indexes are referenced by saved results, so a day with results must keep its prescription.
+  const [result]=await sql`
+   WITH selected AS (
+    SELECT id,user_id FROM training_plans
+    WHERE team_id IS NOT DISTINCT FROM ${teamId} AND day=${day}::date
+    AND ((${Boolean(memberId)} AND id=${id} AND user_id=${memberId??''})
+      OR (NOT ${Boolean(memberId)} AND batch_id=${id} AND (team_wide OR batch_id IN (
+       SELECT batch_id FROM training_plans WHERE team_id=${teamId}::uuid GROUP BY batch_id HAVING count(DISTINCT user_id)>1
+      ))))
+   ), changed AS (
+    UPDATE training_plans p SET exercises=${payload}::jsonb FROM selected s
+    WHERE p.id=s.id AND NOT EXISTS (
+     SELECT 1 FROM daily_logs l JOIN selected x ON x.user_id=l.user_id
+     WHERE l.payload->>'planId'=x.id::text
+    ) RETURNING p.id
+   )
+   SELECT EXISTS(SELECT 1 FROM selected) AS found, count(*)::int AS changed FROM changed`;
+  if(!result.found)return json({error:'ไม่พบแผนนี้'},404);
+  if(!result.changed)return json({error:'วันนี้มีผลฝึกแล้ว จึงแก้รายการท่าไม่ได้'},409);
+  return json({ok:true,count:result.changed});
+ }
+ if(request.method==='POST'){
+  let plans;
+  try{
+   const text=await request.text();if(text.length>100000)throw Error('ข้อมูลใหญ่เกินไป');
+   const body=JSON.parse(text);
+   if(body.period==='program')plans=weeklyProgram(body);
+   else{const days=planDays(body),exercises=planExercises(body);plans=days.map(day=>({day,exercises}));}
+  }catch(e){return json({error:e.message},400);}
+  const batch=crypto.randomUUID();
+  if(!memberId){
+   const [{members}]=await sql`
+    WITH recipients AS (
+     SELECT owner_id AS user_id FROM trainer_teams WHERE id=${team.id}
+     UNION
+     SELECT user_id FROM team_members WHERE team_id=${team.id} AND status='active'
+    ), assigned AS (
+     INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide)
+     SELECT ${team.id},r.user_id,p.day,p.exercises,${me},${batch},true
+     FROM recipients r
+     CROSS JOIN jsonb_to_recordset(${JSON.stringify(plans)}::jsonb) AS p(day date,exercises jsonb)
+     RETURNING user_id
+    )
+    SELECT count(DISTINCT user_id)::int AS members FROM assigned`;
+   return json({ok:true,count:plans.length,members,firstDay:plans[0].day});
+  }
+  await sql.transaction(plans.map(({day,exercises})=>sql`INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id) VALUES (${teamId},${memberId},${day},${JSON.stringify(exercises)}::jsonb,${me},${batch})`));
+  return json({ok:true,count:plans.length,firstDay:plans[0].day});
+ }
+ if(request.method==='DELETE'){const id=new URL(request.url).searchParams.get('id');if(!/^[0-9a-f-]{36}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);await sql`DELETE FROM training_plans WHERE id=${id} AND team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId}`;return json({ok:true});}return json({error:'ไม่พบ API'},404);
 }

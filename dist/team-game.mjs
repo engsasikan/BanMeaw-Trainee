@@ -1,5 +1,5 @@
 import {api} from './account.js?v=2';
-import {workoutDescription} from './progress.mjs?v=1';
+import {workoutDescription} from './progress.mjs?v=3';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const btn=(text,click,cls='quiet')=>{const b=el('button',text,cls);b.type='button';b.onclick=click;return b;};
 const statuses={pending:'รอรับรางวัล',fulfilled:'รับรางวัลแล้ว',rejected:'ไม่อนุมัติ · คืนคะแนนแล้ว',cancelled:'ยกเลิก · คืนคะแนนแล้ว'};
