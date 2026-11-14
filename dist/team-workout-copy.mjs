@@ -35,7 +35,7 @@ export function openTeamWorkoutCopy({source,member,day,history=[],save,onSaved})
    const metrics=make('div');metrics.className='team-copy-metrics';
    const fields=cardio?
     [['duration','เวลา (นาที)',0,1440,'any'],['distance','ระยะทาง (กม.)',0,1000,'any'],['incline','ความชัน (%)',0,100,'any'],['speed','ความเร็ว (กม./ชม.)',0,50,'any']]:
-    [['sets','เซ็ต',1,1000,'1'],['reps','ครั้ง / เซ็ต',1,1000,'1']];
+    [['sets','เซ็ต',1,1000,'1'],record.seconds!=null?['seconds','วินาที / เซ็ต',1,3600,'1']:['reps','ครั้ง / เซ็ต',1,1000,'1']];
    const metricInputs=fields.map(([key,label,min,max,step])=>{
     const wrapper=make('label',label),input=make('input');
     Object.assign(input,{type:'number',min,max,step,value:record[key]??'',required:key==='duration'});

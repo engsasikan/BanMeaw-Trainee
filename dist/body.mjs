@@ -1,8 +1,8 @@
 import {api} from './account.js?v=2';
-import {FIELDS,SEGMENTS,GROUPS,validateBody,resolveBodyRecords,BOWEL_STATUS_LABELS} from './body-data.mjs';
-import {localDay} from './store.mjs';
-import {createWeightChart} from './weight-chart.mjs?v=1';
-import {parseInBodyCsv} from './inbody-csv.mjs?v=1';
+import {FIELDS,SEGMENTS,GROUPS,validateBody,resolveBodyRecords,BOWEL_STATUS_LABELS} from './body-data.mjs?v=4';
+import {localDay} from './store.mjs?v=4';
+import {createWeightChart} from './weight-chart.mjs?v=4';
+import {parseInBodyCsv} from './inbody-csv.mjs?v=4';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const button=(text,cls,onclick)=>{const b=node('button',text,cls);b.type='button';b.onclick=onclick;return b;};

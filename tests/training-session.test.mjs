@@ -29,7 +29,7 @@ test('guided training saves each set, resumes, retries failures and handles supe
  const session=nodes.get('workout-panel').children[0];
  const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&x.textContent===label);assert.ok(b,label);return b.onclick({currentTarget:b});};
  const submit=()=>flatten(session).find(x=>x.tagName==='form').onsubmit({preventDefault(){}});
- const unit=flatten(session).find(x=>x.tagName==='select');unit.value='lb';unit.dispatchEvent(new Event('change'));
+ const unit=flatten(session).find(x=>x.tagName==='select'&&x['aria-label']==='หน่วยน้ำหนักที่ยก');unit.value='lb';unit.dispatchEvent(new Event('change'));
  const weight=flatten(session).find(x=>x.tagName==='input'&&x.inputMode==='decimal');weight.value='100';
  click('+15');assert.ok(session.textContent.includes('ปรับเอง · แผนตั้งไว้ 30 วิ'));assert.ok(session.textContent.includes('45 วิ'));click('ใช้ตามแผน');click('−15');
  await submit();assert.deepEqual(records[0].setLogs,[{weight:100,weightUnit:'lb',reps:12}]);assert.equal(records[0].weightUnit,'lb');assert.equal(records[0].sessionComplete,false);assert.ok(session.textContent.includes('Row'));

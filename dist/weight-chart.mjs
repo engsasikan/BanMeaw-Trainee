@@ -1,4 +1,4 @@
-import {BOWEL_STATUS_LABELS} from './body-data.mjs';
+import {BOWEL_STATUS_LABELS} from './body-data.mjs?v=4';
 // Weight trend chart for the overview (single series, SVG). The range ends at the page's
 // selected day, with a crosshair tooltip, the target weight as a dashed reference line and
 // a screen-reader table of the same points.

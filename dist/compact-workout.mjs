@@ -11,7 +11,7 @@ export function initCompactWorkout(){
  const weightBox=make('div'),weightLabel=form.querySelector('label[for="weight"]');weightLabel.textContent='น้ำหนัก';weightBox.append(weightLabel,$('weight'));
  const row=$('sets').closest('.form-row');const setBox=$('sets').parentElement,repBox=$('reps').parentElement;
  metrics.append(weightBox,setBox,repBox);row.remove();strength.prepend(metrics);
- const unit=$('weight').closest('#strength-fields').querySelector('select');
+ const unit=$('weight').closest('#strength-fields').querySelector('select[aria-label="หน่วยน้ำหนักที่ยก"]');
  if(unit){const label=unit.parentElement;label.classList.add('compact-unit');label.firstChild.textContent='หน่วย ';for(const option of unit.options)option.textContent=option.value==='kg'?'กก.':'ปอนด์';}
  const notes=make('details',null,'workout-extra'),summary=make('summary','หมายเหตุเพิ่มเติม');notes.append(summary,form.querySelector('label[for="workout-notes"]'),$('workout-notes'));$('workout-save').before(notes);
  const helper=form.querySelector('#strength-fields > .input-hint');if(helper)helper.textContent='ใช้น้ำหนักตัว ใส่ 0 · ใช้น้ำหนักและจำนวนครั้งเดียวกันทุกเซ็ต';

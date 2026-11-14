@@ -346,3 +346,6 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 .coach-log-note[hidden]{display:none}
 .coach-log-note p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
 .coach-log-note button{justify-self:start;min-height:40px}
+/* ครั้ง / วินาที switch under a count field */
+select.effort-unit{display:block;width:100%;min-height:36px;margin-top:6px;padding:4px 8px;font-size:13px;border-radius:10px}
+.ts-log select.effort-unit{margin-top:0}

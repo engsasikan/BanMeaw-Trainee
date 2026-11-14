@@ -1,10 +1,11 @@
 import {attachWeightUnit,formatLoggedWeight} from './weight-units.mjs';
-import {comparePlan,workoutDescription} from './progress.mjs?v=3';
-import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=1';
-import {switchView} from './dashboard.mjs?v=10';
+import {comparePlan,workoutDescription} from './progress.mjs?v=6';
+import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=4';
+import {switchView} from './dashboard.mjs?v=13';
 import {api} from './account.js?v=4';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
-import {localDay} from './store.mjs?v=15';
+import {localDay} from './store.mjs?v=18';
+import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
@@ -75,7 +76,7 @@ export function initTrainingSession({getRecords,saveRecords}){
    if(target.distance!=null)goal.append(chip('ระยะทาง',target.distance+' กม.'));
    hero.append(el('p','เป้าหมายวันนี้','ts-label'),goal);cardioStep(item,saved,last);return;
   }
-  else goal.append(chip('จำนวน',sets+' เซ็ต'),chip('เซ็ตละ',(target.reps??'-')+' ครั้ง'),chip('น้ำหนัก',target.weight==null?'ตามไหว':formatLoggedWeight(target)));
+  else goal.append(chip('จำนวน',sets+' เซ็ต'),chip('เซ็ตละ',effortText(target)||'-'),chip('น้ำหนัก',target.weight==null?'ตามไหว':formatLoggedWeight(target)));
   hero.append(el('p','เป้าหมายวันนี้','ts-label'),goal);
   // Rest between sets: starts at the plan's value, the trainee can change it.
   const restSet=el('div',undefined,'ts-rest-set'),restInfo=el('div'),restValue=el('b',undefined,'ts-rest-value'),restNote=el('small');
@@ -88,7 +89,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(target.superset)hero.append(el('p','Super set '+target.superset+' · ทำสลับกับท่าในกลุ่มเดียวกันตามลำดับ','muted'));
   // 3. Sets: done / now / later.
   const track=el('ol',undefined,'ts-sets');
-  for(let i=0;i<Math.max(sets,logs.length+(finished?0:1));i++){const r=logs[i],li=el('li',undefined,r?'done':i===logs.length?'now':'');li.append(el('small','เซ็ต '+(i+1)),el('b',r?'✓ '+r.reps+' ครั้ง':i===logs.length?'ตอนนี้':'รอ'));li.append(el('small',r?(r.weight==null?'':formatLoggedWeight(r)):''));track.append(li);}
+  for(let i=0;i<Math.max(sets,logs.length+(finished?0:1));i++){const r=logs[i],li=el('li',undefined,r?'done':i===logs.length?'now':'');li.append(el('small','เซ็ต '+(i+1)),el('b',r?'✓ '+effortText(r):i===logs.length?'ตอนนี้':'รอ'));li.append(el('small',r?(r.weight==null?'':formatLoggedWeight(r)):''));track.append(li);}
   const rest=el('div',undefined,'ts-rest'),ring=el('div',undefined,'ts-ring'),clock=el('p',undefined,'training-clock');
   const restLabel=el('small','พักก่อนฝึกต่อ');restLabel.setAttribute('role','status');
   const skip=button('ข้ามเวลาพัก',()=>{stop();rest.hidden=true;},'ts-skip');
@@ -100,7 +101,11 @@ export function initTrainingSession({getRecords,saveRecords}){
   // 4. Log the set just done.
   const form=el('form',undefined,'ts-log'),weight=el('input'),reps=el('input'),weightLabel=el('label','น้ำหนักที่ยก'),repsLabel=el('label','ทำได้กี่ครั้ง');
   weight.type=reps.type='number';weight.min=0;weight.max=2000;weight.step='.01';weight.placeholder='ไม่ระบุ';weight.value=logs.at(-1)?.weight??target.weight??'';weight.inputMode='decimal';
-  reps.min=1;reps.max=1000;reps.step=1;reps.required=true;reps.value=logs.at(-1)?.reps??target.reps??12;reps.inputMode='numeric';weightLabel.append(weight);repsLabel.append(reps);
+  reps.min=1;reps.max=1000;reps.step=1;reps.required=true;reps.inputMode='numeric';weightLabel.append(weight);repsLabel.append(reps);
+  // Holds like a plank are logged in seconds; the switch starts from the plan, the last set, or the exercise name.
+  const effort=attachEffortUnit(reps,{label:repsLabel,host:repsLabel});const lastSet=logs.at(-1);
+  const timed=lastSet?lastSet.seconds!=null:target.seconds!=null||looksTimed(target.exercise);effort.set(timed);
+  reps.value=timed?(lastSet?.seconds??target.seconds??30):(lastSet?.reps??target.reps??12);
   const metrics=el('div',undefined,'training-live-metrics');metrics.append(weightLabel,repsLabel);const weightUnit=attachWeightUnit(weight,metrics);const priorLoad=logs.at(-1)??target;if(priorLoad.weight!=null||logs.length)weightUnit.set(priorLoad.weight,priorLoad.weightUnit);
   const notice=el('p',undefined,'muted');notice.setAttribute('role','status');
   const save=el('button',finished?'+ บันทึกเซ็ตเพิ่ม':'✓ ทำเซ็ต '+(logs.length+1)+' เสร็จแล้ว',finished?'quiet':'primary');save.type='submit';save.disabled=busy;
@@ -124,9 +129,9 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(deadline){ticker=setInterval(tick,250);tick();}
   form.onsubmit=async e=>{
    e.preventDefault();if(busy||selected()!==day)return;busy=true;save.disabled=true;notice.textContent='กำลังบันทึกเซ็ต…';
-   const latest=draft(item),nextLogs=[...(latest?.setLogs||[]),{...weightUnit.read(),reps:Number(reps.value)}];
+   const latest=draft(item),nextLogs=[...(latest?.setLogs||[]),{...weightUnit.read(),...(effort.timed()?{seconds:Number(reps.value)}:{reps:Number(reps.value)})}];
    if(nextLogs.length>100){busy=false;save.disabled=false;notice.textContent='บันทึกได้สูงสุด 100 เซ็ตต่อท่า';return;}
-   const row={id:latest?.id||crypto.randomUUID(),kind:'workout',day,trainingType:'strength',exercise:target.exercise,planId:item.plan.id,planExerciseIndex:item.index,weight:nextLogs.at(-1).weight,weightUnit:nextLogs.at(-1).weightUnit,sets:nextLogs.length,reps:nextLogs.at(-1).reps,notes:latest?.notes||'',setLogs:nextLogs,sessionComplete:nextLogs.length>=target.sets};
+   const row={id:latest?.id||crypto.randomUUID(),kind:'workout',day,trainingType:'strength',exercise:target.exercise,planId:item.plan.id,planExerciseIndex:item.index,weight:nextLogs.at(-1).weight,weightUnit:nextLogs.at(-1).weightUnit,sets:nextLogs.length,reps:nextLogs.at(-1).reps??null,...(nextLogs.at(-1).seconds!=null?{seconds:nextLogs.at(-1).seconds}:{}),notes:latest?.notes||'',setLogs:nextLogs,sessionComplete:nextLogs.length>=target.sets};
    try{
     const ok=await saveRecords([...getRecords().filter(r=>r.id!==row.id),row]);
     if(!ok){notice.textContent='บันทึกไม่สำเร็จ กรอกไว้แล้ว กดจบเซ็ตเพื่อลองใหม่';return;}

@@ -1,8 +1,9 @@
 import {attachWeightUnit} from './weight-units.mjs';
+import {attachEffortUnit,looksTimed} from './effort.mjs?v=4';
 import {searchExercises} from './exercise-picker.mjs?v=11';
 export function pairedWorkoutRows(first, partners, groupId) {
  if(!partners.length)return [first];
- return [first,...partners.map(p=>({id:p.id,day:first.day,kind:'workout',trainingType:'strength',exercise:p.exercise.trim(),weight:p.weight,...(p.weightUnit?{weightUnit:p.weightUnit}:{}),sets:p.sets,reps:p.reps,notes:''}))].map(r=>({...r,supersetId:groupId}));
+ return [first,...partners.map(p=>({id:p.id,day:first.day,kind:'workout',trainingType:'strength',exercise:p.exercise.trim(),weight:p.weight,...(p.weightUnit?{weightUnit:p.weightUnit}:{}),sets:p.sets,reps:p.reps??null,...(p.seconds!=null?{seconds:p.seconds}:{}),notes:''}))].map(r=>({...r,supersetId:groupId}));
 }
 export function initWorkoutPairs({form,anchor,isEditing}) {
  const el=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e;};
@@ -54,7 +55,8 @@ export function initWorkoutPairs({form,anchor,isEditing}) {
  row.addEventListener('focusout',()=>setTimeout(()=>{if(!row.contains(document.activeElement))close();},0));
  const dispose=()=>{removed=true;clearTimeout(previewTimer);preview?.destroy();};
  const weight=field('น้ำหนักที่ยก','number',0,2000);const weightUnit=attachWeightUnit(weight,row);fields.push(weightUnit.select);const sets=field('เซ็ต','number',1,1000),reps=field('ครั้ง / เซ็ต','number',1,1000);sets.step=reps.step=1;sets.required=reps.required=true;sets.value=document.getElementById('sets').value||3;reps.value=document.getElementById('reps').value||12;
- const remove=el('button','นำท่านี้ออก');remove.type='button';remove.className='quiet';row.append(remove);const p={id:crypto.randomUUID(),row,legend,fields,exercise,weight,weightUnit,sets,reps,dispose};partners.push(p);remove.onclick=()=>{partners=partners.filter(x=>x!==p);dispose();row.remove();sync();};box.append(row);sync();exercise.focus();};
+ const effort=attachEffortUnit(reps,{label:reps.parentElement});fields.push(effort.select);exercise.addEventListener('change',()=>{if(looksTimed(exercise.value)&&!effort.timed()){effort.set(true);reps.value=30;}});
+ const remove=el('button','นำท่านี้ออก');remove.type='button';remove.className='quiet';row.append(remove);const p={id:crypto.randomUUID(),row,legend,fields,exercise,weight,weightUnit,sets,reps,effort,dispose};partners.push(p);remove.onclick=()=>{partners=partners.filter(x=>x!==p);dispose();row.remove();sync();};box.append(row);sync();exercise.focus();};
  form.addEventListener('reset',clear);sync();
- return {sync,clear,resume,rows(first){if(document.getElementById('training-type').value!=='strength'||!partners.length)return [first];return pairedWorkoutRows(first,partners.map(p=>({id:p.id,exercise:p.exercise.value,...p.weightUnit.read(),sets:Number(p.sets.value),reps:Number(p.reps.value)})),first.supersetId??groupId);}};
+ return {sync,clear,resume,rows(first){if(document.getElementById('training-type').value!=='strength'||!partners.length)return [first];return pairedWorkoutRows(first,partners.map(p=>({id:p.id,exercise:p.exercise.value,...p.weightUnit.read(),sets:Number(p.sets.value),...p.effort.read()})),first.supersetId??groupId);}};
 }

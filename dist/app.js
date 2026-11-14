@@ -1,26 +1,27 @@
-import {initDailySummary} from './daily-summary.mjs';
-import {createExerciseHistory} from './exercise-history.mjs?v=1';
-import {initCompactWorkout} from './compact-workout.mjs?v=1';
-import {initHistoryText} from './history-text.mjs?v=2';
+import {initDailySummary} from './daily-summary.mjs?v=4';
+import {createExerciseHistory} from './exercise-history.mjs?v=4';
+import {initCompactWorkout} from './compact-workout.mjs?v=3';
+import {initHistoryText} from './history-text.mjs?v=5';
 import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-units.mjs';
+import {attachEffortUnit,looksTimed,effortText,formatSeconds} from './effort.mjs?v=4';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
-import {initWorkoutPairs} from './workout-pairs.mjs?v=9';
-import {initTrainingSession} from './training-session.mjs?v=25';
+import {initWorkoutPairs} from './workout-pairs.mjs?v=12';
+import {initTrainingSession} from './training-session.mjs?v=28';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
-import {initDiaryTools} from './diary-tools.mjs?v=2';
+import {initDiaryTools} from './diary-tools.mjs?v=5';
 import {initNutrition} from './nutrition.mjs?v=1';
-import {initPasswordReset,initBackup} from './account-extras.mjs?v=3';
-import {initProgress} from './coach-ui.mjs?v=3';
+import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
+import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=31';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=34';
 import {auth,api} from './account.js?v=4';
-import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=15';
+import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
-import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
-import {initTeams,loadTeams} from './team.mjs?v=71';
-import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=5';
-import {initBody,quickWeigh} from './body.mjs?v=37';
-import {initToday} from './today.mjs?v=18';
+import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
+import {initTeams,loadTeams} from './team.mjs?v=74';
+import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
+import {initBody,quickWeigh} from './body.mjs?v=40';
+import {initToday} from './today.mjs?v=21';
 import {initMotion} from './motion.mjs?v=2';
 import {initHealthHistory} from './health-ui.mjs?v=3';
 import {personalRecord} from './personal-record.mjs?v=2';
@@ -31,6 +32,9 @@ attachNavigation();
 initDailySummary({getRecords:()=>records,onView:switchView});
 initHistoryText({api});
 const workoutWeight=attachWeightUnit($('weight'),$('strength-fields'));
+// Holds like a plank are logged in seconds per set instead of reps.
+const workoutEffort=attachEffortUnit($('reps'),{label:document.querySelector('label[for="reps"]'),host:$('reps').parentElement});
+$('exercise').addEventListener('change',()=>{if(!workoutEditing)workoutEffort.set(looksTimed($('exercise').value));});
 const workoutComposer=node('details',undefined,'workout-composer');workoutComposer.id='workout-composer';
 workoutComposer.append(node('summary','＋ เพิ่มท่า / Super set / คาร์ดิโอ'));
 // Trainers kept logging moves here expecting their team to get them; this is only their own diary.
@@ -121,7 +125,7 @@ programPanel.before(workoutNav);workoutComposer.open=true;workoutComposer.classL
 function showWorkoutSection(key){
  for(const entry of workoutSections){const active=entry.key===key;entry.panel.hidden=!active;entry.button.setAttribute('aria-pressed',String(active));}
 }
-function resetWorkout(){$('weight').required=false;workoutEditing=null;workoutPlan=null;$('workout-form').reset();updateTrainingType();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
+function resetWorkout(){$('weight').required=false;workoutEditing=null;workoutPlan=null;$('workout-form').reset();workoutEffort.set(false);updateTrainingType();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
 function render(){renderMeals();renderWorkouts();renderDashboard(records,$('day').value);window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));}
 function renderWorkouts(){
  const day=$('day').value;if(!day)return;
@@ -131,7 +135,7 @@ function renderWorkouts(){
  if(!rows.length){const box=node('div',undefined,'empty'),add=node('button','บันทึกท่าที่ฝึก','quiet');add.type='button';add.onclick=()=>{openWorkoutComposer();$('exercise').focus();};box.append(node('h3','ยังไม่มีผลการฝึกของวันนี้'),add);$('workout-entries').append(box);return;}
  renderWorkoutGroups($('workout-entries'),rows,r=>{
   const card=node('article',undefined,'entry');card.dataset.id=r.id;card.append(node('span',r.trainingType==='cardio'?'คาร์ดิโอ':'เวท / น้ำหนักตัว','meal-timing-badge'));const pr=personalRecord(records,r);if(pr){const badge=node('span','🏆 PR','pr-badge');badge.title='สถิติใหม่: '+pr.label;card.append(badge);}card.append(node('h3',r.exercise));
-  const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of (r.trainingType==='cardio'?[['เวลา',r.duration+' นาที'],['ระยะทาง',r.distance==null?'ไม่ระบุ':r.distance+' กม.'],['ความชัน',r.incline==null?'ไม่ระบุ':r.incline+'%'],['ความเร็ว',r.speed==null?'ไม่ระบุ':r.speed+' กม./ชม.']]:[['น้ำหนัก',formatLoggedWeight(r)],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]])){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.setLogs?.length){const fold=node('details'),list=node('ol');fold.append(node('summary','ดูผลแต่ละเซ็ต'+(r.sessionComplete===false?' · ยังฝึกไม่ครบ':'')));for(const set of r.setLogs)list.append(node('li',(set.weight==null?'ไม่ระบุน้ำหนัก':formatLoggedWeight(set))+' · '+set.reps+' ครั้ง'));fold.append(list);card.append(fold);}if(r.notes)card.append(node('p',r.notes,'entry-text'));
+  const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of (r.trainingType==='cardio'?[['เวลา',r.duration+' นาที'],['ระยะทาง',r.distance==null?'ไม่ระบุ':r.distance+' กม.'],['ความชัน',r.incline==null?'ไม่ระบุ':r.incline+'%'],['ความเร็ว',r.speed==null?'ไม่ระบุ':r.speed+' กม./ชม.']]:[['น้ำหนัก',formatLoggedWeight(r)],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],r.seconds!=null?['เวลา / เซ็ต',formatSeconds(r.seconds)]:['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]])){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.setLogs?.length){const fold=node('details'),list=node('ol');fold.append(node('summary','ดูผลแต่ละเซ็ต'+(r.sessionComplete===false?' · ยังฝึกไม่ครบ':'')));for(const set of r.setLogs)list.append(node('li',(set.weight==null?'ไม่ระบุน้ำหนัก':formatLoggedWeight(set))+' · '+effortText(set)));fold.append(list);card.append(fold);}if(r.notes)card.append(node('p',r.notes,'entry-text'));
   if(r.trainingType!=='cardio'){
    const historyFold=node('details',undefined,'workout-history-fold'),historySummary=node('summary','ดูกราฟน้ำหนักและจำนวนครั้งย้อนหลัง');
    historySummary.setAttribute('aria-label','ดูกราฟประวัติ '+r.exercise);historyFold.append(historySummary);
@@ -140,7 +144,7 @@ function renderWorkouts(){
    card.append(historyFold);
   }
   const actions=node('div',undefined,'entry-actions'),edit=node('button','แก้ไข'),del=node('button','ลบ','delete');edit.type=del.type='button';edit.setAttribute('aria-label','แก้ไขท่า '+r.exercise);del.setAttribute('aria-label','ลบท่า '+r.exercise);
-  edit.onclick=()=>{workoutPairs.clear();openWorkoutComposer();workoutEditing=r.id;workoutPlan=r.planId?{planId:r.planId,planExerciseIndex:r.planExerciseIndex,exercise:r.exercise}:null;$('training-type').value=r.trainingType||'strength';updateTrainingType();$('duration').value=r.duration??'';$('distance').value=r.distance??'';$('incline').value=r.incline??'';$('speed').value=r.speed??'';$('exercise').value=r.exercise;workoutWeight.set(r.weight,r.weightUnit);$('sets').value=r.sets??'';$('reps').value=r.reps??'';$('workout-notes').value=r.notes;$('workout-form-title').textContent='แก้ไขท่าออกกำลังกาย';$('workout-save').textContent='บันทึกการแก้ไข';$('workout-cancel').hidden=false;diaryTools.updatePrevious();workoutPairs.resume(r,records);$('exercise').focus();$('workout-form').scrollIntoView({behavior:'smooth',block:'center'});};
+  edit.onclick=()=>{workoutPairs.clear();openWorkoutComposer();workoutEditing=r.id;workoutPlan=r.planId?{planId:r.planId,planExerciseIndex:r.planExerciseIndex,exercise:r.exercise}:null;$('training-type').value=r.trainingType||'strength';updateTrainingType();$('duration').value=r.duration??'';$('distance').value=r.distance??'';$('incline').value=r.incline??'';$('speed').value=r.speed??'';$('exercise').value=r.exercise;workoutWeight.set(r.weight,r.weightUnit);$('sets').value=r.sets??'';workoutEffort.set(r.seconds!=null);$('reps').value=r.seconds??r.reps??'';$('workout-notes').value=r.notes;$('workout-form-title').textContent='แก้ไขท่าออกกำลังกาย';$('workout-save').textContent='บันทึกการแก้ไข';$('workout-cancel').hidden=false;diaryTools.updatePrevious();workoutPairs.resume(r,records);$('exercise').focus();$('workout-form').scrollIntoView({behavior:'smooth',block:'center'});};
   del.onclick=async()=>{if(confirm('ลบท่า '+r.exercise+' นี้ไหม?')&&await saveRecords(records.filter(x=>x.id!==r.id))){if(workoutEditing===r.id)resetWorkout();render();tell('ลบรายการออกกำลังกายแล้ว');}};actions.append(edit,del);card.append(actions);return card;
  },{onDeleteGroup:async members=>{
   if(saving)return;
@@ -157,6 +161,7 @@ function startPlanExercise({plan,target,index,actual}){
  $('training-type').value=row.trainingType||'strength';updateTrainingType();
  $('exercise').value=target.exercise;diaryTools.setRest(target.rest_seconds??60);diaryTools.updatePrevious();
  for(const key of ['weight','sets','reps','duration','distance','incline','speed'])$(key).value=row[key]??'';workoutWeight.set(row.weight,row.weightUnit);
+ const timed=(row.seconds??target.seconds)!=null;workoutEffort.set(timed);if(timed)$('reps').value=row.seconds??target.seconds;
  $('workout-notes').value=row.notes??'';
  $('workout-form-title').textContent=(actual?'แก้ไขผล: ':'บันทึกผล: ')+target.exercise;
  $('workout-cancel').hidden=false;$('workout-form').scrollIntoView({behavior:'smooth',block:'start'});$('weight').focus();
@@ -207,10 +212,10 @@ $('exercise').addEventListener('input',()=>$('exercise').setCustomValidity(''));
 $('workout-form').addEventListener('submit',async e=>{
  e.preventDefault();const exercise=$('exercise').value.trim(),day=$('day').value;if(!exercise){$('exercise').setCustomValidity('กรุณาใส่ชื่อท่า');$('exercise').reportValidity();return;}if(!day){$('day').reportValidity();return;}
  const number=id=>$(id).value===''?null:Number($(id).value);
- const row={...(workoutPlan?.exercise===exercise?{planId:workoutPlan.planId,planExerciseIndex:workoutPlan.planExerciseIndex}:{}),id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,trainingType:$('training-type').value,duration:$('training-type').value==='cardio'?number('duration'):null,incline:$('training-type').value==='cardio'?number('incline'):null,speed:$('training-type').value==='cardio'?number('speed'):null,distance:$('training-type').value==='cardio'?number('distance'):null,...($('training-type').value==='cardio'?{weight:null}:workoutWeight.read()),sets:$('training-type').value==='cardio'?null:number('sets'),reps:$('training-type').value==='cardio'?null:number('reps'),notes:$('workout-notes').value.trim()};
+ const row={...(workoutPlan?.exercise===exercise?{planId:workoutPlan.planId,planExerciseIndex:workoutPlan.planExerciseIndex}:{}),id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,trainingType:$('training-type').value,duration:$('training-type').value==='cardio'?number('duration'):null,incline:$('training-type').value==='cardio'?number('incline'):null,speed:$('training-type').value==='cardio'?number('speed'):null,distance:$('training-type').value==='cardio'?number('distance'):null,...($('training-type').value==='cardio'?{weight:null}:workoutWeight.read()),sets:$('training-type').value==='cardio'?null:number('sets'),...($('training-type').value==='cardio'?{reps:null}:workoutEffort.read()),notes:$('workout-notes').value.trim()};
  const previous=records.find(r=>r.id===row.id);if(previous?.supersetId&&row.trainingType==='strength')row.supersetId=previous.supersetId;
  if(previous?.setLogs?.length&&previous.exercise===row.exercise&&previous.trainingType===row.trainingType&&previous.planId===row.planId&&
-  previous.weight===row.weight&&(previous.weightUnit??'kg')===(row.weightUnit??'kg')&&previous.sets===row.sets&&previous.reps===row.reps){
+  previous.weight===row.weight&&(previous.weightUnit??'kg')===(row.weightUnit??'kg')&&previous.sets===row.sets&&previous.reps===row.reps&&(previous.seconds??null)===(row.seconds??null)){
   row.setLogs=previous.setLogs;
   if(previous.sessionComplete!==undefined)row.sessionComplete=previous.sessionComplete;
  }

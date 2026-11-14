@@ -1,13 +1,14 @@
-import {planComparison} from './coach-ui.mjs?v=3';
+import {planComparison} from './coach-ui.mjs?v=6';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
-import {localDay} from './store.mjs';
+import {localDay} from './store.mjs?v=4';
 import {attachWeightUnit,formatLoggedWeight} from './weight-units.mjs';
+import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
 import {createAnatomyPicker} from './anatomy-picker.mjs?v=3';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
 const input=(label,type,value)=>{const box=el('label',label),i=el('input');i.type=type;i.value=value??'';box.append(i);return {box,i};};
 const cardioText=r=>[r.duration+' นาที',r.incline!=null?'ความชัน '+r.incline+'%':'',r.speed!=null?'ความเร็ว '+r.speed+' กม./ชม.':'',r.distance!=null?r.distance+' กม.':''].filter(Boolean).join(' · ');
-const prescription=r=>r.trainingType==='cardio'?cardioText(r):r.sets+' เซ็ต · '+r.reps+' ครั้ง'+(r.weight==null?'':' · '+formatLoggedWeight(r))+(r.rest_seconds==null?'':' · พัก '+r.rest_seconds+' วินาที');
+const prescription=r=>r.trainingType==='cardio'?cardioText(r):r.sets+' เซ็ต · '+effortText(r)+(r.weight==null?'':' · '+formatLoggedWeight(r))+(r.rest_seconds==null?'':' · พัก '+r.rest_seconds+' วินาที');
 function appendPlanExercise(card,r){
  const item=el('div',undefined,'plan-saved-exercise');
  if(r.superset)item.append(el('span','Super set '+r.superset,'plan-superset-badge'));
@@ -123,10 +124,12 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    remove.type='button';
    const type={box:el('label','ประเภท'),i:el('select')};type.box.append(type.i);
    for(const [v,t] of [['strength','เวทเทรนนิ่ง (เซ็ต/ครั้ง)'],['cardio','คาร์ดิโอ (เวลา/ความชัน)']]){const o=el('option',t);o.value=v;type.i.append(o);}
-   const name=planExercisePicker(exercise=>{if(exercise.group!==undefined)type.i.value=exercise.group==='คาร์ดิโอ'?'cardio':'strength';applyType();refresh();},savedExercises);
+   const name=planExercisePicker(exercise=>{if(exercise.group!==undefined)type.i.value=exercise.group==='คาร์ดิโอ'?'cardio':'strength';if(looksTimed(exercise.name)&&!effort.timed()){effort.set(true);reps.i.value=30;}applyType();refresh();},savedExercises);
    const weight=input('น้ำหนักที่ยก','number',''),sets=input('เซ็ต','number',3),reps=input('ครั้ง / เซ็ต','number',12);
    weight.i.min=0;weight.i.max=2000;weight.i.step='.01';weight.i.placeholder='ไม่ระบุ';
    for(const f of [sets,reps]){f.i.required=true;f.i.min=1;f.i.step=1;}sets.i.max=100;reps.i.max=1000;
+   // Holds such as a plank are set in seconds per set instead of reps.
+   const effort=attachEffortUnit(reps.i,{label:reps.box});
    const metrics=el('div',undefined,'plan-metrics');metrics.append(weight.box,sets.box,reps.box);
    const weightUnit=attachWeightUnit(weight.i,metrics);
    const rest=input('พัก (วินาที)','number',60);rest.i.min=0;rest.i.max=3600;rest.i.step=1;rest.i.required=true;
@@ -139,9 +142,9 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    speed.i.min=0;speed.i.max=50;speed.i.step='.1';speed.i.placeholder='เช่น 5';distance.i.min=0;distance.i.max=1000;distance.i.step='.01';distance.i.placeholder='ไม่ระบุ';
    for(const f of [duration,incline,speed,distance])f.i.inputMode='decimal';
    const cardio=el('div',undefined,'plan-metrics plan-cardio');cardio.append(duration.box,incline.box,speed.box,distance.box);
-   function applyType(){const c=type.i.value==='cardio';metrics.hidden=advanced.hidden=c;cardio.hidden=!c;for(const f of [weight,sets,reps,rest])f.i.disabled=c;superset.i.disabled=weightUnit.select.disabled=c;for(const f of [duration,incline,speed,distance])f.i.disabled=!c;}
+   function applyType(){const c=type.i.value==='cardio';metrics.hidden=advanced.hidden=c;cardio.hidden=!c;for(const f of [weight,sets,reps,rest])f.i.disabled=c;superset.i.disabled=weightUnit.select.disabled=effort.select.disabled=c;for(const f of [duration,incline,speed,distance])f.i.disabled=!c;}
    const pair=el('button','+ เพิ่มท่าใน Super set','quiet plan-pair');pair.type='button';
-   const entry={row,name,weightUnit,sets,reps,number,rest,superset,type,duration,incline,speed,distance,pair};
+   const entry={row,name,weightUnit,sets,reps,effort,number,rest,superset,type,duration,incline,speed,distance,pair};
    function orderControls(within){
     const bar=el('div',undefined,'plan-order');
     const controls=[-1,1].map(direction=>{
@@ -199,6 +202,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     for(const key of ['sets','reps','duration','incline','speed','distance','superset']){
      if(exercise[key]!=null)entry[key].i.value=exercise[key];
     }
+    entry.effort.set(exercise.seconds!=null);if(exercise.seconds!=null)entry.reps.i.value=exercise.seconds;
     if(exercise.rest_seconds!=null)entry.rest.i.value=exercise.rest_seconds;
    }
    refresh();
@@ -270,7 +274,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  function exerciseValues(x){
   return x.type.i.value==='cardio'?
    {trainingType:'cardio',exercise:x.name.i.value.trim(),duration:Number(x.duration.i.value),...Object.fromEntries(['incline','speed','distance'].filter(k=>x[k].i.value!=='').map(k=>[k,Number(x[k].i.value)]))}:
-   {exercise:x.name.i.value.trim(),...x.weightUnit.read(),sets:Number(x.sets.i.value),reps:Number(x.reps.i.value),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null};
+   {exercise:x.name.i.value.trim(),...x.weightUnit.read(),sets:Number(x.sets.i.value),...(x.effort.timed()?{seconds:Number(x.reps.i.value)}:{reps:Number(x.reps.i.value)}),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null};
  }
  if(draftKey){
   try{

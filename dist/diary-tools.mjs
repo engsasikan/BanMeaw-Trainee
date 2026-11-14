@@ -1,4 +1,4 @@
-import {createExerciseHistory} from './exercise-history.mjs';
+import {createExerciseHistory} from './exercise-history.mjs?v=4';
 import {formatLoggedWeight} from './weight-units.mjs';
 const $=id=>document.getElementById(id);
 const normalize=s=>s.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');

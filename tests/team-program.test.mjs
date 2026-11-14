@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {exerciseLine,groupPrograms} from '../dist/team-program.mjs';
+import {exerciseLine,groupPrograms,supersetGroups} from '../dist/team-program.mjs';
 test('team program lines show sets, reps, the unit the trainer used, cardio targets and supersets',()=>{
  assert.equal(exerciseLine({exercise:'Lat Pulldown',sets:3,reps:12,weight:30,weightUnit:'lb'}),'Lat Pulldown · 3 เซ็ต × 12 ครั้ง · 30 lb');
  assert.equal(exerciseLine({exercise:'Plank',sets:3,reps:10,weight:null}),'Plank · 3 เซ็ต × 10 ครั้ง');
@@ -27,4 +27,9 @@ test('plans group into one program per saved batch, each with a Monday–Sunday 
  assert.equal(nov.today.day,'2026-11-16');
  assert.equal(programs[1].week[5].exercises[0].exercise,'Run');
  assert.equal(programs[2].week[0].day,'2026-10-05','an ended program shows its last occurrence');
+});
+test('Super sets are named on the day card and a group needs at least two strength exercises',()=>{
+ const day=[{exercise:'Lat',superset:'A'},{exercise:'Bench',superset:'A'},{exercise:'Squat'},{exercise:'Row',superset:'B'},{exercise:'Curl',superset:'B'},{exercise:'Lonely',superset:'C'},{trainingType:'cardio',exercise:'Run',duration:10,superset:'C'}];
+ assert.deepEqual(supersetGroups(day),[{letter:'A',count:2},{letter:'B',count:2}]);
+ assert.equal(exerciseLine({exercise:'Row',sets:3,reps:12,weight:null,superset:'B'},{withGroup:false}),'Row · 3 เซ็ต × 12 ครั้ง');
 });

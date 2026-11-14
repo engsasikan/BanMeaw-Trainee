@@ -287,3 +287,8 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .game-day-score span{color:#c2bcb8}
 .game-todo{margin:4px 0 12px;padding-left:20px;display:grid;gap:6px;line-height:1.5}
 .game-claim>.quiet{min-height:42px}
+.program-exercises{margin:0;padding:0 14px 12px 32px;display:grid;gap:6px;font-size:14px;line-height:1.5}
+.program-superset{padding:8px 10px;border-radius:12px;border:1px solid #ff702855;background:#ff70280f;list-style-position:outside}
+.program-superset strong{display:block;margin-bottom:4px;color:#ffc39f;font-size:13px}
+.program-superset ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.program-day-card small{color:#c2bcb8}

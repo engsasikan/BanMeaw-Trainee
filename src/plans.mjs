@@ -14,8 +14,9 @@ export function planExercises(body){
    const out={trainingType:'cardio',exercise:r.exercise.trim(),duration:r.duration};for(const k of ['incline','speed','distance'])if(r[k]!=null)out[k]=r[k];return out;
   }
   const unit=r?.weightUnit??'kg';
-  if(!r||!['kg','lb'].includes(unit)||typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||!Number.isInteger(r.sets)||r.sets<1||r.sets>100||!Number.isInteger(r.reps)||r.reps<1||r.reps>1000||!(r.weight===null||(typeof r.weight==='number'&&Number.isFinite(r.weight)&&r.weight>=0&&r.weight<=(unit==='lb'?4409.25:2000))))throw Error('ตรวจชื่อท่า น้ำหนัก หน่วย จำนวนครั้ง และเซ็ต');
-  const out={exercise:r.exercise.trim(),weight:r.weight,sets:r.sets,reps:r.reps};
+  if(!r||!['kg','lb'].includes(unit)||typeof r.exercise!=='string'||!r.exercise.trim()||r.exercise.length>150||!Number.isInteger(r.sets)||r.sets<1||r.sets>100||(r.seconds!=null?!Number.isInteger(r.seconds)||r.seconds<1||r.seconds>3600:!Number.isInteger(r.reps)||r.reps<1||r.reps>1000)||!(r.weight===null||(typeof r.weight==='number'&&Number.isFinite(r.weight)&&r.weight>=0&&r.weight<=(unit==='lb'?4409.25:2000))))throw Error('ตรวจชื่อท่า น้ำหนัก หน่วย จำนวนครั้ง และเซ็ต');
+  // Timed holds (plank) carry seconds per set instead of reps.
+  const out={exercise:r.exercise.trim(),weight:r.weight,sets:r.sets,...(r.seconds!=null?{seconds:r.seconds}:{reps:r.reps})};
   if(r.weightUnit!=null)out.weightUnit=unit;
   if(r.rest_seconds!=null){if(!Number.isInteger(r.rest_seconds)||r.rest_seconds<0||r.rest_seconds>3600)throw Error('เวลาพักต้องเป็น 0–3600 วินาที');out.rest_seconds=r.rest_seconds;}
   if(r.superset!=null&&r.superset!==''){if(typeof r.superset!=='string'||! /^[A-O]$/.test(r.superset))throw Error('กลุ่ม Super set ไม่ถูกต้อง');out.superset=r.superset;}

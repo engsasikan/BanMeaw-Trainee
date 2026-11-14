@@ -1,5 +1,5 @@
-import {renderCalendar} from './calendar.mjs';
-import {localDay} from './store.mjs';
+import {renderCalendar} from './calendar.mjs?v=4';
+import {localDay} from './store.mjs?v=4';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 export function getWeek(records,day){return Array.from({length:7},(_,i)=>{const d=new Date(day+'T12:00:00');d.setDate(d.getDate()-6+i);const date=localDay(d),rows=records.filter(r=>r.day===date),workouts=rows.filter(r=>r.kind==='workout');return {day:date,foods:rows.length-workouts.length,workouts:workouts.length,sets:workouts.reduce((n,r)=>n+(r.sets??0),0),missingSets:workouts.filter(r=>r.sets===null).length};});}

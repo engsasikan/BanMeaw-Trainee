@@ -1,5 +1,6 @@
+import {formatSeconds} from './effort.mjs?v=4';
 import {formatLoggedWeight} from './weight-units.mjs';
-import {localDay,MEALS} from './store.mjs';
+import {localDay,MEALS} from './store.mjs?v=4';
 export function weekDays(day,offset=0){
  const end=new Date(day+'T12:00:00');end.setDate(end.getDate()+offset);
  return Array.from({length:7},(_,i)=>{const d=new Date(end);d.setDate(d.getDate()-6+i);return localDay(d);});
@@ -20,5 +21,5 @@ export function comparePlan(plan,records){
  });
 }
 export function workoutDescription(r){
- return (r.trainingType==='cardio'?[r.duration!=null?r.duration+' นาที':'',r.distance!=null?r.distance+' กม.':'',r.incline!=null?'ความชัน '+r.incline+'%':'',r.speed!=null?'ความเร็ว '+r.speed+' กม./ชม.':'']:[r.weight==null?'ไม่ระบุน้ำหนัก':r.weight===0?'น้ำหนักตัว':formatLoggedWeight(r),r.sets!=null?r.sets+' เซ็ต':'',r.reps!=null?r.reps+' ครั้ง/เซ็ต':'']).filter(Boolean).join(' · ');
+ return (r.trainingType==='cardio'?[r.duration!=null?r.duration+' นาที':'',r.distance!=null?r.distance+' กม.':'',r.incline!=null?'ความชัน '+r.incline+'%':'',r.speed!=null?'ความเร็ว '+r.speed+' กม./ชม.':'']:[r.weight==null?'ไม่ระบุน้ำหนัก':r.weight===0?'น้ำหนักตัว':formatLoggedWeight(r),r.sets!=null?r.sets+' เซ็ต':'',r.seconds!=null?formatSeconds(r.seconds)+'/เซ็ต':r.reps!=null?r.reps+' ครั้ง/เซ็ต':'']).filter(Boolean).join(' · ');
 }

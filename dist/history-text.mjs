@@ -1,5 +1,5 @@
-import {FIELDS,BOWEL_STATUS_LABELS} from './body-data.mjs';
-import {localDay} from './store.mjs';
+import {FIELDS,BOWEL_STATUS_LABELS} from './body-data.mjs?v=4';
+import {localDay} from './store.mjs?v=4';
 export function dailyWeights(body){
  const groups=new Map();for(const r of body){if(typeof r.weight!=='number'||!Number.isFinite(r.weight))continue;const g=groups.get(r.day)||[];g.push(r.weight);groups.set(r.day,g);}
  return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([day,values])=>({day,weight:values.reduce((a,b)=>a+b,0)/values.length,count:values.length}));

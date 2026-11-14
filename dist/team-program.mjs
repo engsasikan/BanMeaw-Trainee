@@ -1,3 +1,4 @@
+import {effortText} from './effort.mjs?v=4';
 import {formatLoggedWeight} from './weight-units.mjs';
 // The team's "โปรแกรมฝึก" tab: a list of programs (one per saved batch, shown by its date range), and for each
 // a Monday–Sunday view of what to train. Read-only here; trainers change programs with the team planner.
@@ -8,7 +9,7 @@ const fullDate=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year
 const at=day=>new Date(day+'T12:00:00');
 // Monday = 0 … Sunday = 6
 export const weekdayIndex=day=>(at(day).getDay()+6)%7;
-export function exerciseLine(x){
+export function exerciseLine(x,{withGroup=true}={}){
  if(x.trainingType==='cardio'){
   const parts=[x.duration+' นาที'];
   if(x.speed!=null)parts.push(x.speed+' กม./ชม.');
@@ -17,7 +18,7 @@ export function exerciseLine(x){
   return x.exercise+' · '+parts.join(' · ');
  }
  const load=x.weight==null?'':' · '+formatLoggedWeight(x);
- return x.exercise+' · '+x.sets+' เซ็ต × '+x.reps+' ครั้ง'+load+(x.superset?' · Super set '+x.superset:'');
+ return x.exercise+' · '+x.sets+' เซ็ต × '+effortText(x)+load+(withGroup&&x.superset?' · Super set '+x.superset:'');
 }
 // rows: {batch, day, exercises}. Each batch becomes one program with its date range and, for every weekday,
 // the exercises of the next occurrence from today (or the last one, once the program has ended).
@@ -36,6 +37,19 @@ export function groupPrograms(rows,today){
 const rangeText=p=>shortDate.format(at(p.first))+' – '+fullDate.format(at(p.last));
 const trainingDays=p=>WEEK.filter((_,i)=>p.week[i]).map(([short])=>short).join(' ');
 const statusText={current:'กำลังใช้อยู่',upcoming:'เริ่มเร็วๆ นี้',ended:'จบแล้ว'};
+// Super set groups in order of appearance: [{letter, count}]
+export function supersetGroups(exercises){const seen=new Map();for(const x of exercises)if(x.superset&&x.trainingType!=='cardio')seen.set(x.superset,(seen.get(x.superset)||0)+1);return [...seen].filter(([,n])=>n>1).map(([letter,count])=>({letter,count}));}
+// Exercises as a numbered list; each Super set is one boxed step whose exercises are done back to back.
+export function exerciseList(exercises){
+ const list=node('ol',undefined,'program-exercises'),groups=new Set(supersetGroups(exercises).map(g=>g.letter)),boxes=new Map();
+ for(const x of exercises){
+  if(!groups.has(x.superset)){list.append(node('li',exerciseLine(x)));continue;}
+  let box=boxes.get(x.superset);
+  if(!box){const li=node('li',undefined,'program-superset'),inner=node('ul');li.append(node('strong','Super set '+x.superset+' · ทำต่อกันสลับไปจนครบเซ็ต'),inner);list.append(li);box=inner;boxes.set(x.superset,box);}
+  box.append(node('li',exerciseLine(x,{withGroup:false})));
+ }
+ return list;
+}
 function previewNames(exercises){const names=exercises.slice(0,2).map(x=>x.exercise);return names.join(', ')+(exercises.length>2?' …':'');}
 function programList(box,programs,open){
  const list=node('div',undefined,'program-list');
@@ -56,8 +70,8 @@ function programDetail(box,p,today,{onBack,onTrainToday}){
   const row=node('div',undefined,'program-day-row'+(p.week[i]?'':' rest')),stamp=node('div',undefined,'program-stamp');stamp.append(node('span',en),node('strong',short));
   if(!p.week[i]){const rest=node('div',undefined,'program-day-card');rest.append(node('strong','วันพัก'),node('small','ไม่มีท่าในโปรแกรม'));row.append(stamp,rest);rows.append(row);return;}
   const {exercises}=p.week[i],card=node('details',undefined,'program-day-card');
-  const summary=node('summary');summary.append(node('strong',name+' · '+previewNames(exercises)),node('small',exercises.length+' ท่า'));
-  const steps=node('ol');for(const x of exercises)steps.append(node('li',exerciseLine(x)));
+  const summary=node('summary');const sets=supersetGroups(exercises);summary.append(node('strong',name+' · '+previewNames(exercises)),node('small',exercises.length+' ท่า'+(sets.length?' · Super set '+sets.map(g=>g.letter).join(', '):'')));
+  const steps=exerciseList(exercises);
   card.append(summary,steps);row.append(stamp,card);rows.append(row);
  });
  box.append(back,head,strip);

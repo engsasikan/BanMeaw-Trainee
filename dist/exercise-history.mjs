@@ -1,3 +1,4 @@
+import {effortText} from './effort.mjs?v=4';
 import {fromKg,toKg,preferredWeightUnit,formatWeight,formatLoggedWeight} from './weight-units.mjs';
 const normalize=s=>(s||'').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');
 export function exerciseHistory(records,exercise,day,exclude){
@@ -54,7 +55,7 @@ export function createExerciseHistory(){
   box.append(chart(rows,unit));
   box.append(el('p','แต่ละจุดคือค่าสูงสุดของบันทึกนั้น · ดูน้ำหนักคู่กับจำนวนครั้งจริงทุกเซ็ตได้ในตารางด้านล่าง'));
   const details=el('details'),summary=el('summary','ดูประวัติทุกเซ็ต ('+rows.length+' บันทึก)'),scroll=el('div'),table=el('table'),head=el('thead'),tr=el('tr');scroll.className='exercise-history-table';for(const t of ['บันทึก','วันที่','ผลการฝึก'])tr.append(el('th',t));head.append(tr);table.append(head);const body=el('tbody');
-  [...rows].reverse().forEach((r,i)=>{const row=el('tr');row.append(el('td','#'+(rows.length-i)),el('td',r.day));const cell=el('td');if(r.setLogs?.length){r.logs.forEach((s,j)=>cell.append(el('div','เซ็ต '+(j+1)+': '+formatLoggedWeight(s)+' × '+(s.reps??'ไม่ระบุ')+' ครั้ง')));}else cell.textContent=formatLoggedWeight(r)+' · '+(r.sets??'ไม่ระบุ')+' เซ็ต × '+(r.reps??'ไม่ระบุ')+' ครั้ง';if(r.sessionComplete===false)cell.append(el('div','ยังฝึกไม่ครบ'));row.append(cell);body.append(row);});table.append(body);scroll.append(table);details.append(summary,scroll);box.append(details);
+  [...rows].reverse().forEach((r,i)=>{const row=el('tr');row.append(el('td','#'+(rows.length-i)),el('td',r.day));const cell=el('td');if(r.setLogs?.length){r.logs.forEach((s,j)=>cell.append(el('div','เซ็ต '+(j+1)+': '+formatLoggedWeight(s)+' × '+(effortText(s)||'ไม่ระบุ'))));}else cell.textContent=formatLoggedWeight(r)+' · '+(r.sets??'ไม่ระบุ')+' เซ็ต × '+(effortText(r)||'ไม่ระบุ');if(r.sessionComplete===false)cell.append(el('div','ยังฝึกไม่ครบ'));row.append(cell);body.append(row);});table.append(body);scroll.append(table);details.append(summary,scroll);box.append(details);
  }
  return {element:box,update};
 }
