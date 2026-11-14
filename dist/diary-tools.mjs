@@ -1,5 +1,5 @@
 import {createExerciseHistory} from './exercise-history.mjs';
-import {formatWeight} from './weight-units.mjs';
+import {formatLoggedWeight} from './weight-units.mjs';
 const $=id=>document.getElementById(id);
 const normalize=s=>s.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');
 export function previousExercise(records,exercise,type,day,exclude){return records.filter(r=>r.kind==='workout'&&r.id!==exclude&&r.day<day&&(r.trainingType||'strength')===type&&normalize(r.exercise)===normalize(exercise)).sort((a,b)=>b.day.localeCompare(a.day))[0]||null;}
@@ -13,7 +13,7 @@ export function initDiaryTools({getRecords,getEditing,reuseMeal,reuseWorkout}){
  }
  const previous=el('p');previous.className='input-hint';previous.setAttribute('role','status');$('exercise-picker').after(previous);
  const history=createExerciseHistory();previous.after(history.element);
- function updatePrevious(){history.update(getRecords(),$('exercise').value,$('training-type').value,$('day').value,getEditing());const r=previousExercise(getRecords(),$('exercise').value,$('training-type').value,$('day').value,getEditing());previous.textContent=r?'ครั้งก่อน ('+r.day+'): '+(r.trainingType==='cardio'?r.duration+' นาที'+(r.distance==null?'':' · '+r.distance+' กม.')+(r.incline==null?'':' · ชัน '+r.incline+'%'):(r.weight==null?'น้ำหนักไม่ระบุ':r.weight===0?'น้ำหนักตัว':formatWeight(r.weight))+' · '+(r.sets??'–')+' เซ็ต · '+(r.reps??'–')+' ครั้ง'):($('exercise').value.trim()?'ยังไม่มีผลครั้งก่อนของท่านี้':'เลือกท่าเพื่อดูผลครั้งก่อน');}
+ function updatePrevious(){history.update(getRecords(),$('exercise').value,$('training-type').value,$('day').value,getEditing());const r=previousExercise(getRecords(),$('exercise').value,$('training-type').value,$('day').value,getEditing());previous.textContent=r?'ครั้งก่อน ('+r.day+'): '+(r.trainingType==='cardio'?r.duration+' นาที'+(r.distance==null?'':' · '+r.distance+' กม.')+(r.incline==null?'':' · ชัน '+r.incline+'%'):(r.weight==null?'น้ำหนักไม่ระบุ':r.weight===0?'น้ำหนักตัว':formatLoggedWeight(r))+' · '+(r.sets??'–')+' เซ็ต · '+(r.reps??'–')+' ครั้ง'):($('exercise').value.trim()?'ยังไม่มีผลครั้งก่อนของท่านี้':'เลือกท่าเพื่อดูผลครั้งก่อน');}
  function refresh(){for(const {workout,list} of choices){list.replaceChildren();const rows=recentChoices(getRecords(),workout,$('day').value);if(!rows.length)list.append(el('p','ยังไม่มีรายการเดิม'));for(const r of rows){const b=el('button',(workout?r.exercise:r.meal+' · '+r.text.slice(0,70))+' ('+r.day+')');b.type='button';b.className='quiet';b.onclick=()=>{(workout?reuseWorkout:reuseMeal)(r);list.parentElement.open=false;updatePrevious();};list.append(b);}}updatePrevious();}
  $('day').addEventListener('change',updatePrevious);window.addEventListener('workout-weight-unit',updatePrevious);
  $('exercise').addEventListener('input',updatePrevious);$('exercise').addEventListener('change',updatePrevious);$('training-type').addEventListener('change',updatePrevious);window.addEventListener('diary-records',refresh);

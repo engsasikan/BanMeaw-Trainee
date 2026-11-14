@@ -1,30 +1,31 @@
 import {initDailySummary} from './daily-summary.mjs';
-import {createExerciseHistory} from './exercise-history.mjs';
+import {createExerciseHistory} from './exercise-history.mjs?v=1';
 import {initCompactWorkout} from './compact-workout.mjs?v=1';
-import {initHistoryText} from './history-text.mjs';
-import {attachWeightUnit,formatWeight} from './weight-units.mjs';
+import {initHistoryText} from './history-text.mjs?v=2';
+import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-units.mjs';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
-import {initWorkoutPairs} from './workout-pairs.mjs?v=6';
-import {initTrainingSession} from './training-session.mjs?v=16';
+import {initWorkoutPairs} from './workout-pairs.mjs?v=9';
+import {initTrainingSession} from './training-session.mjs?v=24';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
-import {initDiaryTools} from './diary-tools.mjs?v=1';
+import {initDiaryTools} from './diary-tools.mjs?v=2';
 import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=3';
-import {initProgress} from './coach-ui.mjs?v=2';
-import {initProfile} from './profile.mjs?v=3';
-import {showDailyPlans} from './plans.mjs?v=11';
+import {initProgress} from './coach-ui.mjs?v=3';
+import {initProfile} from './profile.mjs?v=4';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=30';
 import {auth,api} from './account.js?v=4';
-import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=14';
-import {attachExercisePicker} from './exercise-picker.mjs?v=10';
+import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=15';
+import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
-import {initTeams} from './team.mjs?v=35';
-import {initBody,quickWeigh} from './body.mjs?v=35';
-import {initToday} from './today.mjs?v=14';
+import {initTeams,loadTeams} from './team.mjs?v=66';
+import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=5';
+import {initBody,quickWeigh} from './body.mjs?v=37';
+import {initToday} from './today.mjs?v=17';
 import {initMotion} from './motion.mjs?v=2';
-import {initHealth} from './health-ui.mjs?v=1';
-import {personalRecord} from './personal-record.mjs?v=1';
-import {createAnatomyPicker} from './anatomy-picker.mjs?v=1';
-const $=id=>document.getElementById(id);let records=[],editing=null,workoutEditing=null,storageOK=true;
+import {initHealthHistory} from './health-ui.mjs?v=3';
+import {personalRecord} from './personal-record.mjs?v=2';
+import {createAnatomyPicker} from './anatomy-picker.mjs?v=3';
+const $=id=>document.getElementById(id);let profileId,records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
 attachNavigation();
 initDailySummary({getRecords:()=>records,onView:switchView});
@@ -33,14 +34,14 @@ const workoutWeight=attachWeightUnit($('weight'),$('strength-fields'));
 const workoutComposer=node('details',undefined,'workout-composer');workoutComposer.id='workout-composer';
 workoutComposer.append(node('summary','＋ เพิ่มท่า / Super set / คาร์ดิโอ'));
 const compose=$('workout-form').closest('.compose');compose.before(workoutComposer);workoutComposer.append(compose);
-function openWorkoutComposer(){workoutComposer.open=true;}
+function openWorkoutComposer(){showWorkoutSection('log');}
 
 function tell(message){$('status').textContent=message;}
 const legacyRecords=(()=>{try{return read(localStorage);}catch{return [];}})();storageOK=false;
 $('day').value=localDay();$('time').value=new Date().toTimeString().slice(0,5);$('meal').value=mealForTime($('time').value)||'มื้อเช้า';
 let saving=false,workoutPlan=null,workoutPairs=null;
-initTrainingSession({getRecords:()=>records,saveRecords});
-const diaryTools=initDiaryTools({getRecords:()=>records,getEditing:()=>workoutEditing,reuseMeal:r=>{editing=null;$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('cancel').hidden=false;$('meal').value=r.meal;$('details').value=r.text;document.querySelectorAll('[name="workout-timing"]').forEach(i=>i.checked=i.value===(r.workoutTiming||''));count();$('details').setCustomValidity('');$('details').focus();},reuseWorkout:r=>{resetWorkout();openWorkoutComposer();$('training-type').value=r.trainingType||'strength';updateTrainingType();$('exercise').value=r.exercise;for(const key of ['weight','sets','reps','duration','distance','incline','speed'])$(key).value=r[key]??'';workoutWeight.set(r.weight);$('workout-notes').value=r.notes||'';$('exercise').setCustomValidity('');$('workout-cancel').hidden=false;$('exercise').dispatchEvent(new Event('change'));}});
+const trainingSession=initTrainingSession({getRecords:()=>records,saveRecords});
+const diaryTools=initDiaryTools({getRecords:()=>records,getEditing:()=>workoutEditing,reuseMeal:r=>{editing=null;$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('cancel').hidden=false;$('meal').value=r.meal;$('details').value=r.text;document.querySelectorAll('[name="workout-timing"]').forEach(i=>i.checked=i.value===(r.workoutTiming||''));count();$('details').setCustomValidity('');$('details').focus();},reuseWorkout:fillWorkoutDraft});
 
 initCompactWorkout();
 
@@ -74,32 +75,54 @@ function updateTrainingType(){window.dispatchEvent(new Event('workout-type-chang
 $('training-type').addEventListener('change',updateTrainingType);updateTrainingType();
 $('exercise').addEventListener('change',()=>{if(/^HIIT(?:\s|$)/i.test($('exercise').value.trim())){$('training-type').value='cardio';updateTrainingType();}});
 workoutPairs=initWorkoutPairs({form:$('workout-form'),anchor:$('strength-fields'),isEditing:()=>!!workoutEditing});
-const anatomyBrowser=node('details',undefined,'diary workout-anatomy');
-anatomyBrowser.append(node('summary','1 · เลือกท่าจากกล้ามเนื้อ'));anatomyBrowser.open=true;
-anatomyBrowser.append(createAnatomyPicker({actionLabel:'เลือกท่านี้',onChoose:exercise=>{
+const anatomyBrowser=node('section',undefined,'diary workout-anatomy');anatomyBrowser.id='workout-anatomy';
+anatomyBrowser.append(createAnatomyPicker({compact:true,actionLabel:'เลือกท่านี้',onChoose:exercise=>{
  if(workoutEditing&&!confirm('กำลังแก้ไขรายการ ต้องการเปลี่ยนเป็นบันทึกท่าใหม่ไหม?'))return false;
  resetWorkout();openWorkoutComposer();$('training-type').value='strength';updateTrainingType();$('exercise').value=exercise.name;
- $('exercise').dispatchEvent(new Event('change'));anatomyBrowser.open=false;$('workout-form-title').textContent='บันทึกผล · '+exercise.name;
+ $('exercise').dispatchEvent(new Event('change'));$('workout-form-title').textContent='บันทึกผล · '+exercise.name;
  $('workout-form').scrollIntoView({behavior:'smooth',block:'start'});$('weight').focus({preventScroll:true});
 }}));workoutComposer.before(anatomyBrowser);
-function resetWorkout(){workoutEditing=null;workoutPlan=null;$('workout-form').reset();updateTrainingType();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
+const workoutHistory=$('workout-list-title').closest('section');workoutHistory.id='workout-history';$('workout-list-title').textContent='ผลการฝึกที่บันทึกแล้ว';
+const workoutNav=node('div',undefined,'workout-section-nav');workoutNav.setAttribute('role','group');workoutNav.setAttribute('aria-label','เมนูหน้าฝึก');
+const programPanel=node('section',undefined,'workout-program');programPanel.id='workout-program';
+const dailyPlans=node('section',undefined,'diary training-entry');
+const personalEditor=node('div');
+const personalToggle=node('button','จัดโปรแกรมส่วนตัว','quiet');
+personalToggle.type='button';personalToggle.setAttribute('aria-expanded','false');
+personalEditor.hidden=true;
+personalToggle.onclick=async()=>{
+ const opening=personalEditor.hidden;
+ personalEditor.hidden=!opening;personalToggle.setAttribute('aria-expanded',String(opening));
+ if(opening&&!personalEditor.childElementCount){
+  personalEditor.append(node('p','กำลังโหลดโปรแกรมส่วนตัว…','muted'));
+  const host=node('div');personalEditor.append(host);
+  try{await trainerPlanner(host,null,null,{day:$('day').value||localDay(),draftKey:'banmeaw-plan-draft:personal:'+profileId,onSaved:firstDay=>{if(firstDay&&firstDay!==$('day').value)selectDay(firstDay);else refreshDailyPlans();}});personalEditor.firstElementChild.remove();}
+  catch(error){personalEditor.replaceChildren(node('p',error.message+' · ปิดแล้วเปิดใหม่เพื่อลองอีกครั้ง','muted'));personalEditor.dataset.failed='true';}
+ }else if(!opening&&personalEditor.dataset.failed){
+  personalEditor.replaceChildren();delete personalEditor.dataset.failed;
+ }
+};
+function refreshDailyPlans(){return showDailyPlans(dailyPlans,$('day').value||localDay(),{records,onStart:startPlanExercise,onSelectDay:selectDay});}
+programPanel.append(dailyPlans,personalToggle,personalEditor);
+anatomyBrowser.before(programPanel);
+const workoutSections=[['program','โปรแกรมฝึก',programPanel],['pick','เลือกท่า',anatomyBrowser],['log','บันทึกผล',workoutComposer],['history','ประวัติ',workoutHistory]].map(([key,title,panel])=>{
+ const button=node('button',title);button.type='button';button.setAttribute('aria-controls',panel.id);button.onclick=()=>{showWorkoutSection(key);if(panel.getBoundingClientRect().top<workoutNav.getBoundingClientRect().bottom)panel.scrollIntoView({block:'start'});};workoutNav.append(button);return {key,button,panel};
+});
+programPanel.before(workoutNav);workoutComposer.open=true;workoutComposer.classList.add('workout-section-composer');showWorkoutSection('program');
+function showWorkoutSection(key){
+ for(const entry of workoutSections){const active=entry.key===key;entry.panel.hidden=!active;entry.button.setAttribute('aria-pressed',String(active));}
+}
+function resetWorkout(){$('weight').required=false;workoutEditing=null;workoutPlan=null;$('workout-form').reset();updateTrainingType();$('workout-form-title').textContent='เพิ่มท่าออกกำลังกาย';$('workout-save').textContent='บันทึกท่าออกกำลังกาย';$('workout-cancel').hidden=true;}
 function render(){renderMeals();renderWorkouts();renderDashboard(records,$('day').value);window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));}
 function renderWorkouts(){
  const day=$('day').value;if(!day)return;
  $('workout-date-label').textContent=new Intl.DateTimeFormat('th-TH',{dateStyle:'full'}).format(new Date(day+'T12:00:00'));
- let plans=document.getElementById('daily-training-plans');
- if(!plans){
-  const box=node('section',undefined,'diary team-training-plans'),label=node('label','วันที่แผนฝึก'),date=node('input');
-  date.type='date';date.id='team-training-day';label.htmlFor=date.id;
-  date.onchange=()=>{if(!date.value)return;$('day').value=date.value;$('day').dispatchEvent(new Event('change'));};
-  plans=node('div');plans.id='daily-training-plans';box.append(label,date,plans);$('team-panel').prepend(box);
- }
- $('team-training-day').value=day;plans.dataset.day=day;showDailyPlans(plans,day,{records,onStart:startPlanExercise});
+ refreshDailyPlans();
  const rows=records.filter(r=>r.kind==='workout'&&r.day===day);$('workout-total').textContent=rows.length+' รายการ';$('workout-entries').replaceChildren();
- if(!rows.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีท่าที่บันทึก'),node('p','เลือกท่าจากกล้ามเนื้อด้านบน หรือเปิดบันทึกผล / เพิ่มท่าเอง'));$('workout-entries').append(box);return;}
+ if(!rows.length){const box=node('div',undefined,'empty'),add=node('button','บันทึกท่าที่ฝึก','quiet');add.type='button';add.onclick=()=>{openWorkoutComposer();$('exercise').focus();};box.append(node('h3','ยังไม่มีผลการฝึกของวันนี้'),add);$('workout-entries').append(box);return;}
  renderWorkoutGroups($('workout-entries'),rows,r=>{
   const card=node('article',undefined,'entry');card.dataset.id=r.id;card.append(node('span',r.trainingType==='cardio'?'คาร์ดิโอ':'เวท / น้ำหนักตัว','meal-timing-badge'));const pr=personalRecord(records,r);if(pr){const badge=node('span','🏆 PR','pr-badge');badge.title='สถิติใหม่: '+pr.label;card.append(badge);}card.append(node('h3',r.exercise));
-  const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of (r.trainingType==='cardio'?[['เวลา',r.duration+' นาที'],['ระยะทาง',r.distance==null?'ไม่ระบุ':r.distance+' กม.'],['ความชัน',r.incline==null?'ไม่ระบุ':r.incline+'%'],['ความเร็ว',r.speed==null?'ไม่ระบุ':r.speed+' กม./ชม.']]:[['น้ำหนัก',formatWeight(r.weight)],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]])){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.setLogs?.length){const fold=node('details'),list=node('ol');fold.append(node('summary','ดูผลแต่ละเซ็ต'+(r.sessionComplete===false?' · ยังฝึกไม่ครบ':'')));for(const set of r.setLogs)list.append(node('li',(set.weight==null?'ไม่ระบุน้ำหนัก':formatWeight(set.weight))+' · '+set.reps+' ครั้ง'));fold.append(list);card.append(fold);}if(r.notes)card.append(node('p',r.notes,'entry-text'));
+  const metrics=node('div',undefined,'workout-metrics');for(const [label,value] of (r.trainingType==='cardio'?[['เวลา',r.duration+' นาที'],['ระยะทาง',r.distance==null?'ไม่ระบุ':r.distance+' กม.'],['ความชัน',r.incline==null?'ไม่ระบุ':r.incline+'%'],['ความเร็ว',r.speed==null?'ไม่ระบุ':r.speed+' กม./ชม.']]:[['น้ำหนัก',formatLoggedWeight(r)],['เซ็ต',r.sets===null?'ไม่ระบุ':String(r.sets)],['ครั้ง / เซ็ต',r.reps===null?'ไม่ระบุ':String(r.reps)]])){const metric=node('div');metric.append(node('span',label),node('strong',value));metrics.append(metric);}card.append(metrics);if(r.setLogs?.length){const fold=node('details'),list=node('ol');fold.append(node('summary','ดูผลแต่ละเซ็ต'+(r.sessionComplete===false?' · ยังฝึกไม่ครบ':'')));for(const set of r.setLogs)list.append(node('li',(set.weight==null?'ไม่ระบุน้ำหนัก':formatLoggedWeight(set))+' · '+set.reps+' ครั้ง'));fold.append(list);card.append(fold);}if(r.notes)card.append(node('p',r.notes,'entry-text'));
   if(r.trainingType!=='cardio'){
    const historyFold=node('details',undefined,'workout-history-fold'),historySummary=node('summary','ดูกราฟน้ำหนักและจำนวนครั้งย้อนหลัง');
    historySummary.setAttribute('aria-label','ดูกราฟประวัติ '+r.exercise);historyFold.append(historySummary);
@@ -108,7 +131,7 @@ function renderWorkouts(){
    card.append(historyFold);
   }
   const actions=node('div',undefined,'entry-actions'),edit=node('button','แก้ไข'),del=node('button','ลบ','delete');edit.type=del.type='button';edit.setAttribute('aria-label','แก้ไขท่า '+r.exercise);del.setAttribute('aria-label','ลบท่า '+r.exercise);
-  edit.onclick=()=>{workoutPairs.clear();openWorkoutComposer();workoutEditing=r.id;workoutPlan=r.planId?{planId:r.planId,planExerciseIndex:r.planExerciseIndex,exercise:r.exercise}:null;$('training-type').value=r.trainingType||'strength';updateTrainingType();$('duration').value=r.duration??'';$('distance').value=r.distance??'';$('incline').value=r.incline??'';$('speed').value=r.speed??'';$('exercise').value=r.exercise;workoutWeight.set(r.weight);$('sets').value=r.sets??'';$('reps').value=r.reps??'';$('workout-notes').value=r.notes;$('workout-form-title').textContent='แก้ไขท่าออกกำลังกาย';$('workout-save').textContent='บันทึกการแก้ไข';$('workout-cancel').hidden=false;diaryTools.updatePrevious();$('exercise').focus();$('workout-form').scrollIntoView({behavior:'smooth',block:'center'});};
+  edit.onclick=()=>{workoutPairs.clear();openWorkoutComposer();workoutEditing=r.id;workoutPlan=r.planId?{planId:r.planId,planExerciseIndex:r.planExerciseIndex,exercise:r.exercise}:null;$('training-type').value=r.trainingType||'strength';updateTrainingType();$('duration').value=r.duration??'';$('distance').value=r.distance??'';$('incline').value=r.incline??'';$('speed').value=r.speed??'';$('exercise').value=r.exercise;workoutWeight.set(r.weight,r.weightUnit);$('sets').value=r.sets??'';$('reps').value=r.reps??'';$('workout-notes').value=r.notes;$('workout-form-title').textContent='แก้ไขท่าออกกำลังกาย';$('workout-save').textContent='บันทึกการแก้ไข';$('workout-cancel').hidden=false;diaryTools.updatePrevious();workoutPairs.resume(r,records);$('exercise').focus();$('workout-form').scrollIntoView({behavior:'smooth',block:'center'});};
   del.onclick=async()=>{if(confirm('ลบท่า '+r.exercise+' นี้ไหม?')&&await saveRecords(records.filter(x=>x.id!==r.id))){if(workoutEditing===r.id)resetWorkout();render();tell('ลบรายการออกกำลังกายแล้ว');}};actions.append(edit,del);card.append(actions);return card;
  },{onDeleteGroup:async members=>{
   if(saving)return;
@@ -124,19 +147,65 @@ function startPlanExercise({plan,target,index,actual}){
  const row=actual??partial??target;switchView('workout');
  $('training-type').value=row.trainingType||'strength';updateTrainingType();
  $('exercise').value=target.exercise;diaryTools.setRest(target.rest_seconds??60);diaryTools.updatePrevious();
- for(const key of ['weight','sets','reps','duration','distance','incline','speed'])$(key).value=row[key]??'';workoutWeight.set(row.weight);
+ for(const key of ['weight','sets','reps','duration','distance','incline','speed'])$(key).value=row[key]??'';workoutWeight.set(row.weight,row.weightUnit);
  $('workout-notes').value=row.notes??'';
  $('workout-form-title').textContent=(actual?'แก้ไขผล: ':'บันทึกผล: ')+target.exercise;
  $('workout-cancel').hidden=false;$('workout-form').scrollIntoView({behavior:'smooth',block:'start'});$('weight').focus();
 }
+function fillWorkoutDraft(row){
+ resetWorkout();openWorkoutComposer();
+ $('training-type').value=row.trainingType||'strength';updateTrainingType();
+ $('exercise').value=row.exercise;
+ for(const key of ['sets','reps','duration','distance','incline','speed'])$(key).value=row[key]??'';
+ workoutWeight.set(row.weight,row.weightUnit);
+ $('workout-notes').value=row.notes||'';
+ $('exercise').setCustomValidity('');
+ $('workout-cancel').hidden=false;
+ $('exercise').dispatchEvent(new Event('change'));
+}
+function copyTeamWorkout(source){
+ if(saving)return {error:'กำลังบันทึก กรุณาลองอีกครั้ง'};
+ if(workoutEditing&&!confirm('ออกจากการแก้ไขในฟอร์มเพื่อเปิดท่าที่คัดลอกไหม?'))return {};
+ if(!trainingSession.leave())return {error:'กำลังบันทึกผลจากแผนฝึก กรุณาลองอีกครั้ง'};
+ const {exercise,trainingType,sets,reps,duration,distance,incline,speed}=source;
+ switchView('workout');
+ fillWorkoutDraft({exercise,trainingType,sets,reps,duration,distance,incline,speed,weightUnit:preferredWeightUnit()});
+ const cardio=$('training-type').value==='cardio';
+ $('workout-form-title').textContent='คัดลอกท่า · '+exercise;
+ diaryTools.setStatus('workout-form','','แก้ค่าการฝึกก่อนบันทึกได้');
+ $('workout-form').scrollIntoView({block:'start'});
+ $(cardio?'duration':'weight').focus({preventScroll:true});
+ return {};
+}
+function copyAllTeamWorkouts(source,member){
+ openTeamWorkoutCopy({source,member,day:localDay(),history:records,
+  save:rows=>{
+   const ids=new Set(rows.map(row=>row.id));
+   return saveRecords([...records.filter(row=>!ids.has(row.id)),...rows]);
+  },
+  onSaved:rows=>{
+   if($('day').value!==rows[0].day){$('day').value=rows[0].day;$('day').dispatchEvent(new Event('change'));}
+   trainingSession.leave();
+   switchView('workout');showWorkoutSection('history');
+   tell('บันทึกท่าที่คัดลอกแล้ว '+rows.length+' ท่า');
+   $('workout-history').scrollIntoView({block:'start'});
+  }
+ });
+}
 function switchPanel(workout){switchView(workout?'workout':'food');}
-$('workout-cancel').onclick=()=>{resetWorkout();workoutComposer.open=false;};
+$('workout-cancel').onclick=()=>{resetWorkout();showWorkoutSection('history');workoutNav.scrollIntoView({block:'nearest'});};
 $('exercise').addEventListener('input',()=>$('exercise').setCustomValidity(''));
 $('workout-form').addEventListener('submit',async e=>{
  e.preventDefault();const exercise=$('exercise').value.trim(),day=$('day').value;if(!exercise){$('exercise').setCustomValidity('กรุณาใส่ชื่อท่า');$('exercise').reportValidity();return;}if(!day){$('day').reportValidity();return;}
  const number=id=>$(id).value===''?null:Number($(id).value);
- const row={...(workoutPlan?.exercise===exercise?{planId:workoutPlan.planId,planExerciseIndex:workoutPlan.planExerciseIndex}:{}),id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,trainingType:$('training-type').value,duration:$('training-type').value==='cardio'?number('duration'):null,incline:$('training-type').value==='cardio'?number('incline'):null,speed:$('training-type').value==='cardio'?number('speed'):null,distance:$('training-type').value==='cardio'?number('distance'):null,weight:$('training-type').value==='cardio'?null:workoutWeight.read(),sets:$('training-type').value==='cardio'?null:number('sets'),reps:$('training-type').value==='cardio'?null:number('reps'),notes:$('workout-notes').value.trim()};
- const previous=records.find(r=>r.id===row.id);if(previous?.supersetId)row.supersetId=previous.supersetId;const batch=workoutPairs.rows(row);workoutEditing=row.id;const replacements=new Map(batch.map(r=>[r.id,r])),existingIds=new Set(records.map(r=>r.id));const next=[...records.map(r=>replacements.get(r.id)||r),...batch.filter(r=>!existingIds.has(r.id))];if(await saveRecords(next,'workout-form')){resetWorkout();workoutComposer.open=false;render();tell('บันทึกท่าออกกำลังกายแล้ว');diaryTools.setStatus('workout-form','success','บันทึกท่าออกกำลังกายแล้ว ✓');}
+ const row={...(workoutPlan?.exercise===exercise?{planId:workoutPlan.planId,planExerciseIndex:workoutPlan.planExerciseIndex}:{}),id:workoutEditing||crypto.randomUUID(),kind:'workout',day,exercise,trainingType:$('training-type').value,duration:$('training-type').value==='cardio'?number('duration'):null,incline:$('training-type').value==='cardio'?number('incline'):null,speed:$('training-type').value==='cardio'?number('speed'):null,distance:$('training-type').value==='cardio'?number('distance'):null,...($('training-type').value==='cardio'?{weight:null}:workoutWeight.read()),sets:$('training-type').value==='cardio'?null:number('sets'),reps:$('training-type').value==='cardio'?null:number('reps'),notes:$('workout-notes').value.trim()};
+ const previous=records.find(r=>r.id===row.id);if(previous?.supersetId&&row.trainingType==='strength')row.supersetId=previous.supersetId;
+ if(previous?.setLogs?.length&&previous.exercise===row.exercise&&previous.trainingType===row.trainingType&&previous.planId===row.planId&&
+  previous.weight===row.weight&&(previous.weightUnit??'kg')===(row.weightUnit??'kg')&&previous.sets===row.sets&&previous.reps===row.reps){
+  row.setLogs=previous.setLogs;
+  if(previous.sessionComplete!==undefined)row.sessionComplete=previous.sessionComplete;
+ }
+ const batch=workoutPairs.rows(row);workoutEditing=row.id;const replacements=new Map(batch.map(r=>[r.id,r])),existingIds=new Set(records.map(r=>r.id));const next=[...records.map(r=>replacements.get(r.id)||r),...batch.filter(r=>!existingIds.has(r.id))];if(await saveRecords(next,'workout-form')){resetWorkout();showWorkoutSection('history');render();workoutNav.scrollIntoView({block:'nearest'});tell('บันทึกท่าออกกำลังกายแล้ว');diaryTools.setStatus('workout-form','success','บันทึกท่าออกกำลังกายแล้ว ✓');}
 });
 $('time').addEventListener('change',()=>{const meal=mealForTime($('time').value);if(meal)$('meal').value=meal;});
 $('meal').addEventListener('change',()=>{const start={'มื้อเช้า':'08:00','มื้อกลางวัน':'12:00','มื้อเย็น':'16:00'}[$('meal').value];if(start)$('time').value=start;});
@@ -144,8 +213,9 @@ $('details').addEventListener('input',count);
 $('meal-form').addEventListener('submit',async e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text,workoutTiming:document.querySelector('[name="workout-timing"]:checked').value};editing=row.id;const next=[...records.filter(r=>r.id!==row.id),row];if(await saveRecords(next,'meal-form')){reset();render();tell('บันทึกเรียบร้อยแล้ว');diaryTools.setStatus('meal-form','success','บันทึกมื้ออาหารแล้ว ✓');}});
 $('details').addEventListener('input',()=>$('details').setCustomValidity(''));
 $('cancel').onclick=reset;$('day').onchange=()=>{reset();render();};
-function moveDay(offset){const d=new Date(($('day').value||localDay())+'T12:00:00');d.setDate(d.getDate()+offset);$('day').value=localDay(d);reset();render();}
-$('prev').onclick=()=>moveDay(-1);$('next').onclick=()=>moveDay(1);$('today').onclick=()=>{$('day').value=localDay();reset();render();};
+function selectDay(day){if($('day').value===day)return;$('day').value=day;$('day').dispatchEvent(new Event('change'));}
+function moveDay(offset){const d=new Date(($('day').value||localDay())+'T12:00:00');d.setDate(d.getDate()+offset);selectDay(localDay(d));}
+$('prev').onclick=()=>moveDay(-1);$('next').onclick=()=>moveDay(1);$('today').onclick=()=>selectDay(localDay());
 $('export').onclick=()=>{if(!storageOK){tell('อ่านข้อมูลเดิมไม่ได้ จึงยังสำรองไม่ได้ กรุณาลองเปิดใหม่');return;}const blob=new Blob([JSON.stringify({version:2,records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='meal-diary-'+localDay()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);tell('ส่งออกข้อมูลแล้ว เก็บไฟล์นี้ไว้สำหรับนำเข้าภายหลัง');};
 $('import').onclick=()=>$('import-file').click();$('import-file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>15000000)throw new Error('ไฟล์ใหญ่เกินไป');const payload=JSON.parse(await file.text());if(![1,2].includes(payload.version))throw new Error('ไม่รองรับไฟล์นี้');const incoming=validateRecords(payload.records);if(!confirm('นำเข้า '+incoming.length+' รายการ? ข้อมูลเดิมจะยังอยู่ และรายการที่ซ้ำจะไม่ถูกเพิ่ม'))return;if(await saveRecords(mergeRecords(records,incoming))){render();tell('นำเข้าข้อมูลเรียบร้อยแล้ว');}}catch{tell('นำเข้าไม่สำเร็จ กรุณาเลือกไฟล์สำรองจากเว็บนี้ ข้อมูลเดิมยังอยู่');}finally{e.target.value='';}};
 render();
@@ -161,15 +231,52 @@ document.getElementById('migrate-local').onclick=async()=>{if(!legacyRecords.len
 document.getElementById('send-code').onclick=async()=>{const email=document.getElementById('account-email').value.trim();if(!email||!document.getElementById('account-email').reportValidity())return;const button=document.getElementById('send-code');button.disabled=true;try{const result=await auth.emailOtp.sendVerificationOtp({email,type:'email-verification'});if(result.error)throw Error(result.error.message);document.getElementById('verify-form').hidden=false;authMessage.textContent='กรอกรหัสจากอีเมลเพื่อยืนยันบัญชี';}catch(error){authMessage.textContent=error.message;}finally{button.disabled=false;}};
 document.getElementById('verify-form').onsubmit=async event=>{event.preventDefault();const button=document.getElementById('verify-submit');button.disabled=true;try{const result=await auth.emailOtp.verifyEmail({email:document.getElementById('account-email').value.trim(),otp:document.getElementById('verify-code').value.trim()});if(result.error)throw Error(result.error.message);document.getElementById('verify-form').hidden=true;authMessage.textContent='ยืนยันอีเมลแล้ว กรุณาเข้าสู่ระบบ';}catch(error){authMessage.textContent=error.message;}finally{button.disabled=false;}};
 function showAccount(me){
- const label=document.getElementById('account-label');label.replaceChildren(me.display_name);if(!me.member_code)return;
+ const label=document.getElementById('account-label'),name=document.createElement('span');name.className='account-display-name';name.textContent=me.display_name;label.replaceChildren(name);if(!me.member_code)return;
  const chip=document.createElement('button');chip.type='button';chip.className='id-chip';chip.title='คัดลอก ID';chip.setAttribute('aria-label','คัดลอก ID '+me.member_code);
  const text=document.createElement('span');text.textContent='ID '+me.member_code;
  chip.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>';chip.prepend(text);
  chip.onclick=async()=>{try{await navigator.clipboard.writeText(me.member_code);text.textContent='คัดลอกแล้ว ✓';}catch{text.textContent=me.member_code;}chip.classList.add('copied');setTimeout(()=>{text.textContent='ID '+me.member_code;chip.classList.remove('copied');},1600);};
- label.append(chip);
+ const qr=node('button','QR','id-chip');qr.type='button';qr.setAttribute('aria-label','แสดง QR สมาชิกของฉัน');
+ qr.onclick=async()=>{
+  qr.disabled=true;
+  try{const {openMemberQr}=await import('./member-qr.mjs?v=1');openMemberQr({code:me.member_code});}
+  catch{tell('เปิด QR ไม่สำเร็จ กรุณาลองอีกครั้ง');}
+  finally{qr.disabled=false;}
+ };
+ label.append(chip,qr);
+}
+const inviteParams=new URLSearchParams(location.search);
+const inviteKey='banmeaw-team-invite';
+const joinTeam=inviteParams.get('joinTeam'),inviteToken=inviteParams.get('invite');
+if(joinTeam&&inviteToken){
+ try{sessionStorage.setItem(inviteKey,JSON.stringify({team:joinTeam,token:inviteToken}));}catch{}
+}
+async function joinPendingTeam(){
+ let pending=joinTeam&&inviteToken?{team:joinTeam,token:inviteToken}:null;
+ try{pending??=JSON.parse(sessionStorage.getItem(inviteKey));}catch{}
+ if(!pending)return;
+ switchView('team');
+ const status=$('team-message');
+ if(!confirm('เข้าทีมจาก QR ที่สแกนหรือไม่?')){
+  clearInvite();
+  return;
+ }
+ status.textContent='กำลังเข้าทีม…';
+ try{
+  await api('/api/teams/'+encodeURIComponent(pending.team)+'/join-qr',{method:'POST',body:JSON.stringify({token:pending.token})});
+  clearInvite();
+  try{await loadTeams();status.textContent='เข้าทีมแล้ว';}
+  catch{status.textContent='เข้าทีมแล้ว แตะเมนูทีมเพื่อโหลดรายชื่ออีกครั้ง';}
+ }catch(error){status.textContent=error.message;}
+}
+function clearInvite(){
+ try{sessionStorage.removeItem(inviteKey);}catch{}
+ const url=new URL(location.href);
+ url.searchParams.delete('joinTeam');url.searchParams.delete('invite');
+ history.replaceState(history.state,'',url);
 }
 async function boot(){
- try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,initTeams,initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealth]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;}
+ try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');profileId=me.id;showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,m=>initTeams(m,{copyWorkout:copyTeamWorkout,copyWorkouts:copyAllTeamWorkouts}),initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealthHistory]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;await joinPendingTeam();}
  catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
 }
 initPasswordReset();

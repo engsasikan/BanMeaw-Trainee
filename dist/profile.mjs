@@ -1,8 +1,9 @@
 import {cropPlacement} from './photo-crop.mjs?v=1';
-async function cropPhoto(image){
+export async function cropPhoto(image,{title='จัดกรอบรูปโปรไฟล์'}={}){
  const dialog=document.createElement('dialog');dialog.className='photo-crop-dialog';
  dialog.innerHTML='<h2>จัดกรอบรูปโปรไฟล์</h2><p class="muted">ลากรูปเพื่อจัดตำแหน่ง แล้วซูมให้พอดีกับกรอบ</p><canvas width="256" height="256" tabindex="0" aria-label="กรอบรูป เลื่อนด้วยการลากหรือปุ่มลูกศร"></canvas><label>ซูมรูป<input type="range" aria-label="ซูมรูป"></label><button type="button" class="quiet crop-fit">เห็นรูปเต็ม</button><div class="crop-actions"><button type="button" class="quiet crop-cancel">ยกเลิก</button><button type="button" class="primary crop-confirm">ใช้รูปนี้</button></div>';
  document.body.append(dialog);
+ dialog.querySelector('h2').textContent=title;
  const canvas=dialog.querySelector('canvas'),ctx=canvas.getContext('2d'),slider=dialog.querySelector('input');
  const width=image.naturalWidth,height=image.naturalHeight,fit=256/Math.max(width,height),cover=256/Math.min(width,height);
  let scale=cover,x=(256-width*scale)/2,y=0,drag=null;

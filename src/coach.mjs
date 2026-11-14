@@ -43,7 +43,7 @@ export async function handleBackup(request,sql,user){
   const entries=await sql`SELECT payload FROM daily_logs WHERE user_id=${user.sub} ORDER BY day,id`;
   const body=await sql`SELECT payload FROM body_measurements WHERE user_id=${user.sub} ORDER BY day DESC,updated_at DESC`;
   const reports=await sql`SELECT day::text,sent_at FROM daily_reports WHERE user_id=${user.sub} ORDER BY day`;
-  const plans=await sql`SELECT p.* FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE (p.user_id=${user.sub} OR p.created_by=${user.sub} OR t.owner_id=${user.sub}) AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active')) ORDER BY p.day,p.id`;
+  const plans=await sql`SELECT p.* FROM training_plans p LEFT JOIN trainer_teams t ON t.id=p.team_id WHERE (p.user_id=${user.sub} OR p.created_by=${user.sub} OR t.owner_id=${user.sub}) AND (p.team_id IS NULL OR t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active')) ORDER BY p.day,p.id`;
   const feedback=await sql`SELECT f.* FROM trainer_feedback f JOIN trainer_teams t ON t.id=f.team_id WHERE (f.user_id=${user.sub} OR f.author_id=${user.sub} OR t.owner_id=${user.sub}) AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active')) ORDER BY f.created_at`;
   const teams=await sql`SELECT t.id,t.name,t.owner_id FROM trainer_teams t WHERE t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active')`;
   const nutritionTargets=await sql`SELECT * FROM nutrition_targets WHERE user_id=${user.sub} ORDER BY updated_at`;
@@ -62,7 +62,7 @@ export async function handleBackup(request,sql,user){
   if(type==='records')validated=validateRecords(rows);
   if(type==='body')validated=rows.map(validateBody);
   if(type==='reports'){validated=rows;if(rows.some(r=>!validDate(r.day)||!r.sent_at||!Number.isFinite(Date.parse(r.sent_at))))throw Error();}
-  if(type==='plans'){validated=rows.map(p=>{if(!uuid(p.id)||!uuid(p.team_id)||!uuid(p.batch_id)||!validDate(p.day)||typeof p.user_id!=='string'||!p.user_id||p.user_id.length>200)throw Error();return {...p,exercises:planExercises({exercises:p.exercises})};});}
+  if(type==='plans'){validated=rows.map(p=>{if(!uuid(p.id)||(p.team_id!==null&&!uuid(p.team_id))||!uuid(p.batch_id)||!validDate(p.day)||typeof p.user_id!=='string'||!p.user_id||p.user_id.length>200)throw Error();return {...p,exercises:planExercises({exercises:p.exercises})};});}
   if(type==='profile'){if(rows.length!==1||![null,'male','female'].includes(rows[0].sex))throw Error();validated=rows;
    const avatar=rows[0].avatar;if(avatar!=null){if(typeof avatar!=='string'||avatar.length>90000||! /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(avatar))throw Error();const bytes=atob(avatar.split(',')[1]);if(bytes.length>65536||bytes.charCodeAt(0)!==255||bytes.charCodeAt(1)!==216||bytes.charCodeAt(bytes.length-2)!==255||bytes.charCodeAt(bytes.length-1)!==217)throw Error();}
   }
@@ -72,14 +72,17 @@ export async function handleBackup(request,sql,user){
  for(const row of validated){
   let result=[];
   if(type==='records'){const {planId,planExerciseIndex,...record}=row;
-   if(planId){const [plan]=await sql`SELECT p.day::text,p.exercises FROM training_plans p JOIN trainer_teams t ON t.id=p.team_id WHERE p.id=${planId} AND p.user_id=${user.sub} AND (t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active'))`;
+   if(planId){const [plan]=await sql`SELECT p.day::text,p.exercises FROM training_plans p LEFT JOIN trainer_teams t ON t.id=p.team_id WHERE p.id=${planId} AND p.user_id=${user.sub} AND (p.team_id IS NULL OR t.owner_id=${user.sub} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${user.sub} AND tm.status='active'))`;
     if(plan?.day===row.day&&row.trainingType==='strength'&&plan.exercises[planExerciseIndex]?.exercise===row.exercise){record.planId=planId;record.planExerciseIndex=planExerciseIndex;}
    }
    result=await sql`INSERT INTO daily_logs (user_id,id,day,kind,payload) VALUES (${user.sub},${record.id},${record.day},${record.kind==='workout'?'workout':'meal'},${JSON.stringify(record)}::jsonb) ON CONFLICT DO NOTHING RETURNING id`;}
   if(type==='body')result=await sql`INSERT INTO body_measurements (user_id,id,day,payload) VALUES (${user.sub},${row.id},${row.day},${JSON.stringify(row)}::jsonb) ON CONFLICT DO NOTHING RETURNING id`;
   if(type==='reports')result=await sql`INSERT INTO daily_reports (user_id,day,sent_at) VALUES (${user.sub},${row.day},${row.sent_at}::timestamptz) ON CONFLICT DO NOTHING RETURNING day`;
   if(type==='profile')result=await sql`UPDATE members SET sex=COALESCE(sex,${row.sex}),avatar=COALESCE(avatar,${row.avatar??null}) WHERE id=${user.sub} RETURNING id`;
-  if(type==='plans'){
+  if(type==='plans'&&row.team_id===null){
+   result=await sql`INSERT INTO training_plans (id,team_id,user_id,day,exercises,created_by,batch_id) VALUES (${row.id},NULL,${user.sub},${row.day},${JSON.stringify(row.exercises)}::jsonb,${user.sub},${row.batch_id}) ON CONFLICT DO NOTHING RETURNING id`;
+  }
+  if(type==='plans'&&row.team_id!==null){
    const [team]=await sql`SELECT id,owner_id,owner_role FROM trainer_teams WHERE id=${row.team_id}`;
    const [mine]=team&&team.owner_id!==user.sub?await sql`SELECT status,team_role FROM team_members WHERE team_id=${team.id} AND user_id=${user.sub}`:[];
    if(!team||!(team.owner_id===user.sub||(mine?.status==='active'&&mine.team_role==='trainer'))||!(row.user_id===user.sub||await coachTarget(sql,team,mine,user.sub,row.user_id))){skipped++;continue;}

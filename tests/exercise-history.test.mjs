@@ -11,3 +11,10 @@ test('per-set history uses actual logs, preserves zero and missing values',()=>{
  const rows=exerciseHistory([row('a','2026-10-01',{setLogs:[{weight:25,reps:8},{weight:20,reps:12}]}),row('b','2026-10-02',{weight:0}),row('c','2026-10-03',{weight:null,reps:null})],'Bench Press','2026-10-03');
  assert.equal(rows[0].peakWeight,25);assert.equal(rows[0].peakReps,12);assert.deepEqual(rows[0].logs,[{weight:25,reps:8},{weight:20,reps:12}]);assert.equal(rows[1].peakWeight,0);assert.equal(rows[2].peakWeight,null);assert.equal(rows[2].peakReps,null);
 });
+test('logged weights stay readable: legacy lb-as-kg values show as lb, others round to 2 decimals',async()=>{
+ const {formatLoggedWeight}=await import('../dist/weight-units.mjs');
+ assert.equal(formatLoggedWeight({weight:9.071847400000001,weightUnit:'kg'}),'20 lb');
+ assert.equal(formatLoggedWeight({weight:12.345,weightUnit:'kg'}),'12.35 kg');
+ assert.equal(formatLoggedWeight({weight:25,weightUnit:'lb'}),'25 lb');
+ assert.equal(formatLoggedWeight({weight:0}),'น้ำหนักตัว');
+});

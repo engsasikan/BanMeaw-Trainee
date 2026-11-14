@@ -36,6 +36,18 @@ test('log composer adds and removes partners, disables cardio fields and retains
  fields.get('training-type').value='cardio';pairs.sync();assert.equal(button.hidden,true);assert(inputs.every(x=>x.disabled));assert.equal(pairs.rows(first).length,1);
  fields.get('training-type').value='strength';pairs.sync();assert.deepEqual(pairs.rows(first),batch);
  form.dispatchEvent(new Event('reset'));assert.equal(pairs.rows(first).length,1);
+ const [saved,other]=batch;
+ pairs.resume(saved,batch);
+ assert.equal(button.hidden,false);
+ button.onclick();
+ const added=box.children[1];
+ assert.equal(added.children[0].textContent,'Super set · ท่าที่ 3');
+ added.children[1].children[0].value='Push-up';
+ const updated=pairs.rows(saved);
+ assert.equal(updated[1].supersetId,other.supersetId);
+ assert.deepEqual(updated[0],saved);
+ assert.deepEqual(pairs.rows(saved),updated);
+ form.dispatchEvent(new Event('reset'));
  editing=false;pairs.sync();button.onclick();box.children[1].children.at(-1).onclick();assert.equal(pairs.rows(first).length,1);
  for(let i=0;i<15;i++)button.onclick();
  assert.equal(pairs.rows(first).length,16);

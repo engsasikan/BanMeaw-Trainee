@@ -9,15 +9,20 @@ header{border-bottom-color:var(--line)}
 /* Overview: the greeting replaces the page title. */
 body:has(#hello):has(#dashboard-panel:not([hidden])) .heading{display:none}
 body:has(#dashboard-panel[hidden]) #hello{display:none}
+body:has(#hello):has(#dashboard-panel:not([hidden])) header #account-label{order:0;width:auto;margin-inline-start:auto;justify-content:flex-end}
+body:has(#hello):has(#dashboard-panel:not([hidden])) .account-display-name{display:none}
+body:has(#hello):has(#dashboard-panel:not([hidden])) header #account-label:not(:has(.id-chip)){display:none}
+.id-chip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .hello{display:flex;align-items:center;gap:14px;margin:0 0 20px}
 .hello-face{flex-shrink:0;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;overflow:hidden;background:var(--accent);color:#171717;font-weight:800;font-size:1.3rem;box-shadow:0 0 0 2px var(--ink),0 0 0 4px #ff702855}
 .hello-face img{width:100%;height:100%;object-fit:cover}
 .hello-text{display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .hello-time{color:var(--soft);font-size:.85rem}
-.hello-name{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hello-name{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
 #dashboard-panel~*,#dashboard-panel{--radius:24px}
 .datebar{background:var(--card);border-color:var(--line)}
 .datebar .square,.datebar .quiet{background:var(--card-2);border-color:var(--line-2)}
+main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{display:none}
 
 /* Every card on the overview shares one dark surface. */
 #dashboard-panel .diary,#dashboard-panel .stat-card,#dashboard-panel .trend-card,#dashboard-panel .calendar-card,#dashboard-panel .streak-card,#dashboard-panel .today-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);color:var(--text)}
@@ -29,24 +34,33 @@ body:has(#dashboard-panel[hidden]) #hello{display:none}
 
 /* Streak card. */
 .streak-card{padding:20px 22px}
-.streak-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
-.streak-note{color:var(--soft);font-size:.8rem;text-align:right}
-.streak-body{display:flex;align-items:center;gap:22px}
-.streak-ring{flex-shrink:0;display:grid;justify-items:center;align-content:center;width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#ff8a45,#ff7028 55%,#c94d12);box-shadow:0 10px 30px #ff702840,inset 0 -6px 14px #0003;color:#1b0f08;line-height:1}
-.streak-ring .streak-flame{font-size:1.1rem;margin-bottom:2px}
-.streak-ring .digits{font-size:2.1rem;color:#1b0f08}
-.streak-ring small{font-size:.7rem;font-weight:700;margin-top:3px}
-.streak-card.is-cold .streak-ring{background:var(--card-2);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--soft)}
-.streak-card.is-cold .streak-ring .digits{color:var(--soft)}
-.streak-card.is-waiting .streak-ring{box-shadow:0 0 0 3px var(--ink),0 0 0 5px #ff702866}
-.streak-week{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;list-style:none;margin:0;padding:0}
-.streak-day{display:grid;justify-items:center;gap:8px;color:var(--soft);font-size:.75rem}
-.streak-day i{display:grid;place-items:center;width:min(40px,100%);aspect-ratio:1;border-radius:50%;border:1px solid var(--line-2);font-style:normal;font-family:"Doto",ui-monospace,monospace;font-weight:800;font-size:.9rem;color:var(--soft)}
-.streak-day.done i{background:var(--accent);border-color:var(--accent);color:#1b0f08}
-.streak-day.today i{box-shadow:0 0 0 2px var(--ink),0 0 0 3px var(--accent);color:var(--text)}
-.streak-day.today.done i{color:#1b0f08}
-.streak-day.today span{color:var(--accent);font-weight:700}
-.streak-day.future i{opacity:.35;border-style:dashed}
+.streak-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.streak-title{display:grid;gap:4px;min-width:0}
+.streak-title .eyebrow{margin:0}
+.streak-note{color:var(--soft);font-size:.78rem;line-height:1.4}
+.streak-count{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid #6b3a22;border-radius:14px;background:#2d1c14;color:#ffad80;line-height:1;white-space:nowrap}
+.streak-count .streak-flame{font-size:.95rem}
+.streak-count .digits{font-size:1.65rem}
+.streak-count small{font-size:.7rem;font-weight:700}
+.streak-card.is-cold .streak-count{background:var(--card-2);border-color:var(--line-2);color:var(--soft)}
+.streak-card.is-cold .streak-flame{animation:none;filter:grayscale(1);opacity:.5}
+.streak-card.is-waiting .streak-count{border-color:var(--accent)}
+
+/* Keep the three workout tasks within reach while scrolling. */
+.workout-section-nav{position:sticky;top:8px;z-index:4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;align-self:start;padding:4px;border:1px solid var(--line-2);border-radius:16px;background:var(--card)}
+.workout-section-nav button{min-width:0;min-height:44px;padding:6px 4px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--soft);font-size:.88rem}
+.workout-section-nav button[aria-pressed="true"]{background:#392218;border-color:#613820;color:#ffc099;font-weight:700}
+.workout-section-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#workout-panel>.workout-section-composer>summary{display:none}
+#workout-entries>.entry{border-left:1px solid #414141}
+#workout-entries>.workout-superset{border-left:1px solid #72513b}
+#workout-entries .workout-superset-item{border-left:0}
+#workout-panel :is(#workout-form,#workout-history,#workout-anatomy,#workout-composer){scroll-margin-top:72px}
+#workout-panel .training-entry{margin-bottom:0}
+#workout-panel .training-entry h2{margin:0 0 4px}
+#workout-panel .training-plan-details{margin-top:12px}
+#workout-panel .anatomy-figure{margin:10px 0 0}
+#workout-panel .anatomy-figure summary,#workout-panel .training-plan-details summary{min-height:44px;padding:10px 0;color:#ffc099;cursor:pointer}
 
 /* "Your day" card turns dark; the cat and the orange stay as accents. */
 #dashboard-panel .today-card{padding:24px 26px}
@@ -103,67 +117,72 @@ body:has(#dashboard-panel[hidden]) #hello{display:none}
 #dashboard-panel table{border-color:var(--line)}
 
 @media(max-width:700px){
+ body:has(#hello):has(#dashboard-panel:not([hidden])) header .id-chip{min-height:44px}
+ body:has(#hello):has(#dashboard-panel:not([hidden])) header{padding-bottom:24px}
  .hello-name{font-size:1.35rem}
- .streak-card{padding:18px 16px}
- .streak-body{gap:14px}
- .streak-ring{width:80px;height:80px}
- .streak-ring .digits{font-size:1.75rem}
- .streak-week{gap:3px}
- .streak-day{font-size:.7rem;gap:6px}
- .streak-day i{font-size:.78rem}
+ .streak-card{padding:16px}
  .week-bars{gap:6px;height:160px}
  #dashboard-panel .stat-value strong{font-size:2.4rem}
 }
 @media(prefers-reduced-motion:reduce){.week-bar-stack{animation:none}}
 
-/* Apple Health activity card on the overview. */
-.health-card{padding:20px 22px}
-.health-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
-.health-head small{color:var(--soft);font-size:.78rem}
-.health-rings{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.ring{position:relative;display:grid;justify-items:center;gap:8px}
-.ring svg{width:100%;max-width:112px;aspect-ratio:1;transform:rotate(-90deg)}
-.ring circle{fill:none;stroke-width:5;stroke-linecap:round}
-.ring .ring-track{stroke:var(--card-2)}
-.ring .ring-fill{transition:stroke-dasharray .8s cubic-bezier(.2,.8,.2,1)}
-.ring.move .ring-fill{stroke:#ff3b5c}.ring.exercise .ring-fill{stroke:#a6ff3d}.ring.steps .ring-fill{stroke:#2fd7ff}
-.ring-text{position:absolute;top:0;left:0;right:0;aspect-ratio:1;max-width:112px;margin:auto;display:grid;place-content:center;text-align:center;line-height:1.1}
-.ring-text strong{font-size:1.25rem;color:var(--text)}
-.ring-text small{font-size:.68rem;color:var(--soft)}
-.ring-label{font-size:.78rem;color:var(--soft)}
-.health-extras{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:16px}
-.health-extras div{background:var(--card-2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column}
-.health-extras span{font-size:.72rem;color:var(--soft)}
-.health-extras strong{font-size:.95rem}
-.health-sub{margin:16px 0 8px;font-size:.8rem;color:var(--soft)}
-.health-workouts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.health-workouts li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:10px 12px}
-.health-workouts span{color:var(--soft);font-size:.85rem}
-
-/* Connect card in Profile. */
-.health-connect{margin-top:20px}
-.health-connect .tag-on{background:var(--accent);color:#1b0f08;border-color:var(--accent)}
-.health-step{border-top:1px solid var(--line,#333);margin-top:18px;padding-top:16px}
-.health-step h3{margin:0 0 10px;font-size:1rem}
-.health-step>.primary{width:auto;padding:12px 22px}
-.health-secret{display:grid;gap:8px;margin-top:14px;padding:14px;border-radius:16px;background:#1b1b1b;border:1px solid #ff702855}
-.health-secret>div{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
-.health-secret span{font-size:.75rem;color:#9a9a9a}
-.health-secret code{overflow-wrap:anywhere;font-size:.8rem;background:#0b0b0b;padding:6px 8px;border-radius:8px}
-.health-secret .quiet{min-height:36px;padding:6px 12px}
-.health-warn{margin:4px 0 0;color:#ffb98f;font-size:.8rem}
-.health-guide{margin-top:14px}
-.health-guide summary{cursor:pointer;font-weight:650}
-.health-guide ol{padding-left:22px;line-height:1.7}
-.health-guide li{margin-bottom:6px}
-.health-pick{margin:10px 0 6px;font-size:.85rem;color:#c2c2c2}
-.health-connect input[type=file]{min-height:auto;padding:10px}
-.health-connect progress{width:100%;height:8px;margin-top:10px;accent-color:var(--accent,#ff7028)}
-.health-danger{display:flex;flex-wrap:wrap;gap:10px}
-.health-danger .delete{color:#ffb2b2;border-color:#624040}
-.health-message{color:#ffb98f;min-height:1.4em;margin:14px 0 0}
-@media(max-width:700px){.health-card{padding:18px 14px}.health-rings{gap:6px}.ring-text strong{font-size:1rem}.health-secret>div{grid-template-columns:1fr auto}.health-secret span{grid-column:1/-1}}
-@media(prefers-reduced-motion:reduce){.ring .ring-fill{transition:none}}
+/* Profile: keep form controls and cards inside the available width. */
+#settings-panel{grid-template-columns:minmax(0,1fr);gap:18px}
+#settings-panel .profile-grid>*{min-width:0}
+#settings-panel .profile-photo-card{margin:0}
+.profile-results-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px}
+.profile-results-heading h2{margin:0}
+.profile-result-grid,.profile-measurement-actions{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.profile-result-grid{margin:14px 0 8px}
+.profile-result-grid>div{display:grid;gap:4px;padding:12px;border:1px solid var(--line-2);border-radius:14px;background:var(--card)}
+.profile-result-grid span{font-size:.85rem;color:var(--muted)}
+.profile-result-grid strong{font-size:1.15rem}
+.profile-result-edit{margin-bottom:14px}
+.profile-measurement-actions button{width:100%;padding-inline:10px}
+#body-editor{scroll-margin-top:12px}
+#body-editor h2{margin-bottom:8px}
+#body-editor .profile-measurement-actions{margin-top:14px}
+#inbody-controls select,#body-retry{margin-top:12px}
+#settings-panel .profile-disclosure{margin:0}
+.profile-disclosure>summary{font-weight:700;cursor:pointer;padding-block:8px}
+.profile-disclosure[open]>summary{margin-bottom:14px}
+#profile-preferences .profile-settings{margin-bottom:12px}
+.profile-operation{margin:10px 0;color:#ffbf99;font-size:.88rem}
+.profile-operation:empty{display:none}
+:is(#settings-panel,#team-panel) [data-loading="true"]::before{content:"";display:inline-block;width:.85em;height:.85em;margin-inline-end:.55em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-.1em;animation:profile-spin .8s linear infinite}
+#settings-panel button:disabled{opacity:.6;cursor:wait}
+@keyframes profile-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){:is(#settings-panel,#team-panel) [data-loading="true"]::before{animation:none}}
+#settings-panel #body-message{margin:0}
+#settings-panel #body-message:empty{display:none}
+#settings-panel :is(.body-fields.pairs,.form-row,.profile-export-actions){grid-template-columns:repeat(2,minmax(0,1fr))}
+#settings-panel :is(input,select,textarea){min-width:0;max-width:100%}
+#settings-panel .body-history-fold>summary{min-height:44px;cursor:pointer;font-weight:700;padding-block:10px}
+#settings-panel .profile-export h2,#settings-panel #account-tools h2{font-size:1.2rem;margin:0}
+#settings-panel .profile-export>p.muted{margin:6px 0 16px}
+.profile-export-dates,.profile-export-actions{display:grid;gap:10px}
+.profile-export-dates{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
+.profile-export-dates label{display:grid;gap:6px;min-width:0;margin:0}
+.profile-export-dates input{box-sizing:border-box;width:100%;margin:0}
+.profile-export-hint{margin:8px 0 14px;font-size:.82rem}
+.profile-export :is(.primary,.quiet){width:100%;min-height:44px;margin:0}
+.profile-export-status{margin:12px 0;color:#ffb98f;font-size:.88rem}
+.profile-export-status:empty{display:none}
+.profile-export details{margin-top:10px}
+.profile-export summary{padding:10px 0;color:var(--soft);cursor:pointer}
+.profile-export textarea{margin-top:6px}
+#settings-panel #account-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+#account-tools>div,#account-tools>.backup-note{grid-column:1/-1;min-width:0}
+#account-tools .quiet{width:100%;min-height:44px;margin:0;white-space:normal}
+@media(max-width:900px){
+ #settings-panel .profile-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){
+ #settings-panel{gap:14px}
+ #settings-panel :is(.diary,.body-form-card,#account-tools){padding:16px}
+ #settings-panel #account-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .profile-export-dates{grid-template-columns:minmax(0,1fr)}
+}
 
 /* The overview cat's moods. The stage holds the cat and three effect layers (.fx-a/b/c). */
 .today-card .cat-stage{position:absolute;right:22px;top:22px;width:120px;aspect-ratio:1;z-index:1;pointer-events:none}
@@ -239,3 +258,84 @@ body:has(#dashboard-panel[hidden]) #hello{display:none}
 @media(max-width:1150px){.today-card .cat-stage{width:96px}}
 @media(max-width:700px){.today-card .cat-stage{width:78px;right:16px;top:20px}.cat-say{max-width:calc(100% - 96px);font-size:.82rem}.cat-stage .fx{font-size:1.15rem}.cat-stage[data-mood=buff] .fx-a,.cat-stage[data-mood=buff] .fx-b{font-size:1.4rem}.cat-stage[data-mood=buff] .fx-a{left:-20px}.cat-stage[data-mood=buff] .fx-b{right:-20px}}
 @media(prefers-reduced-motion:reduce){.cat-stage,.cat-stage .welcome-mini-cat,.cat-stage .fx{animation:none!important}.cat-stage .fx{opacity:1}.say-pop{animation:none}}
+
+.workout-program{display:grid;gap:12px;min-width:0}
+.workout-program .training-entry{margin:0}
+.workout-program>button{justify-self:start;color:#ffc099}
+.workout-program .training-planner{min-width:0}
+.workout-program .training-entry{display:grid;gap:16px;min-width:0}
+.training-week{display:grid;gap:14px;min-width:0}
+.training-week button{margin-top:0}
+.training-week-header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;text-align:center}
+.training-week-header h2,.training-week-detail h2{margin:0;font-size:1rem}
+.training-week-header button{height:44px;padding:0;font-size:1.3rem}
+.training-week-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;padding:8px 2px;border-radius:16px;background:#171717}
+.training-week-strip .training-week-day{display:grid;justify-items:center;align-content:center;gap:5px;min-width:0;min-height:64px;padding:0;border:0;background:none;color:#c2bcb8;font-size:.63rem}
+.training-week-day strong{display:grid;place-items:center;width:min(100%,32px);aspect-ratio:1;border-radius:50%;font-size:.83rem;font-variant-numeric:tabular-nums}
+.training-week-day.has-plan strong{background:#39271d;color:#ffc39f}
+.training-week-day[aria-current=date] span{color:#ffab79;font-weight:800}
+.training-week-day[aria-pressed=true] strong{background:var(--accent);color:#1b0f08}
+.training-week-agenda:not(:empty),.training-week-cards{display:grid;gap:8px;min-width:0}
+.training-week-row{display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;align-items:start}
+.training-week-stamp{display:grid;justify-items:center;gap:2px;padding-top:10px;color:#c2bcb8;font-size:.65rem}
+.training-week-stamp strong{font-size:1rem;color:var(--text);font-variant-numeric:tabular-nums}
+.training-week-cards .training-week-card{display:grid;grid-template-columns:minmax(0,1fr) 14px;gap:3px 8px;text-align:left;padding:12px;border:0;border-radius:12px;background:#2b2928;color:var(--text)}
+.training-week-card strong{overflow-wrap:anywhere}
+.training-week-card small{grid-column:1;color:#c2bcb8}
+.training-week-chevron{grid-row:1/3;grid-column:2;align-self:center;color:#ffc39f}
+.training-week-detail{display:grid;gap:10px;min-width:0;scroll-margin:72px 0}
+.training-week-detail p{margin:0}
+@media(max-width:400px){.workout-section-nav button{font-size:.78rem;padding-inline:2px}}
+/* Guided training screen */
+.guided-training{display:grid;gap:14px}
+.guided-training>*{margin-top:0;margin-bottom:0}
+.guided-training .ts-hero{display:grid;gap:6px;padding:18px;border-radius:22px;background:linear-gradient(160deg,#2a1a10 0%,var(--card-2) 55%);border:1px solid #ff702833}
+.guided-training .ts-hero .ts-steps{margin:0 0 6px}
+.guided-training .ts-hero .ts-name{margin:0 0 10px;font-size:1.6rem;line-height:1.25}
+.guided-training .ts-hero .ts-label{margin:2px 0 0;font-size:12px;letter-spacing:.3px}
+.guided-training .ts-hero>.muted{margin:4px 0 0;font-size:13px}
+.guided-training .ts-goal{grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+.guided-training .ts-chip{padding:10px 12px;border-radius:14px;background:#00000040;border:1px solid var(--line-2);min-width:0}
+.guided-training .ts-chip b{font-size:1.05rem;overflow-wrap:anywhere}
+.ts-rest-set{display:grid;gap:10px;margin-top:6px;padding:12px 14px;border-radius:14px;background:#00000040;border:1px solid var(--line-2)}
+.ts-rest-set>div:first-child{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 10px;min-width:0}.ts-rest-set>div:first-child>small{grid-column:1}.ts-rest-set .ts-rest-reset{grid-column:2;grid-row:1/3;align-self:center}
+.ts-rest-set>div:first-child>span{font-size:13px;font-weight:700}
+.ts-rest-set small{font-size:11px;color:var(--soft)}
+.guided-training .ts-rest-reset{min-height:0;padding:2px 0;border:0;background:none;color:#ffab79;font-size:12px;text-decoration:underline;cursor:pointer}
+.ts-rest-reset[hidden]{display:none}
+.ts-stepper{display:grid;grid-template-columns:56px minmax(0,1fr) 56px;align-items:center;gap:8px}
+.ts-rest-value{text-align:center;font-size:1.25rem;font-variant-numeric:tabular-nums}
+.guided-training .ts-step{min-width:44px;min-height:40px;padding:0 10px;border-radius:12px;border:1px solid var(--line-2);background:var(--card-2);color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer}
+.guided-training .ts-step:active{transform:scale(.96)}
+.ts-step[hidden]{display:none}
+.guided-training .ts-rest{gap:14px;padding:20px 16px;margin:0;border-radius:22px;background:radial-gradient(circle at 50% 30%,#3a2215,#1c1714 70%);border:1px solid #ff702855}
+.guided-training .ts-ring{--p:1;display:grid;place-items:center;align-content:center;gap:2px;width:168px;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,#1d1714 82%,transparent 83%),conic-gradient(var(--accent) calc(var(--p)*360deg),#ffffff14 0);transition:background .25s}
+.guided-training .ts-ring .training-clock{margin:0;font-size:2.6rem;line-height:1;font-weight:800;color:#ffb07c;font-variant-numeric:tabular-nums}
+.guided-training .ts-ring small{max-width:120px;text-align:center;font-size:12px;color:#ffc39f}
+.ts-rest-actions{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;width:100%;max-width:340px}.ts-rest.over .ts-rest-actions{grid-template-columns:1fr}
+.guided-training .ts-skip{min-height:44px;padding:0 12px;white-space:nowrap;border-radius:999px;border:0;background:var(--accent);color:#1b0f08;font-weight:800;cursor:pointer}
+.guided-training .ts-rest.over{border-color:#3f7a4f;background:radial-gradient(circle at 50% 30%,#1f3326,#151a17 70%)}
+.guided-training .ts-rest.over .ts-ring{background:radial-gradient(closest-side,#16201a 82%,transparent 83%),conic-gradient(var(--good) 360deg,#0000 0)}
+.guided-training .ts-rest.over .training-clock{color:var(--good)}
+.guided-training .ts-rest.over small{color:#bfe9cc}
+.guided-training .ts-rest.over .ts-skip{background:var(--good);color:#0d1a12}
+.guided-training .ts-sets{grid-template-columns:repeat(auto-fit,minmax(60px,1fr));margin:0}
+.guided-training .ts-sets li{min-height:68px;align-content:center;border-radius:16px;line-height:1.3}
+.guided-training .ts-sets li b{font-size:.9rem;white-space:nowrap}
+.guided-training .ts-sets li.now{background:#ff702814;box-shadow:0 0 0 4px #ff70281a}
+.guided-training .ts-done{margin:0;border-radius:20px}
+.guided-training .ts-log{padding:18px;border-radius:22px;background:var(--card-2);border-color:var(--line-2)}
+.guided-training .ts-log .ts-label{margin-bottom:12px;font-size:14px;color:var(--text);font-weight:700}
+.guided-training .training-live-metrics{gap:10px}
+.guided-training .training-live-metrics>label{display:grid;gap:6px;min-width:0;font-size:12px;color:var(--soft)}
+.guided-training .training-live-metrics input{height:62px;padding:0 14px;border-radius:14px;font-size:1.6rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.guided-training .training-live-metrics>label:has(select){grid-column:1/-1}
+.guided-training .training-live-metrics select{width:100%;min-height:42px;border-radius:12px}
+.guided-training .ts-log>button.primary{border-radius:16px;font-size:1.05rem;font-weight:800}
+.guided-training .ts-prev{margin:0;padding:10px 14px;border-radius:12px;background:#ffffff08;font-size:13px}
+.guided-training .training-actions{margin:0;gap:10px}
+.guided-training .training-actions button{border-radius:999px}
+.guided-training .ts-finish{margin:0}
+@media (max-width:380px){.guided-training .ts-goal{gap:6px}.guided-training .ts-chip{padding:8px 10px}.guided-training .ts-ring{width:150px}}
+.guided-training[hidden]{display:none}
+.guided-training>p:empty{display:none}

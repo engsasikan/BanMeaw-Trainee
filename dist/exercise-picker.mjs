@@ -26,16 +26,66 @@ export function searchExercises(query){
  const more=MORE.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases));
  return [...EXERCISES.filter(x=>hit(x,x.name+' '+x.group+' '+x.aliases)),...more.filter(x=>hit(x,x.name)),...more.filter(x=>!hit(x,x.name))];
 }
-export function attachExercisePicker(){
- const input=document.getElementById('exercise'),toggle=document.getElementById('exercise-toggle'),wrapper=document.getElementById('exercise-picker'),dropdown=document.getElementById('exercise-dropdown'),list=document.getElementById('exercise-options'),empty=document.getElementById('exercise-no-results');
+export function bindExercisePicker({input,toggle,wrapper,dropdown,list,empty,find=searchExercises,onChoose,custom}){
  let matches=[],active=-1,buttons=[];
  const more=document.createElement('p');more.className='exercise-more';more.hidden=true;list.after(more);
- function close(){dropdown.hidden=true;input.setAttribute('aria-expanded','false');toggle.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;}
- function highlight(){buttons.forEach((b,i)=>b.setAttribute('aria-selected',String(i===active)));if(active>=0){input.setAttribute('aria-activedescendant',buttons[active].id);buttons[active].scrollIntoView({block:'nearest'});}else input.removeAttribute('aria-activedescendant');}
- function choose(index){input.value=matches[index].name;input.setCustomValidity('');close();input.dispatchEvent(new Event('change'));input.focus();close();}
- function open(all=false){const found=searchExercises(all?'':input.value);matches=found.slice(0,SHOW_LIMIT);active=-1;list.replaceChildren();buttons=[];matches.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.tabIndex=-1;b.id='exercise-option-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const name=document.createElement('span'),group=document.createElement('small');name.textContent=x.name;group.textContent=x.group;b.append(name,group);b.addEventListener('pointerdown',e=>e.preventDefault());b.onclick=()=>choose(i);buttons.push(b);list.append(b);});more.hidden=found.length<=matches.length;more.textContent='แสดง '+matches.length+' จาก '+found.length+' ท่า พิมพ์เพิ่มเพื่อค้นหา';empty.hidden=matches.length>0;dropdown.hidden=false;input.setAttribute('aria-expanded','true');toggle.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');}
+ function close(){
+  dropdown.hidden=true;input.setAttribute('aria-expanded','false');toggle?.setAttribute('aria-expanded','false');
+  input.removeAttribute('aria-activedescendant');active=-1;
+ }
+ function highlight(){
+  buttons.forEach((button,index)=>button.setAttribute('aria-selected',String(index===active)));
+  if(active>=0){input.setAttribute('aria-activedescendant',buttons[active].id);buttons[active].scrollIntoView({block:'nearest'});}
+ }
+ function choose(exercise){
+  input.value=exercise.name;input.setCustomValidity('');close();
+  onChoose?.(exercise);
+ }
+ function open(all=false){
+  const found=find(all?'':input.value);
+  matches=found.slice(0,SHOW_LIMIT);active=-1;list.replaceChildren();buttons=[];
+  matches.forEach((exercise,index)=>{
+   const button=document.createElement('button');button.type='button';button.tabIndex=-1;button.id=list.id+'-'+index;
+   button.setAttribute('role','option');button.setAttribute('aria-selected','false');
+   const name=document.createElement('span'),group=document.createElement('small');name.textContent=exercise.name;group.textContent=exercise.group??'';
+   button.append(name,group);button.onclick=()=>choose(exercise);buttons.push(button);list.append(button);
+  });
+  if(custom){
+   const name=input.value.trim();
+   custom.hidden=!name||found.some(exercise=>normalize(exercise.name)===normalize(name));
+   custom.textContent='เพิ่มท่า: '+name;
+  }
+  more.hidden=found.length<=matches.length;
+  more.textContent='แสดง '+matches.length+' จาก '+found.length+' ท่า พิมพ์เพิ่มเพื่อค้นหา';
+  empty.hidden=matches.length>0;dropdown.hidden=false;
+  input.setAttribute('aria-expanded','true');toggle?.setAttribute('aria-expanded','true');
+  input.removeAttribute('aria-activedescendant');
+ }
+ if(custom)custom.onclick=()=>choose({name:input.value.trim()});
+ dropdown.addEventListener('pointerdown',event=>{if(event.target.closest('button'))event.preventDefault();});
  input.addEventListener('focus',()=>open());input.addEventListener('input',()=>open());
- toggle.onclick=()=>{if(dropdown.hidden){input.focus();open(true);}else close();};
- input.addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(dropdown.hidden)open();if(matches.length){active=e.key==='ArrowDown'?(active+1)%matches.length:active<0?matches.length-1:(active-1+matches.length)%matches.length;highlight();}}else if(e.key==='Enter'&&!dropdown.hidden&&active>=0){e.preventDefault();choose(active);}else if(e.key==='Escape'){e.preventDefault();close();}else if(e.key==='Tab')close();});
- document.addEventListener('pointerdown',e=>{if(!wrapper.contains(e.target))close();});wrapper.addEventListener('focusout',()=>setTimeout(()=>{if(!wrapper.contains(document.activeElement))close();},0));document.getElementById('workout-form').addEventListener('reset',close);document.querySelectorAll('[data-view="food"]').forEach(b=>b.addEventListener('click',close));document.getElementById('workout-form').addEventListener('submit',close);
+ if(toggle)toggle.onclick=()=>{if(dropdown.hidden){input.focus();open(true);}else close();};
+ input.addEventListener('keydown',event=>{
+  if(event.isComposing)return;
+  if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+   event.preventDefault();if(dropdown.hidden)open();
+   if(matches.length){active=event.key==='ArrowDown'?(active+1)%matches.length:active<0?matches.length-1:(active-1+matches.length)%matches.length;highlight();}
+  }else if(event.key==='Enter'&&!dropdown.hidden){
+   if(active>=0){event.preventDefault();choose(matches[active]);}
+   else if(custom&&input.value.trim()){event.preventDefault();choose(matches.find(exercise=>normalize(exercise.name)===normalize(input.value))??{name:input.value.trim()});}
+  }else if(event.key==='Escape'){event.preventDefault();close();}
+  else if(event.key==='Tab')close();
+ });
+ wrapper.addEventListener('focusout',()=>setTimeout(()=>{if(!wrapper.contains(document.activeElement))close();},0));
+ return {close,choose};
+}
+export function attachExercisePicker(){
+ const byId=id=>document.getElementById(id),input=byId('exercise'),wrapper=byId('exercise-picker');
+ const dropdown=byId('exercise-dropdown'),custom=document.createElement('button');
+ custom.type='button';custom.hidden=true;dropdown.prepend(custom);
+ const {close}=bindExercisePicker({input,wrapper,toggle:byId('exercise-toggle'),dropdown,custom,
+  list:byId('exercise-options'),empty:byId('exercise-no-results'),onChoose:()=>{input.dispatchEvent(new Event('change'));input.focus();}});
+ document.addEventListener('pointerdown',event=>{if(!wrapper.contains(event.target))close();});
+ const form=byId('workout-form');form.addEventListener('reset',close);form.addEventListener('submit',close);
+ document.querySelectorAll('[data-view="food"]').forEach(button=>button.addEventListener('click',close));
 }
