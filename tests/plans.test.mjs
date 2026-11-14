@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {planDays,planExercises,handlePlans} from '../src/plans.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {planDays,planExercises,handlePlans,syncTeamPlans} from '../src/plans.mjs';
 const exercise={exercise:'Squat',sets:3,reps:12,weight:20};
 test('plan prescriptions preserve pounds and validate the selected unit',()=>{
  const pounds={...exercise,weight:2200,weightUnit:'lb'};
@@ -119,4 +119,30 @@ test('saved plan API returns a date-only string which can be rendered on the pla
 test('cardio plan items carry time, incline and speed instead of sets',()=>{
  assert.deepEqual(planExercises({exercises:[{trainingType:'cardio',exercise:'เดินชัน',duration:30,incline:12,speed:5,distance:null,sets:3}]}),[{trainingType:'cardio',exercise:'เดินชัน',duration:30,incline:12,speed:5}]);
  for(const r of [{duration:0},{duration:30,incline:101},{duration:30,speed:-1},{duration:'30'}])assert.throws(()=>planExercises({exercises:[{trainingType:'cardio',exercise:'เดินชัน',...r}]}));
+});
+test('members who join after a team-wide plan was saved get their own copy, once',async()=>{
+ const {PGlite}=await import('@electric-sql/pglite');
+ const db=new PGlite();
+ try{
+  const team='22222222-2222-4222-8222-222222222222',batch='33333333-3333-4333-8333-333333333333';
+  await db.exec(`
+   CREATE TABLE team_members(team_id uuid,user_id text,status text,team_role text,joined_at timestamptz);
+   CREATE TABLE training_plans(id uuid DEFAULT gen_random_uuid(),team_id uuid,user_id text,day date,exercises jsonb,created_by text,batch_id uuid,team_wide boolean DEFAULT false,created_at timestamptz DEFAULT now());
+   INSERT INTO team_members VALUES ('${team}','early','active','trainee','2026-11-01T03:00:00Z'),
+    ('${team}','late','active','trainee','2026-11-10T03:00:00Z'),('${team}','pending','invited','trainee',NULL);
+   INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide,created_at) VALUES
+    ('${team}','owner','2026-11-07','[{"exercise":"Squat"}]','owner','${batch}',true,'2026-11-05T03:00:00Z'),
+    ('${team}','owner','2026-11-14','[{"exercise":"Squat"}]','owner','${batch}',true,'2026-11-05T03:00:00Z'),
+    ('${team}','owner','2026-11-14','[{"exercise":"Solo"}]','owner',gen_random_uuid(),false,'2026-11-05T03:00:00Z');
+  `);
+  const sql=async(strings,...values)=>(await db.query(strings.reduce((text,part,index)=>text+(index?'$'+index:'')+part,''),values)).rows;
+  const days=async user=>(await db.query('SELECT day::text AS day FROM training_plans WHERE user_id=$1 ORDER BY day',[user])).rows.map(r=>r.day);
+  await syncTeamPlans(sql,'late');await syncTeamPlans(sql,'late');
+  assert.deepEqual(await days('late'),['2026-11-14'],'only days from joining on, copied once');
+  await syncTeamPlans(sql,'pending');assert.deepEqual(await days('pending'),[]);
+  await syncTeamPlans(sql,'early');assert.deepEqual(await days('early'),[],'members present at save time already had copies; a removed copy stays removed');
+  await db.query("DELETE FROM training_plans WHERE user_id='late'");
+  await syncTeamPlans(sql,'late','2026-11-15','2026-11-21');assert.deepEqual(await days('late'),[],'outside the requested range');
+  await syncTeamPlans(sql,'late','2026-11-09','2026-11-15');assert.deepEqual(await days('late'),['2026-11-14']);
+ }finally{await db.close();}
 });

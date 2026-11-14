@@ -127,3 +127,19 @@ export async function handlePlans(request,sql,user,team,mine,memberId){
  }
  if(request.method==='DELETE'){const id=new URL(request.url).searchParams.get('id');if(!/^[0-9a-f-]{36}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);await sql`DELETE FROM training_plans WHERE id=${id} AND team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId}`;return json({ok:true});}return json({error:'ไม่พบ API'},404);
 }
+// Team-wide plans are copied to each member when saved, so someone who joins later would never get them.
+// Give an active member their own copy of team-wide plans that were saved before they joined, for days from
+// their join date on. Plans saved after joining were already copied, so a copy a trainer removed stays removed.
+export async function syncTeamPlans(sql,me,from=null,to=null){
+ await sql`
+  INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide)
+  SELECT DISTINCT ON (p.batch_id,p.day) p.team_id,${me},p.day,p.exercises,p.created_by,p.batch_id,true
+  FROM training_plans p
+  JOIN team_members m ON m.team_id=p.team_id AND m.user_id=${me} AND m.status='active'
+  WHERE p.team_wide AND p.user_id<>${me}
+   AND p.created_at<COALESCE(m.joined_at,'infinity'::timestamptz)
+   AND p.day>=COALESCE((m.joined_at AT TIME ZONE 'Asia/Bangkok')::date,'-infinity'::date)
+   AND (${from}::date IS NULL OR p.day>=${from}::date) AND (${to}::date IS NULL OR p.day<=${to}::date)
+   AND NOT EXISTS (SELECT 1 FROM training_plans x WHERE x.batch_id=p.batch_id AND x.day=p.day AND x.user_id=${me})
+  ORDER BY p.batch_id,p.day,p.created_at`;
+}
