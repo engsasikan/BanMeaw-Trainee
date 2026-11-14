@@ -82,6 +82,7 @@ body:not(.auth-view) header{border-bottom:0;padding-bottom:8px}
 .wc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}.wc-stats>div{display:grid;gap:2px;padding:8px 10px;border-radius:12px;background:#232425;border:1px solid #333436}.wc-stats span{font-size:11px;color:#9a9c9f}.wc-stats strong{font-size:14px;color:#f2f2f2}
 .visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* Workout form: muscles the chosen exercise works */
+.ex-gif:not([hidden]){display:flex;flex-direction:column;align-items:center;gap:4px;margin:0}.ex-gif img{width:180px;max-width:100%;height:auto;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#fff}.ex-gif figcaption{font-size:11px;color:#a7a9ab}.ex-gif a{color:#ffad7b}
 .ex-focus{display:grid;gap:8px;margin:10px 0 4px;padding:14px;border-radius:16px;background:#232425;border:1px solid #333436}
 .ex-focus-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}.ex-focus-head strong{font-size:14px}.ex-focus-head .muted{font-size:12px}
 .ex-focus-chips{display:flex;flex-wrap:wrap;gap:6px}.ex-chip{font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid}.ex-chip.p{color:#1d1714;background:#ff4d1f;border-color:#ff4d1f}.ex-chip.s{color:#ffc29a;border-color:#ffae7366;background:#ffae7314}

@@ -24,7 +24,7 @@ New accounts default to trainee. Administrator bootstrap requires a verified ADM
 
 ## Exercise library
 
-The exercise picker includes 1,361 library entries, combining common gym names and Thai search aliases with exercises from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (names and muscle data, MIT License, © 2026 Hasan Emir Yıldırım). The dataset's images and GIFs belong to Gym visual and are not used. Common gym additions and Thai aliases are maintained in `src/exercise-additions.json` and retained on rebuild. To regenerate `dist/exercise-library.mjs`:
+The exercise picker includes 1,361 library entries, combining common gym names and Thai search aliases with exercises from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (names and muscle data, MIT License, © 2026 Hasan Emir Yıldırım). The dataset's images and GIFs belong to Gym visual and are not copied into this app. Instead, the exercise card links demo GIFs from the free [ExerciseDB API](https://github.com/ExerciseDB/exercisedb-api) on ExerciseDB's own server (`static.exercisedb.dev`), credited under the picture. Only the name-to-ExerciseDB-id map is stored, in `dist/exercise-media.mjs`; regenerate it with `node scripts/build-exercise-media.mjs`. Names with no exact ExerciseDB match, and the Thai common-gym entries, show no GIF. Common gym additions and Thai aliases are maintained in `src/exercise-additions.json` and retained on rebuild. To regenerate `dist/exercise-library.mjs`:
 
 ```
 git clone --depth 1 https://github.com/hasaneyldrm/exercises-dataset.git work/exercises-dataset

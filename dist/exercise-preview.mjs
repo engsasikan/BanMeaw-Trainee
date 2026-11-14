@@ -16,7 +16,22 @@ export function createMuscleFocus({collapsed=false}={}){
  const chips=node('div',undefined,'ex-focus-chips'),stage=node('div',undefined,'ex-focus-stage');
  const legend=node('p',undefined,'ex-focus-legend');legend.innerHTML='<i class="p"></i>ทำงานหลัก <i class="s"></i>ช่วยเสริม';
  const exerciseName=node('h4'),approximation=node('p','ภาพจำลองท่าพื้นฐาน · รายละเอียดอุปกรณ์และรูปแบบการฝึกอาจต่างจากท่าจริง','muted');
- const content=node('div');content.append(exerciseName,head,chips,stage,legend,approximation);
+ // Demo GIF linked from ExerciseDB's server (see scripts/build-exercise-media.mjs); hidden when there is none.
+ const gif=node('figure',undefined,'ex-gif');gif.hidden=true;
+ const gifImg=node('img');gifImg.loading='lazy';gifImg.decoding='async';gifImg.width=180;gifImg.height=180;gifImg.referrerPolicy='no-referrer';
+ const gifCredit=node('figcaption');gifCredit.append('ภาพท่าจาก ');
+ const gifLink=node('a','ExerciseDB');gifLink.href='https://github.com/ExerciseDB/exercisedb-api';gifLink.target='_blank';gifLink.rel='noopener noreferrer';
+ gifCredit.append(gifLink);gif.append(gifImg,gifCredit);
+ gifImg.onerror=()=>{gif.hidden=true;};
+ let gifName='';
+ async function showGif(name){
+  gifName=name;
+  const url=name?await import('./exercise-media.mjs?v=1').then(m=>m.gifFor(name)).catch(()=>null):null;
+  if(gifName!==name)return; // a newer exercise was picked while loading
+  gif.hidden=!url;
+  if(url&&gifImg.getAttribute('src')!==url){gifImg.src=url;gifImg.alt='ภาพเคลื่อนไหวท่า '+name;}
+ }
+ const content=node('div');content.append(exerciseName,gif,head,chips,stage,legend,approximation);
  const toggle=node('button','ดูท่า 3D','quiet ex-preview-toggle');toggle.type='button';toggle.setAttribute('aria-expanded',String(!collapsed));
  content.hidden=collapsed;toggle.hidden=!collapsed;box.append(toggle,content);
  toggle.onclick=()=>{content.hidden=!content.hidden;toggle.textContent=content.hidden?'ดูท่า 3D':'ซ่อนท่า 3D';toggle.setAttribute('aria-expanded',String(!content.hidden));if(content.hidden)figure?.setPlaying(false);else draw();};
@@ -40,6 +55,7 @@ export function createMuscleFocus({collapsed=false}={}){
    if(name&&!focus&&demo)focus={primary:[],secondary:[]};
    approximation.textContent=demo?.quality==='protocol'?demo.description:demo?.quality==='muscle-group'?'ภาพ 3D กล้ามเนื้อ · ท่านี้ยังไม่มีแอนิเมชันเฉพาะ จึงไม่แสดงท่าอื่นแทน':'ภาพจำลองการเคลื่อนไหวโดยประมาณ · '+(demo?.description||'รายละเอียดอาจต่างจากท่าจริง');
    if(demo?.quality==='muscle-group')motion=null;
+   showGif(name);
    if(!focus){box.hidden=true;shown='';return;}
    box.hidden=false;if(name===shown&&figure)return;shown=name;
    chips.replaceChildren(
