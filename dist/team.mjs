@@ -5,7 +5,7 @@ import {nutritionEditor} from './nutrition.mjs?v=1';
 import {weeklyCard,planComparison,feedbackPanel} from './coach-ui.mjs?v=3';
 import {workoutDescription} from './progress.mjs?v=3';
 import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=6';
-import {trainerPlanner} from './plans.mjs?v=29';
+import {trainerPlanner} from './plans.mjs?v=31';
 import {api} from './account.js?v=2';
 import {createBodyViewer} from './body.mjs?v=37';
 const $=id=>document.getElementById(id);

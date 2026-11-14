@@ -455,6 +455,19 @@ export async function showDailyPlans(root,day,{records=[],onStart,onSelectDay}={
    root.replaceChildren(renderWeek(weekPlans),detail);
    return;
   }
+  // Other days are view-only: training starts and results are logged only on today's plan.
+  const today=day===localDay();
+  if(!today){
+   const notice=el('div',undefined,'training-day-locked');
+   const back=el('button','กลับไปแผนวันนี้','quiet');back.type='button';back.onclick=()=>onSelectDay?.(localDay());
+   notice.append(el('p',(day<localDay()?'วันนั้นผ่านไปแล้ว':'ยังไม่ถึงวันนั้น')+' · ดูท่าในแผนได้ แต่เริ่มฝึกได้เฉพาะแผนของวันนี้'),back);
+   const details=el('details',undefined,'training-plan-details');details.open=root.querySelector('.training-plan-details')?.open??true;
+   details.append(el('summary','ดูท่าในแผน'),planComparison(plans,records));
+   detail.append(el('h2',fullDate.format(new Date(day+'T12:00:00'))),notice,details,browse);
+   root.replaceChildren(renderWeek(weekPlans),detail);
+   if(root.dataset.scrollToDay===day){delete root.dataset.scrollToDay;delete root.dataset.openPlan;detail.scrollIntoView({block:'nearest'});}
+   return;
+  }
   const start=el('button','เริ่มฝึก / ฝึกต่อ','primary');start.type='button';
   let picker;
   if(plans.length>1){

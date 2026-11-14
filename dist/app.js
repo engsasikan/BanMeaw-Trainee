@@ -5,19 +5,19 @@ import {initHistoryText} from './history-text.mjs?v=2';
 import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-units.mjs';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=9';
-import {initTrainingSession} from './training-session.mjs?v=24';
+import {initTrainingSession} from './training-session.mjs?v=25';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=2';
 import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=3';
 import {initProgress} from './coach-ui.mjs?v=3';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=30';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=31';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=15';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=10';
-import {initTeams,loadTeams} from './team.mjs?v=66';
+import {initTeams,loadTeams} from './team.mjs?v=67';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=5';
 import {initBody,quickWeigh} from './body.mjs?v=37';
 import {initToday} from './today.mjs?v=17';
@@ -106,8 +106,11 @@ function refreshDailyPlans(){return showDailyPlans(dailyPlans,$('day').value||lo
 programPanel.append(dailyPlans,personalToggle,personalEditor);
 anatomyBrowser.before(programPanel);
 const workoutSections=[['program','โปรแกรมฝึก',programPanel],['pick','เลือกท่า',anatomyBrowser],['log','บันทึกผล',workoutComposer],['history','ประวัติ',workoutHistory]].map(([key,title,panel])=>{
- const button=node('button',title);button.type='button';button.setAttribute('aria-controls',panel.id);button.onclick=()=>{showWorkoutSection(key);if(panel.getBoundingClientRect().top<workoutNav.getBoundingClientRect().bottom)panel.scrollIntoView({block:'start'});};workoutNav.append(button);return {key,button,panel};
+ const button=node('button',title);button.type='button';button.setAttribute('aria-controls',panel.id);button.onclick=()=>{showWorkoutSection(key);if(key==='program')openTodayPlans();if(panel.getBoundingClientRect().top<workoutNav.getBoundingClientRect().bottom)panel.scrollIntoView({block:'start'});};workoutNav.append(button);return {key,button,panel};
 });
+// The program tab always opens on today: only today's plan can be trained.
+function openTodayPlans(){if($('day').value!==localDay())selectDay(localDay());}
+document.querySelectorAll('[data-view="workout"]').forEach(b=>b.addEventListener('click',()=>{if(!programPanel.hidden)openTodayPlans();}));
 programPanel.before(workoutNav);workoutComposer.open=true;workoutComposer.classList.add('workout-section-composer');showWorkoutSection('program');
 function showWorkoutSection(key){
  for(const entry of workoutSections){const active=entry.key===key;entry.panel.hidden=!active;entry.button.setAttribute('aria-pressed',String(active));}

@@ -339,3 +339,6 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 @media (max-width:380px){.guided-training .ts-goal{gap:6px}.guided-training .ts-chip{padding:8px 10px}.guided-training .ts-ring{width:150px}}
 .guided-training[hidden]{display:none}
 .guided-training>p:empty{display:none}
+.training-day-locked{display:grid;gap:10px;padding:14px 16px;border-radius:16px;background:#ffffff0a;border:1px dashed var(--line-2)}
+.training-day-locked p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
+.training-day-locked button{min-height:44px;width:100%}

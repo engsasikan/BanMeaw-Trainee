@@ -4,6 +4,7 @@ import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=1';
 import {switchView} from './dashboard.mjs?v=10';
 import {api} from './account.js?v=4';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
+import {localDay} from './store.mjs?v=15';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
@@ -20,7 +21,7 @@ export function initTrainingSession({getRecords,saveRecords}){
  const done=item=>!!comparePlan(item.plan,getRecords())[item.index]?.actual;
  function button(text,fn,cls='quiet'){const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;}
  function stop(){clearInterval(ticker);ticker=null;deadline=null;restTotal=0;}
- function start(event){if(busy||!plans.length||day!==selected())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.findIndex(x=>!done(x)));summary=items.every(done);active=true;session.hidden=false;document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
+ function start(event){if(busy||!plans.length||day!==selected()||day!==localDay())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.findIndex(x=>!done(x)));summary=items.every(done);active=true;session.hidden=false;document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return false;stop();active=false;session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');return true;}
  function navigation(finished,last){
   const next=()=>{if(busy)return;stop();if(last)summary=true;else current++;render();if(last&&rows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));};
