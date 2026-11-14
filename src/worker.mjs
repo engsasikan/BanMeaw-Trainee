@@ -2,7 +2,7 @@ import {handleGoogleLogin,googleLoginReady,verifyGoogleSession,resolveGoogleMemb
 import {handleTeamGame} from './team-game.mjs';
 import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
 import {handleFeedback,handleMemberProgress,handleOwnFeedback,handleBackup} from './coach.mjs';
-import {handlePlans,syncTeamPlans} from './plans.mjs';
+import {handlePlans,syncTeamPlans,readPlans} from './plans.mjs';
 import {handleHealth,handleHealthIngest} from './health.mjs';
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -92,14 +92,7 @@ export async function handleApi(request, env) {
     const day=url.searchParams.get('day');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(day||'')||Number.isNaN(Date.parse(day+'T12:00:00Z'))||new Date(day+'T12:00:00Z').toISOString().slice(0,10)!==day)return json({error:'วันที่ไม่ถูกต้อง'},400);
     const days=url.searchParams.get('range')==='week'?6:0;
-    await syncTeamPlans(sql,user.sub,day,new Date(Date.parse(day+'T12:00:00Z')+days*864e5).toISOString().slice(0,10));
-    return json({plans:await sql`
-      SELECT p.id,p.day::text AS day,p.exercises,COALESCE(t.name,'โปรแกรมส่วนตัว') AS team_name
-      FROM training_plans p LEFT JOIN trainer_teams t ON t.id=p.team_id
-      WHERE p.user_id=${user.sub} AND p.day BETWEEN ${day}::date AND ${day}::date+${days}::integer
-        AND (p.team_id IS NULL OR t.owner_id=${user.sub}
-          OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${user.sub} AND m.status='active'))
-      ORDER BY p.day,p.created_at`});
+    return json({plans:await readPlans(sql,user.sub,day,days)});
   }
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
   if (url.pathname === '/api/body' || url.pathname.startsWith('/api/body/')) return handleBody(request,sql,user);

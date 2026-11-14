@@ -57,6 +57,8 @@ export async function handlePlans(request,sql,user,team,mine,memberId){
   if(!target||(target.team_role!=='trainee'&&!(trainer&&memberId===me))||(!trainer&&memberId!==me))return json({error:'ไม่มีสิทธิ์เข้าถึงแผนนี้'},403);
  }else if(!trainer)return json({error:'เฉพาะผู้สร้างทีมหรือเทรนเนอร์เท่านั้น'},403);
  if(request.method==='GET'){
+  // A member looking at their own team program first gets any team-wide plans they joined too late to receive.
+  if(team&&memberId===me&&me!==team.owner_id)await syncTeamPlans(sql,me);
   if(memberId)return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
   return json({plans:await sql`
    SELECT DISTINCT ON (batch_id,day) batch_id AS id,day::text AS day,exercises
@@ -142,4 +144,17 @@ export async function syncTeamPlans(sql,me,from=null,to=null){
    AND (${from}::date IS NULL OR p.day>=${from}::date) AND (${to}::date IS NULL OR p.day<=${to}::date)
    AND NOT EXISTS (SELECT 1 FROM training_plans x WHERE x.batch_id=p.batch_id AND x.day=p.day AND x.user_id=${me})
   ORDER BY p.batch_id,p.day,p.created_at`;
+}
+// Plans the training page shows for `days`+1 days from `day`: personal plans, and team plans only while the
+// person still owns the team or is an active member. Leaving a team hides its plans; rejoining shows them again.
+export async function readPlans(sql,me,day,days=0){
+ const to=new Date(Date.parse(day+'T12:00:00Z')+days*864e5).toISOString().slice(0,10);
+ await syncTeamPlans(sql,me,day,to);
+ return sql`
+  SELECT p.id,p.day::text AS day,p.exercises,COALESCE(t.name,'โปรแกรมส่วนตัว') AS team_name
+  FROM training_plans p LEFT JOIN trainer_teams t ON t.id=p.team_id
+  WHERE p.user_id=${me} AND p.day BETWEEN ${day}::date AND ${to}::date
+   AND (p.team_id IS NULL OR t.owner_id=${me}
+    OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${me} AND m.status='active'))
+  ORDER BY p.day,p.created_at`;
 }

@@ -346,3 +346,11 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 .coach-log-note[hidden]{display:none}
 .coach-log-note p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
 .coach-log-note button{justify-self:start;min-height:40px}
+.team-program{display:grid;gap:10px;margin-bottom:16px}
+.team-program h3,.team-program>p{margin:0}
+.team-program-days{display:grid;gap:8px}
+.team-program-day{border-radius:14px;background:#ffffff08;border:1px solid var(--line-2)}
+.team-program-day.today{border-color:#ff702866;background:#ff702812}
+.team-program-day summary{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:48px;padding:10px 14px;cursor:pointer}
+.team-program-day ol{margin:0;padding:0 14px 12px 34px;display:grid;gap:6px;font-size:14px;line-height:1.5}
+.team-program-day .primary{margin:0 14px 14px;width:calc(100% - 28px);min-height:46px}

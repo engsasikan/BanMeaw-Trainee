@@ -6,6 +6,7 @@ import {weeklyCard,planComparison,feedbackPanel} from './coach-ui.mjs?v=3';
 import {workoutDescription} from './progress.mjs?v=3';
 import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=6';
 import {trainerPlanner} from './plans.mjs?v=31';
+import {teamProgram} from './team-program.mjs?v=1';
 import {api} from './account.js?v=2';
 import {createBodyViewer} from './body.mjs?v=37';
 const $=id=>document.getElementById(id);
@@ -269,6 +270,7 @@ async function showTeam(id,day=teamDay||localDayTeam()){
   :button('ออกจากทีม','quiet team-delete',()=>{if(confirm('ออกจากทีม '+team.name+'?'))act(()=>send('/api/teams/'+team.id+'/members/'+encodeURIComponent(myId),'DELETE'),'ออกจากทีมแล้ว',loadTeams);}));
  const selectSection=organizeTeam(view,{tab,onClose:()=>{bodyView?.dispose();bodyView=null;}});
  if(my_role==='owner')view.querySelector('#team-section-manage').prepend(teamPhotoSettings(team));
+ if(my_role==='trainee')view.querySelector('#team-section-members').prepend(teamProgram(team,myId,{api,today:localDayTeam(),onTrainToday:()=>document.querySelector('[data-view="workout"]')?.click()}));
  if(my_role==='owner'||my_role==='trainer'){
   const shortcuts=node('div',undefined,'team-member-shortcuts');
   shortcuts.append(button('จัดแผนฝึกทั้งทีม','primary',()=>openPlanner(team,null,day)));

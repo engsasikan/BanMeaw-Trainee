@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {planDays,planExercises,handlePlans,syncTeamPlans} from '../src/plans.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {planDays,planExercises,handlePlans,syncTeamPlans,readPlans} from '../src/plans.mjs';
 const exercise={exercise:'Squat',sets:3,reps:12,weight:20};
 test('plan prescriptions preserve pounds and validate the selected unit',()=>{
  const pounds={...exercise,weight:2200,weightUnit:'lb'};
@@ -144,5 +144,67 @@ test('members who join after a team-wide plan was saved get their own copy, once
   await db.query("DELETE FROM training_plans WHERE user_id='late'");
   await syncTeamPlans(sql,'late','2026-11-15','2026-11-21');assert.deepEqual(await days('late'),[],'outside the requested range');
   await syncTeamPlans(sql,'late','2026-11-09','2026-11-15');assert.deepEqual(await days('late'),['2026-11-14']);
+ }finally{await db.close();}
+});
+test('leaving a team hides its plans; rejoining shows them again without duplicates, plus plans saved while away',async()=>{
+ const {PGlite}=await import('@electric-sql/pglite');
+ const {readFileSync}=await import('node:fs');
+ const db=new PGlite();
+ try{
+  await db.exec(readFileSync('db/001_initial.sql','utf8'));
+  await db.exec(`
+   INSERT INTO members (id,display_name,member_code,role) VALUES ('coach','Coach','BM-C','trainer'),('student','Student','BM-S','trainee');
+   INSERT INTO trainer_teams (id,owner_id,name) VALUES ('55555555-5555-4555-8555-555555555555','coach','Girl Gym');
+   INSERT INTO team_members (team_id,user_id,status,team_role,joined_at) VALUES ('55555555-5555-4555-8555-555555555555','student','active','trainee','2026-11-10T03:00:00Z');
+   -- Saved while the student was a member: both got a copy.
+   INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide,created_at)
+    SELECT '55555555-5555-4555-8555-555555555555',u,d::date,'[{"exercise":"Squat","weight":null,"sets":3,"reps":10}]','coach','66666666-6666-4666-8666-666666666666',true,'2026-11-14T03:00:00Z'
+    FROM unnest(array['coach','student']) u, unnest(array['2026-11-16','2026-11-23']) d;
+   INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide)
+    VALUES (NULL,'student','2026-11-16','[{"exercise":"Personal","weight":null,"sets":1,"reps":5}]','student',gen_random_uuid(),false);
+  `);
+  const sql=async(strings,...values)=>(await db.query(strings.reduce((text,part,index)=>text+(index?'$'+index:'')+part,''),values)).rows;
+  const seen=async()=>(await readPlans(sql,'student','2026-11-16',14)).map(p=>p.day+' '+p.team_name+' '+p.exercises[0].exercise);
+  assert.deepEqual(await seen(),['2026-11-16 Girl Gym Squat','2026-11-16 โปรแกรมส่วนตัว Personal','2026-11-23 Girl Gym Squat']);
+
+  // Leaving (same statement as DELETE /api/teams/:id/members/:me) hides the team's plans but keeps personal ones.
+  await db.query("DELETE FROM team_members WHERE team_id='55555555-5555-4555-8555-555555555555' AND user_id='student'");
+  assert.deepEqual(await seen(),['2026-11-16 โปรแกรมส่วนตัว Personal']);
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM training_plans WHERE user_id='student' AND team_id IS NOT NULL")).rows[0].n,2,'copies are kept, only hidden');
+
+  // While away the coach saves another team-wide program; only the coach is in the team, so only the coach gets it.
+  await db.exec(`INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide,created_at)
+   SELECT '55555555-5555-4555-8555-555555555555','coach',d::date,'[{"exercise":"Row","weight":null,"sets":3,"reps":12}]','coach','77777777-7777-4777-8777-777777777777',true,'2026-11-18T03:00:00Z'
+   FROM unnest(array['2026-11-19','2026-11-26']) d;`);
+  assert.deepEqual(await seen(),['2026-11-16 โปรแกรมส่วนตัว Personal'],'not a member, so nothing is copied');
+
+  // Rejoining on 20 Nov: old copies come back, the program saved while away applies from the rejoin day on.
+  await db.query("INSERT INTO team_members (team_id,user_id,status,team_role,joined_at) VALUES ('55555555-5555-4555-8555-555555555555','student','active','trainee','2026-11-20T03:00:00Z')");
+  const expected=['2026-11-16 Girl Gym Squat','2026-11-16 โปรแกรมส่วนตัว Personal','2026-11-23 Girl Gym Squat','2026-11-26 Girl Gym Row'];
+  assert.deepEqual(await seen(),expected);
+  assert.deepEqual(await seen(),expected,'reading again adds no duplicates');
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM training_plans WHERE user_id='student'")).rows[0].n,4);
+ }finally{await db.close();}
+});
+test('a trainee opening the team page sees the team program, including one saved before they joined, but cannot change it',async()=>{
+ const {PGlite}=await import('@electric-sql/pglite');
+ const {readFileSync}=await import('node:fs');
+ const db=new PGlite();
+ try{
+  await db.exec(readFileSync('db/001_initial.sql','utf8'));
+  await db.exec(`
+   INSERT INTO members (id,display_name,member_code,role) VALUES ('coach','Coach','BM-C','trainer'),('student','Student','BM-S','trainee');
+   INSERT INTO trainer_teams (id,owner_id,name) VALUES ('88888888-8888-4888-8888-888888888888','coach','Girl Gym');
+   INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide,created_at)
+    VALUES ('88888888-8888-4888-8888-888888888888','coach','2026-11-16','[{"exercise":"Squat","weight":30,"weightUnit":"lb","sets":3,"reps":12}]','coach','99999999-9999-4999-8999-999999999999',true,'2026-11-14T03:00:00Z');
+   INSERT INTO team_members (team_id,user_id,status,team_role,joined_at) VALUES ('88888888-8888-4888-8888-888888888888','student','active','trainee','2026-11-15T03:00:00Z');
+  `);
+  const sql=async(strings,...values)=>(await db.query(strings.reduce((text,part,index)=>text+(index?'$'+index:'')+part,''),values)).rows;
+  const team={id:'88888888-8888-4888-8888-888888888888',owner_id:'coach',owner_role:'trainer'},mine={status:'active',team_role:'trainee'};
+  const call=(method,body)=>handlePlans(new Request('https://example.com/api/teams/'+team.id+'/plans/student',{method,...(body?{body:JSON.stringify(body)}:{})}),sql,{sub:'student'},team,mine,'student');
+  const got=await (await call('GET')).json();
+  assert.deepEqual(got.plans.map(p=>[p.day,p.exercises[0].exercise]),[['2026-11-16','Squat']]);
+  assert.equal((await call('POST',{period:'day',start:'2026-11-17',exercises:[{exercise:'Mine',weight:null,sets:1,reps:1}]})).status,403);
+  assert.equal((await handlePlans(new Request('https://example.com/api/teams/'+team.id+'/plans/student?id='+got.plans[0].id,{method:'DELETE'}),sql,{sub:'student'},team,mine,'student')).status,403);
  }finally{await db.close();}
 });
