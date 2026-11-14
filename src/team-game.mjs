@@ -17,6 +17,7 @@ export async function handleTeamGame(request,sql,user,team,mine,action){
  if(!active)return json({error:'เฉพาะสมาชิกที่เข้าร่วมทีมแล้ว'},403);
  if(request.method==='GET'&&!action){
   const day=new URL(request.url).searchParams.get('day')||bangkokDay();if(!validDate(day))return json({error:'วันที่ไม่ถูกต้อง'},400);
+  await awardDay(sql,me,day,{teamId:team.id});
   const players=await sql`WITH players AS (SELECT t.owner_id AS id,t.owner_role AS team_role FROM trainer_teams t WHERE t.id=${team.id} UNION ALL SELECT user_id,team_role FROM team_members WHERE team_id=${team.id} AND status='active') SELECT m.id,m.display_name,m.member_code,p.team_role,COALESCE(w.balance,0) AS balance,COALESCE(w.earned,0) AS earned,CASE WHEN r.team_visible THEN r.sent_at END AS sent_at,a.points AS day_points,a.rest_day FROM players p JOIN members m ON m.id=p.id LEFT JOIN team_point_wallets w ON w.team_id=${team.id} AND w.user_id=p.id LEFT JOIN daily_reports r ON r.user_id=p.id AND r.day=${day}::date LEFT JOIN team_point_awards a ON a.team_id=${team.id} AND a.user_id=p.id AND a.day=${day}::date ORDER BY COALESCE(w.earned,0) DESC,m.display_name`;
   const rewards=await sql`SELECT code,cost,enabled FROM team_rewards WHERE team_id=${team.id}`;
   const redemptions=await sql`SELECT r.id,r.user_id,m.display_name,r.reward,r.cost,r.status,r.created_at,r.resolved_at FROM team_redemptions r JOIN members m ON m.id=r.user_id WHERE r.team_id=${team.id} AND (r.user_id=${me} OR ${coach}) ORDER BY r.created_at DESC LIMIT 50`;
@@ -34,18 +35,10 @@ export async function handleTeamGame(request,sql,user,team,mine,action){
  }
  if(action==='claim'){
   if(!claimWindow(body.day)||typeof body.rest!=='boolean')return json({error:'รับคะแนนได้เฉพาะวันนี้และย้อนหลังไม่เกิน 6 วัน'},400);
-  await sql`INSERT INTO team_point_wallets (team_id,user_id) VALUES (${team.id},${me}) ON CONFLICT DO NOTHING`;
-  // One statement evaluates stored records, verifies a current submitted report, inserts once, and credits the wallet.
-  const result=await sql`WITH eligible AS (
-   SELECT r.user_id,r.day,10+CASE WHEN count(DISTINCT l.payload->>'meal') FILTER (WHERE l.kind='meal' AND l.payload->>'meal' IN ('มื้อเช้า','มื้อกลางวัน','มื้อเย็น'))=3 THEN 5 ELSE 0 END+CASE WHEN bool_or(l.kind='workout') OR ${body.rest} THEN 5 ELSE 0 END AS points
-   FROM daily_reports r JOIN daily_logs l ON l.user_id=r.user_id AND l.day=r.day JOIN trainer_teams t ON t.id=${team.id}
-   WHERE r.user_id=${me} AND r.team_visible AND r.day=${body.day}::date AND r.day>=(t.created_at AT TIME ZONE 'Asia/Bangkok')::date
-   AND (t.owner_id=${me} OR EXISTS (SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=${me} AND tm.status='active' AND r.day>=(tm.joined_at AT TIME ZONE 'Asia/Bangkok')::date))
-   AND NOT EXISTS (SELECT 1 FROM daily_logs changed WHERE changed.user_id=r.user_id AND changed.day=r.day AND changed.updated_at>r.sent_at)
-   GROUP BY r.user_id,r.day HAVING count(*) FILTER (WHERE l.kind='meal' AND length(trim(l.payload->>'text'))>0)>0
-  ), awarded AS (INSERT INTO team_point_awards (team_id,user_id,day,points,rest_day) SELECT ${team.id},user_id,day,points,${body.rest} FROM eligible ON CONFLICT DO NOTHING RETURNING points)
-  UPDATE team_point_wallets SET balance=balance+(SELECT points FROM awarded),earned=earned+(SELECT points FROM awarded) WHERE team_id=${team.id} AND user_id=${me} AND EXISTS (SELECT 1 FROM awarded) RETURNING balance,earned`;
-  return result.length?json({ok:true,wallet:result[0]}):json({error:'รับคะแนนวันนี้แล้ว หรือยังไม่มีอาหารและสรุปที่ส่งล่าสุด กรุณาส่งสรุปหลังบันทึกครบก่อนรับคะแนน'},409);
+  const [changed]=await awardDay(sql,me,body.day,{teamId:team.id,rest:body.rest});
+  if(!changed)return json({error:'รับคะแนนวันนี้แล้ว หรือยังไม่มีอาหารและสรุปที่ส่งล่าสุด กรุณาส่งสรุปหลังบันทึกครบก่อนรับคะแนน'},409);
+  const [wallet]=await sql`SELECT balance,earned FROM team_point_wallets WHERE team_id=${team.id} AND user_id=${me}`;
+  return json({ok:true,wallet});
  }
  if(action==='redeem'){
   const reward=REWARDS.find(r=>r.code===body.reward);if(!reward||!uuid(body.requestId))return json({error:'รางวัลหรือรหัสคำขอไม่ถูกต้อง'},400);
@@ -71,4 +64,49 @@ export async function handleTeamGame(request,sql,user,team,mine,action){
  const rows=await sql`WITH refunded AS (UPDATE team_redemptions SET status=${body.status},resolved_by=${me},resolved_at=now() WHERE id=${body.id} AND team_id=${team.id} AND status='pending' RETURNING user_id,cost)
  UPDATE team_point_wallets w SET balance=w.balance+r.cost FROM refunded r WHERE w.team_id=${team.id} AND w.user_id=r.user_id RETURNING w.balance`;
  return rows.length?json({ok:true}):json({error:'รายการนี้ดำเนินการแล้ว'},409);
+}
+// Points are awarded automatically: whenever someone sends their day to the team (and when they open the points
+// page), every team they belong to scores that day. Sending again after logging more raises the score; it never
+// goes down and is never paid twice. A day with no team plan in a week that has one counts as a planned rest day.
+export async function awardDay(sql,me,day,{teamId=null,rest=false}={}){
+ if(!claimWindow(day))return [];
+ const changed=await sql`
+  WITH teams AS (
+   SELECT t.id FROM trainer_teams t
+   WHERE (${teamId}::uuid IS NULL OR t.id=${teamId}::uuid)
+    AND ${day}::date>=(t.created_at AT TIME ZONE 'Asia/Bangkok')::date
+    AND (t.owner_id=${me} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id=t.id AND m.user_id=${me} AND m.status='active'
+     AND ${day}::date>=(m.joined_at AT TIME ZONE 'Asia/Bangkok')::date))
+  ), report AS (
+   SELECT 1 FROM daily_reports r WHERE r.user_id=${me} AND r.day=${day}::date AND r.team_visible
+    AND NOT EXISTS (SELECT 1 FROM daily_logs c WHERE c.user_id=${me} AND c.day=${day}::date AND c.updated_at>r.sent_at)
+  ), logged AS (
+   SELECT count(*) FILTER (WHERE kind='meal' AND length(trim(payload->>'text'))>0) AS meals,
+    count(DISTINCT payload->>'meal') FILTER (WHERE kind='meal' AND payload->>'meal' IN ('มื้อเช้า','มื้อกลางวัน','มื้อเย็น'))=3 AS complete,
+    COALESCE(bool_or(kind='workout'),false) AS workout
+   FROM daily_logs WHERE user_id=${me} AND day=${day}::date
+  ), score AS (
+   SELECT teams.id AS team_id,
+    (${rest} OR (NOT EXISTS (SELECT 1 FROM training_plans p WHERE p.team_id=teams.id AND p.user_id=${me} AND p.day=${day}::date)
+      AND EXISTS (SELECT 1 FROM training_plans p WHERE p.team_id=teams.id AND p.user_id=${me}
+       AND p.day BETWEEN ${day}::date-(extract(isodow FROM ${day}::date)::int-1) AND ${day}::date+(7-extract(isodow FROM ${day}::date)::int)))) AS rest_day,
+    logged.complete,logged.workout
+   FROM teams,logged WHERE logged.meals>0 AND EXISTS (SELECT 1 FROM report)
+  ), points AS (
+   SELECT team_id,rest_day,10+CASE WHEN complete THEN 5 ELSE 0 END+CASE WHEN workout OR rest_day THEN 5 ELSE 0 END AS points FROM score
+  ), previous AS (
+   SELECT team_id,points FROM team_point_awards WHERE user_id=${me} AND day=${day}::date
+  ), saved AS (
+   INSERT INTO team_point_awards (team_id,user_id,day,points,rest_day)
+   SELECT team_id,${me},${day}::date,points,rest_day FROM points
+   ON CONFLICT (team_id,user_id,day) DO UPDATE SET points=EXCLUDED.points,rest_day=EXCLUDED.rest_day
+    WHERE team_point_awards.points<EXCLUDED.points
+   RETURNING team_id,points
+  )
+  SELECT saved.team_id,saved.points,saved.points-COALESCE(previous.points,0) AS delta
+  FROM saved LEFT JOIN previous ON previous.team_id=saved.team_id`;
+ for(const row of changed)await sql`
+  INSERT INTO team_point_wallets (team_id,user_id,balance,earned) VALUES (${row.team_id},${me},${row.delta},${row.delta})
+  ON CONFLICT (team_id,user_id) DO UPDATE SET balance=team_point_wallets.balance+EXCLUDED.balance,earned=team_point_wallets.earned+EXCLUDED.earned`;
+ return changed;
 }

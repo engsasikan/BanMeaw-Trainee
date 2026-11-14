@@ -22,21 +22,24 @@ export function teamGame(root,team,day){
   content.replaceChildren();const me=state.players.find(p=>p.id===state.me);if(!me){content.append(el('p','ไม่พบสมาชิกของคุณในทีม'));return;}
   const title=el('div',undefined,'list-heading');title.append(el('h3','เล่นไปด้วยกัน · คะแนนทีม'),btn('โหลดคะแนนล่าสุด',load));content.append(title);
   const wallet=el('div',undefined,'game-wallet');wallet.append(el('strong',Number(me.balance).toLocaleString('th-TH')),el('span','คะแนนที่ใช้แลกได้'),el('small','สะสมทั้งหมด '+me.earned+' คะแนน'));content.append(wallet);
-  const rules=el('details',undefined,'game-rules');rules.append(el('summary','กติกาคะแนน · ทุกบทบาทใช้กติกาเดียวกัน'),el('p','ส่งสรุปพร้อมอาหาร +10 · ครบเช้า/กลางวัน/เย็น +5 · บันทึกฝึกหรือระบุวันพัก +5 สูงสุด 20 คะแนน/วัน รับได้ครั้งเดียวหลังบันทึกครบ ย้อนหลังได้ 6 วันและต้องเป็นวันที่อยู่ในทีมแล้ว คะแนนรับแล้วไม่เพิ่มจากการแก้ย้อนหลัง ไม่ใช้ความเร็วในการลดน้ำหนักหรือยอดแคลอรีเป็นคะแนน','muted'),el('p','เมื่อกดส่งสรุปให้ทีม ทุกคนในทีมจะเห็นอาหารและการฝึกของวันที่ส่ง สรุปเดิมก่อนมีระบบทีมนี้จะยังไม่แสดงจนกดส่งอีกครั้ง เทรนเนอร์ร่วมส่งผลเหมือนสมาชิก และยังตรวจลูกทีมได้ คะแนนเป็นสิทธิ์รางวัลที่ทีมจัดให้ ไม่มีการสั่งซื้ออาหารอัตโนมัติ','muted'));content.append(rules);
-  const report=el('div',undefined,'game-claim');report.append(el('h4','รับคะแนนวันที่ '+day));
-  if(me.day_points!=null)report.append(el('p','รับแล้ว '+me.day_points+' คะแนน'+(me.rest_day?' · วันพัก':''),'game-success'));
+  const rules=el('details',undefined,'game-rules');rules.append(el('summary','วิธีได้คะแนน · ทุกบทบาทใช้กติกาเดียวกัน'),el('p','ได้อัตโนมัติเมื่อกด “ส่งในแอป” ที่หน้าภาพรวม ไม่ต้องกดรับเอง: มีอาหารอย่างน้อย 1 มื้อ +10 · ครบเช้า/กลางวัน/เย็น +5 · บันทึกการฝึก หรือเป็นวันพักตามโปรแกรมทีม +5 รวมสูงสุด 20 คะแนน/วัน บันทึกเพิ่มแล้วส่งอีกครั้งได้คะแนนเพิ่ม ส่งย้อนหลังได้ 6 วัน และนับตั้งแต่วันที่เข้าทีม'));content.append(rules);
+  // Points are credited automatically when the day is sent; this only shows where today stands and what is left.
+  const report=el('div',undefined,'game-claim'),earned=me.day_points??0;report.append(el('h4','คะแนนวันที่ '+new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(day+'T12:00:00'))));
+  const entries=state.reports.filter(r=>r.user_id===state.me),meals=entries.filter(r=>r.payload.kind!=='workout'&&r.payload.text?.trim()),complete=['มื้อเช้า','มื้อกลางวัน','มื้อเย็น'].every(m=>meals.some(r=>r.payload.meal===m)),trained=entries.some(r=>r.payload.kind==='workout')||me.rest_day;
+  const score=el('div',undefined,'game-day-score');score.append(el('strong',earned+'/20'),el('span',earned?'ได้คะแนนแล้ว'+(me.rest_day?' · วันพักตามโปรแกรม':''):'ยังไม่ได้คะแนน'));report.append(score);
+  const todo=[];
+  if(!state.claimable)todo.push('วันที่นี้อยู่นอกช่วงรับคะแนน (วันนี้และย้อนหลัง 6 วัน)');
   else{
-   const rest=el('input');rest.type='checkbox';rest.id='game-rest-'+team.id;const label=el('label','วันนี้เป็นวันพักตามแผน');label.className='game-rest';label.prepend(rest);
-   const entries=state.reports.filter(r=>r.user_id===state.me),meals=entries.filter(r=>r.payload.kind!=='workout'&&r.payload.text?.trim()),complete=['มื้อเช้า','มื้อกลางวัน','มื้อเย็น'].every(m=>meals.some(r=>r.payload.meal===m));
-   const estimate=()=>me.sent_at&&meals.length?10+(complete?5:0)+(rest.checked||entries.some(r=>r.payload.kind==='workout')?5:0):0;
-   const claim=btn('รับคะแนนของฉัน',()=>confirmAction('รับคะแนนวันที่ '+day+' จำนวน '+estimate()+' คะแนน? รับได้ครั้งเดียวต่อวัน หากยังบันทึกไม่ครบให้กลับไปบันทึกและส่งสรุปก่อน',()=>run('claim',{day,rest:rest.checked},'รับคะแนนแล้ว')),'primary');
-   if(!me.sent_at||!meals.length||entries.some(r=>r.changed_after_send)){claim.disabled=true;claim.dataset.locked='true';}
-   if(me.sent_at&&entries.some(r=>r.changed_after_send))report.append(el('p','มีการแก้ไขหลังส่ง กรุณาส่งสรุปอีกครั้งก่อนรับคะแนน','muted'));
-   if(me.sent_at&&!meals.length)report.append(el('p','ต้องมีบันทึกอาหารอย่างน้อย 1 มื้อก่อนรับคะแนน','muted'));
-   if(!state.claimable){claim.disabled=true;claim.dataset.locked='true';report.append(el('p','วันที่นี้อยู่นอกช่วงรับคะแนน','muted'));}
-   if(!me.sent_at)report.append(el('p','บันทึกอาหารแล้วกด “ส่งในแอป” ในหน้าภาพรวมก่อนรับคะแนน','muted'));
-   report.append(label,claim);
+   if(!meals.length)todo.push('บันทึกอาหารอย่างน้อย 1 มื้อ (+10)');
+   if(!complete)todo.push('บันทึกให้ครบ เช้า กลางวัน เย็น (+5)');
+   if(!trained)todo.push('บันทึกการฝึก (+5) · วันพักตามโปรแกรมทีมได้เองอัตโนมัติ');
+   if(!me.sent_at)todo.push('กด “ส่งในแอป” ที่หน้าภาพรวม แล้วคะแนนจะเข้าเอง');
+   else if(entries.some(r=>r.changed_after_send))todo.push('มีการแก้ไขหลังส่ง กด “ส่งในแอป” อีกครั้งเพื่ออัปเดตคะแนน');
+   else if(earned<20&&todo.length)todo.push('บันทึกเพิ่มแล้วกด “ส่งในแอป” อีกครั้ง คะแนนจะเพิ่มเอง');
   }
+  if(earned>=20)report.append(el('p','ครบ 20 คะแนนของวันนี้แล้ว เก่งมาก!','game-success'));
+  else if(todo.length){const list=el('ul',undefined,'game-todo');for(const t of todo)list.append(el('li',t));report.append(el('p','อยากได้คะแนนเพิ่ม:','muted'),list);}
+  if(state.claimable&&me.sent_at)report.append(btn('อัปเดตคะแนน',load));
   content.append(report);
   const catalog=el('div',undefined,'game-rewards');content.append(el('h4','แลกรางวัล'),catalog);
   for(const reward of state.rewards){

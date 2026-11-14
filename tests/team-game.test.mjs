@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
-import {handleTeamGame,dailyScore,claimWindow,bangkokDay} from '../src/team-game.mjs';
+import {handleTeamGame,dailyScore,claimWindow,bangkokDay,awardDay} from '../src/team-game.mjs';
 const team={id:'11111111-1111-4111-8111-111111111111',owner_id:'owner',owner_role:'trainer'};
 const member={status:'active',team_role:'trainee'},trainer={status:'active',team_role:'trainer'};
 const req=(action='',body,day=bangkokDay())=>new Request('https://app.test/api/teams/'+team.id+'/game'+(action?'/'+action:'?day='+day),{method:body===undefined?'GET':'POST',body:body===undefined?undefined:JSON.stringify(body)});
@@ -63,4 +63,35 @@ test('PostgreSQL game accounting, privacy, concurrency and trainer participation
   await db.query("INSERT INTO daily_logs (user_id,id,day,kind,payload) VALUES ('late','old-meal',$1,'meal',$2)",[oldDay,JSON.stringify({...meals[0],day:oldDay})]);await db.query("INSERT INTO daily_reports (user_id,day,team_visible) VALUES ('late',$1,true)",[oldDay]);assert.equal((await call('late','claim',{day:oldDay,rest:true})).status,409);
  });
  await db.close();
+});
+test('points arrive automatically when the day is sent, grow when resent with more, and planned rest days count',async()=>{
+ const db=new PGlite();await db.exec(await readFile(new URL('../db/001_initial.sql',import.meta.url),'utf8'));
+ const sql=async(strings,...values)=>(await db.query(strings.reduce((q,s,i)=>q+(i?'$'+i:'')+s,''),values)).rows;
+ const day=bangkokDay(),log=(id,row)=>db.query('INSERT INTO daily_logs (user_id,id,day,kind,payload) VALUES ($1,$2,$3,$4,$5)',[id,row.id,day,row.kind,JSON.stringify({...row,day})]);
+ const send=id=>db.query("INSERT INTO daily_reports (user_id,day,team_visible) VALUES ($1,$2,true) ON CONFLICT (user_id,day) DO UPDATE SET sent_at=now()+interval '1 second',team_visible=true",[id,day]);
+ const wallet=async id=>(await sql`SELECT balance,earned FROM team_point_wallets WHERE user_id=${id}`)[0];
+ try{
+  await db.query("INSERT INTO members (id,display_name,role) VALUES ('owner','Coach','trainer'),('student','Student','trainee'),('rester','Rester','trainee')");
+  await db.query("INSERT INTO trainer_teams (id,name,owner_id,created_at) VALUES ($1,'Together','owner','2020-01-01')",[team.id]);
+  await db.query("INSERT INTO team_members (team_id,user_id,status,team_role,joined_at) VALUES ($1,'student','active','trainee','2020-01-01'),($1,'rester','active','trainee','2020-01-01')",[team.id]);
+  // Nothing sent yet: no points.
+  await log('student',meals[0]);assert.deepEqual(await awardDay(sql,'student',day),[]);assert.equal(await wallet('student'),undefined);
+  // Sent with one meal: 10 points, credited without pressing anything.
+  await send('student');assert.deepEqual((await awardDay(sql,'student',day)).map(r=>[r.points,r.delta]),[[10,10]]);assert.deepEqual(await wallet('student'),{balance:10,earned:10});
+  assert.deepEqual(await awardDay(sql,'student',day),[],'sending the same again pays nothing');
+  // Logs the rest of the day and a workout, sends again: topped up to 20, paid only the difference.
+  for(const row of [...meals.slice(1),{id:'w',kind:'workout',exercise:'Squat',sets:3,reps:10,weight:null}])await log('student',row);
+  assert.deepEqual(await awardDay(sql,'student',day),[],'edited after sending: must send again first');
+  await send('student');assert.deepEqual((await awardDay(sql,'student',day)).map(r=>[r.points,r.delta]),[[20,10]]);assert.deepEqual(await wallet('student'),{balance:20,earned:20});
+  // A day without a team plan, in a week that has one, is a planned rest day worth the same as training.
+  const monday=new Date(day+'T12:00:00Z');monday.setUTCDate(monday.getUTCDate()-((monday.getUTCDay()+6)%7));const other=new Date(monday);other.setUTCDate(other.getUTCDate()+(day===monday.toISOString().slice(0,10)?1:0));
+  await db.query("INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide) VALUES ($1,'rester',$2,'[]','owner',gen_random_uuid(),true)",[team.id,other.toISOString().slice(0,10)]);
+  for(const row of meals)await log('rester',row);await send('rester');
+  const [rest]=await awardDay(sql,'rester',day);
+  assert.deepEqual([rest.points,(await sql`SELECT rest_day FROM team_point_awards WHERE user_id='rester'`)[0].rest_day],[20,true]);
+  // Opening the points page credits a day that was sent before this feature existed.
+  await db.query("DELETE FROM team_point_awards WHERE user_id='student'");await db.query("UPDATE team_point_wallets SET balance=0,earned=0 WHERE user_id='student'");
+  const state=await (await handleTeamGame(req(),sql,{sub:'student'},team,member)).json();
+  assert.equal(state.players.find(p=>p.id==='student').day_points,20);assert.deepEqual(await wallet('student'),{balance:20,earned:20});
+ }finally{await db.close();}
 });

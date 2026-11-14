@@ -1,5 +1,5 @@
 import {handleGoogleLogin,googleLoginReady,verifyGoogleSession,resolveGoogleMember,checkGoogleMember,storeGoogleSession,revokeGoogleSession} from './google-login.mjs';
-import {handleTeamGame} from './team-game.mjs';
+import {handleTeamGame,awardDay} from './team-game.mjs';
 import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
 import {handleFeedback,handleMemberProgress,handleOwnFeedback,handleBackup} from './coach.mjs';
 import {handlePlans,syncTeamPlans,readPlans} from './plans.mjs';
@@ -257,7 +257,9 @@ export async function handleReports(request,sql,user) {
     const day=validDay((await readJson(request)).day);
     if(!day) return json({error:'วันที่ไม่ถูกต้อง'},400);
     const [row]=await sql`INSERT INTO daily_reports (user_id,day,team_visible) VALUES (${user.sub},${day}::date,true) ON CONFLICT (user_id,day) DO UPDATE SET sent_at=now(),team_visible=true RETURNING sent_at`;
-    return json({day,sent_at:row.sent_at,team_visible:true});
+    // Sending the day to the team scores it in every team right away; a failure here must not undo the send.
+    let points=[];try{points=await awardDay(sql,user.sub,day);}catch{}
+    return json({day,sent_at:row.sent_at,team_visible:true,points:points.map(p=>({team_id:p.team_id,points:p.points,added:p.delta}))});
   }
   return json({error:'ไม่พบ API'},404);
 }

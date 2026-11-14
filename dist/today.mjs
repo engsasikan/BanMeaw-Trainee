@@ -126,7 +126,9 @@ function openMeal(meal){
 // Plain-text summary for LINE / chat.
 function summary(){return traineeCopyText(me,traineeSnapshot(body,diary,today()),today());}
 async function markSent(){
- const day=today(),{sent_at}=await api('/api/reports',{method:'POST',body:JSON.stringify({day})});if(day===today()){reportSentAt=sent_at;reportVisible=true;}render();
+ const day=today(),{sent_at,points=[]}=await api('/api/reports',{method:'POST',body:JSON.stringify({day})});if(day===today()){reportSentAt=sent_at;reportVisible=true;}render();
+ // Sending scores the day in every team automatically; say how many points just came in.
+ const added=Math.max(0,...points.map(p=>p.added));if(added)cheer('ได้ +'+added+' คะแนนทีม 🏆');
 }
 async function loadReport(){
  const day=today();shownDay=day;reportSentAt=null;reportVisible=false;

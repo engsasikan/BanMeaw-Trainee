@@ -281,3 +281,9 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .program-day-card summary::-webkit-details-marker{display:none}
 .program-day-card summary strong{overflow-wrap:anywhere;line-height:1.4}
 .program-day-card ol{margin:0;padding:0 14px 12px 32px;display:grid;gap:6px;font-size:14px;line-height:1.5}
+/* Team points: today's automatic score and what is left */
+.game-day-score{display:flex;align-items:baseline;gap:10px;margin:4px 0 8px}
+.game-day-score strong{font-size:1.8rem;color:#ffad76;font-variant-numeric:tabular-nums}
+.game-day-score span{color:#c2bcb8}
+.game-todo{margin:4px 0 12px;padding-left:20px;display:grid;gap:6px;line-height:1.5}
+.game-claim>.quiet{min-height:42px}

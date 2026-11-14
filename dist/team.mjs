@@ -1,6 +1,6 @@
 import {groupWorkouts} from './workout-groups.mjs?v=2';
 import {organizeTeam,openTeamViewer,closeTeamViewer} from './team-layout.mjs?v=4';
-import {teamGame} from './team-game.mjs?v=2';
+import {teamGame} from './team-game.mjs?v=3';
 import {nutritionEditor} from './nutrition.mjs?v=1';
 import {weeklyCard,planComparison,feedbackPanel} from './coach-ui.mjs?v=3';
 import {workoutDescription} from './progress.mjs?v=3';
