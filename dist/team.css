@@ -239,3 +239,45 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .plan-order{display:flex;flex-wrap:wrap;gap:6px}
 .plan-order .quiet{min-height:44px;padding:6px 10px;border-radius:9px;font-size:.8rem}
 .plan-order button:disabled{opacity:.45}
+
+/* Team tabs: three labelled tabs and a small trophy icon for points and rewards */
+#team-detail-view .team-section-tabs,.team-section-tabs{grid-template-columns:repeat(3,minmax(0,1fr)) 46px}
+.team-section-tabs .team-tab-icon{padding:0;font-size:1.15rem;line-height:1}
+/* Team program tab */
+.team-program{display:grid;gap:12px}
+.team-program h3{margin:0}
+.team-program>p{margin:0}
+.program-actions{display:grid}
+.program-actions .primary{min-height:48px}
+.program-list{display:grid;gap:10px}
+.program-card{display:grid;grid-template-columns:minmax(0,1fr) 16px;gap:4px 10px;width:100%;padding:14px 16px;text-align:left;border-radius:16px;border:1px solid var(--line-2,#333);background:#2b2928;color:var(--text,#f3f3f3);cursor:pointer}
+.program-card.current{border-color:#ff702877;background:linear-gradient(160deg,#2f1d12,#262321 70%)}
+.program-card.ended{opacity:.7}
+.program-card strong{grid-column:1;font-size:1rem;overflow-wrap:anywhere}
+.program-card small{grid-column:1;color:#c2bcb8}
+.program-chevron{grid-column:2;grid-row:1/4;align-self:center;color:#ffc39f;font-size:1.2rem}
+.program-status{grid-column:1;justify-self:start;padding:2px 9px;border-radius:999px;background:#ffffff12;color:#c2bcb8;font-size:11px;font-weight:700}
+.program-card.current .program-status,.program-head .program-status{background:#ff702833;color:#ffc39f}
+.program-back{justify-self:start;min-height:40px;padding:0 4px;border:0;background:none;color:#ffc39f}
+.program-head{display:grid;gap:6px}
+.program-head h3{font-size:1.15rem}
+.program-head p{margin:0}
+.program-week-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:10px 6px;border-radius:16px;background:#171717}
+.program-week-cell{display:grid;justify-items:center;gap:6px;color:#8d9092;font-size:.7rem}
+.program-week-cell b{display:grid;place-items:center;width:min(100%,34px);aspect-ratio:1;border-radius:50%;border:1.5px dashed #45484a;font-size:.8rem;font-variant-numeric:tabular-nums}
+.program-week-cell.has{color:#ffc39f}
+.program-week-cell.has b{border:1.5px solid #ff7028;color:#fff}
+.program-week-cell.now b{background:#ff7028;color:#1b0f08}
+.program-go{min-height:48px}
+.program-days{display:grid}
+.program-day-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid #ffffff12}
+.program-stamp{display:grid;align-content:start;gap:2px;padding-top:12px;color:#8d9092;font-size:.68rem;letter-spacing:.5px}
+.program-stamp strong{color:var(--text,#f3f3f3);font-size:1rem;letter-spacing:0}
+.program-day-card{display:grid;border-radius:14px;background:#2b2928;min-width:0}
+.program-day-row.rest .program-day-card{padding:12px 14px;gap:2px;background:#ffffff08}
+.program-day-row.rest strong{color:#c2bcb8}
+.program-day-card small{color:#c2bcb8}
+.program-day-card summary{display:grid;gap:3px;padding:12px 14px;cursor:pointer;list-style:none}
+.program-day-card summary::-webkit-details-marker{display:none}
+.program-day-card summary strong{overflow-wrap:anywhere;line-height:1.4}
+.program-day-card ol{margin:0;padding:0 14px 12px 32px;display:grid;gap:6px;font-size:14px;line-height:1.5}

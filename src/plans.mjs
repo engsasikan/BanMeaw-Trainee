@@ -59,7 +59,7 @@ export async function handlePlans(request,sql,user,team,mine,memberId){
  if(request.method==='GET'){
   // A member looking at their own team program first gets any team-wide plans they joined too late to receive.
   if(team&&memberId===me&&me!==team.owner_id)await syncTeamPlans(sql,me);
-  if(memberId)return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
+  if(memberId)return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by,batch_id FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
   return json({plans:await sql`
    SELECT DISTINCT ON (batch_id,day) batch_id AS id,day::text AS day,exercises
    FROM training_plans WHERE team_id=${team.id} AND (team_wide OR batch_id IN (

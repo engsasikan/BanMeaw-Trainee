@@ -112,7 +112,7 @@ test('active trainers can view their own training plan while retaining coaching 
 
 test('saved plan API returns a date-only string which can be rendered on the planner',async()=>{
  const {PGlite}=await import('@electric-sql/pglite');const db=new PGlite();
- await db.exec(`CREATE TABLE training_plans (id text,team_id text,user_id text,day date,exercises jsonb,created_by text);INSERT INTO training_plans VALUES ('plan','team','owner','2026-10-04','[]','owner');`);
+ await db.exec(`CREATE TABLE training_plans (id text,team_id text,user_id text,day date,exercises jsonb,created_by text,batch_id text);INSERT INTO training_plans VALUES ('plan','team','owner','2026-10-04','[]','owner','batch');`);
  const sql=async(strings,...values)=>{let query=strings[0];for(let i=0;i<values.length;i++)query+='$'+(i+1)+strings[i+1];return (await db.query(query,values)).rows;};
  try{const response=await handlePlans(new Request('https://example.com/api'),sql,{sub:'owner'},{id:'team',owner_id:'owner',owner_role:'trainee'},null,'owner');assert.equal(response.status,200);const {plans}=await response.json();assert.equal(plans[0].day,'2026-10-04');assert.doesNotThrow(()=>new Intl.DateTimeFormat('th-TH').format(new Date(plans[0].day+'T12:00:00')));}finally{await db.close();}
 });
