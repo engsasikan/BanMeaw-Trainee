@@ -8,13 +8,18 @@ const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.te
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
  const focus=createMuscleFocus();
- let plans=[],activePlanId=null,day='',items=[],current=0,active=false,busy=false,deadline=null,ticker=null,summary=false;
+ let plans=[],activePlanId=null,day='',items=[],current=0,active=false,busy=false,deadline=null,restTotal=0,ticker=null,summary=false;
+ const restKey=item=>'banmeaw-rest:'+item.plan.id+':'+item.index,planRest=item=>item.target.rest_seconds??60;
+ // Rest between sets: the plan's value by default, or the trainee's own choice for this exercise.
+ const restMemo=new Map(),restFor=item=>{if(restMemo.has(restKey(item)))return restMemo.get(restKey(item));try{const v=localStorage.getItem(restKey(item));if(v!==null&&Number.isInteger(Number(v)))return Number(v);}catch{}return planRest(item);};
+ const setRest=(item,value)=>{const v=Math.min(600,Math.max(0,value));restMemo.set(restKey(item),v);try{v===planRest(item)?localStorage.removeItem(restKey(item)):localStorage.setItem(restKey(item),String(v));}catch{}return v;};
+ const restText=v=>v===0?'ไม่พัก':v<60?v+' วิ':Math.floor(v/60)+':'+String(v%60).padStart(2,'0')+' นาที';
  const selected=()=>document.getElementById('day').value;
  const rows=()=>plans.filter(plan=>!activePlanId||plan.id===activePlanId).flatMap(plan=>comparePlan(plan,getRecords()).map(r=>({...r,plan})));
  const draft=item=>getRecords().find(r=>r.day===day&&r.planId===item.plan.id&&r.planExerciseIndex===item.index);
  const done=item=>!!comparePlan(item.plan,getRecords())[item.index]?.actual;
  function button(text,fn,cls='quiet'){const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;}
- function stop(){clearInterval(ticker);ticker=null;deadline=null;}
+ function stop(){clearInterval(ticker);ticker=null;deadline=null;restTotal=0;}
  function start(event){if(busy||!plans.length||day!==selected())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.findIndex(x=>!done(x)));summary=items.every(done);active=true;session.hidden=false;document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return false;stop();active=false;session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');return true;}
  function navigation(finished,last){
@@ -59,7 +64,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   // 1. Where am I: one bar per exercise in today's plan.
   const steps=el('ol',undefined,'ts-steps');
   items.forEach((x,i)=>{const li=el('li',undefined,i===current?'now':done(x)?'done':'');li.title=x.target.exercise;steps.append(li);});
-  session.append(steps,el('p','ท่าที่ '+(current+1)+' จาก '+items.length+' · '+(item.plan.team_name||'แผนจากเทรนเนอร์'),'ts-sub'),el('h2',target.exercise,'ts-name'));
+  const hero=el('div',undefined,'ts-hero');hero.append(steps,el('p','ท่าที่ '+(current+1)+' จาก '+items.length+' · '+(item.plan.team_name||'แผนจากเทรนเนอร์'),'ts-sub'),el('h2',target.exercise,'ts-name'));session.append(hero);
   // 2. What the trainer asked for.
   const goal=el('div',undefined,'ts-goal'),chip=(label,value)=>{const c=el('span',undefined,'ts-chip');c.append(el('small',label),el('b',value));return c;};
   if(target.trainingType==='cardio'){
@@ -67,19 +72,30 @@ export function initTrainingSession({getRecords,saveRecords}){
    if(target.incline!=null)goal.append(chip('ความชัน',target.incline+'%'));
    if(target.speed!=null)goal.append(chip('ความเร็ว',target.speed+' กม./ชม.'));
    if(target.distance!=null)goal.append(chip('ระยะทาง',target.distance+' กม.'));
-   session.append(el('p','เทรนเนอร์ให้ทำ','ts-label'),goal);cardioStep(item,saved,last);return;
+   hero.append(el('p','เป้าหมายวันนี้','ts-label'),goal);cardioStep(item,saved,last);return;
   }
-  else goal.append(chip('จำนวน',sets+' เซ็ต'),chip('เซ็ตละ',(target.reps??'-')+' ครั้ง'),chip('น้ำหนัก',target.weight==null?'ตามไหว':formatLoggedWeight(target)),chip('พักระหว่างเซ็ต',(target.rest_seconds??60)+' วิ'));
-  session.append(el('p','เทรนเนอร์ให้ทำ','ts-label'),goal);
-  if(target.superset)session.append(el('p','Super set '+target.superset+' · ทำสลับกับท่าในกลุ่มเดียวกันตามลำดับ','muted'));
+  else goal.append(chip('จำนวน',sets+' เซ็ต'),chip('เซ็ตละ',(target.reps??'-')+' ครั้ง'),chip('น้ำหนัก',target.weight==null?'ตามไหว':formatLoggedWeight(target)));
+  hero.append(el('p','เป้าหมายวันนี้','ts-label'),goal);
+  // Rest between sets: starts at the plan's value, the trainee can change it.
+  const restSet=el('div',undefined,'ts-rest-set'),restInfo=el('div'),restValue=el('b',undefined,'ts-rest-value'),restNote=el('small');
+  const reset=button('ใช้ตามแผน',()=>changeRest(planRest(item)-restFor(item)),'ts-rest-reset');
+  const showRest=()=>{const v=restFor(item),custom=v!==planRest(item);restValue.textContent=restText(v);restNote.textContent=custom?'ปรับเอง · แผนตั้งไว้ '+restText(planRest(item)):'ตามที่แผนตั้งไว้';reset.hidden=!custom;};
+  const changeRest=delta=>{const before=restFor(item),after=setRest(item,before+delta);showRest();if(deadline&&after!==before){deadline+=(after-before)*1000;restTotal=Math.max(1,restTotal+after-before);}};
+  const less=button('−15',()=>changeRest(-15),'ts-step'),more=button('+15',()=>changeRest(15),'ts-step');less.setAttribute('aria-label','ลดเวลาพัก 15 วินาที');more.setAttribute('aria-label','เพิ่มเวลาพัก 15 วินาที');
+  const stepper=el('div',undefined,'ts-stepper');stepper.append(less,restValue,more);
+  restInfo.append(el('span','พักระหว่างเซ็ต'),restNote,reset);restSet.append(restInfo,stepper);showRest();hero.append(restSet);
+  if(target.superset)hero.append(el('p','Super set '+target.superset+' · ทำสลับกับท่าในกลุ่มเดียวกันตามลำดับ','muted'));
   // 3. Sets: done / now / later.
   const track=el('ol',undefined,'ts-sets');
   for(let i=0;i<Math.max(sets,logs.length+(finished?0:1));i++){const r=logs[i],li=el('li',undefined,r?'done':i===logs.length?'now':'');li.append(el('small','เซ็ต '+(i+1)),el('b',r?'✓ '+r.reps+' ครั้ง':i===logs.length?'ตอนนี้':'รอ'));li.append(el('small',r?(r.weight==null?'':formatLoggedWeight(r)):''));track.append(li);}
-  const rest=el('div',undefined,'ts-rest'),clock=el('p',undefined,'training-clock');
+  const rest=el('div',undefined,'ts-rest'),ring=el('div',undefined,'ts-ring'),clock=el('p',undefined,'training-clock');
   const restLabel=el('small','พักก่อนฝึกต่อ');restLabel.setAttribute('role','status');
-  const skip=button('ข้ามเวลาพัก',()=>{stop();rest.hidden=true;});
+  const skip=button('ข้ามเวลาพัก',()=>{stop();rest.hidden=true;},'ts-skip');
+  const shift=delta=>{if(!deadline)return;deadline=Math.max(Date.now(),deadline+delta*1000);restTotal=Math.max(1,restTotal+delta);tick();};
+  const minus=button('−15 วิ',()=>shift(-15),'ts-step'),plus=button('+15 วิ',()=>shift(15),'ts-step');
+  const restActions=el('div',undefined,'ts-rest-actions');restActions.append(minus,skip,plus);
   rest.hidden=!deadline;
-  rest.append(restLabel,clock,skip);session.append(rest,track);
+  ring.append(clock,restLabel);rest.append(ring,restActions);session.append(rest,track);
   // 4. Log the set just done.
   const form=el('form',undefined,'ts-log'),weight=el('input'),reps=el('input'),weightLabel=el('label','น้ำหนักที่ยก'),repsLabel=el('label','ทำได้กี่ครั้ง');
   weight.type=reps.type='number';weight.min=0;weight.max=2000;weight.step='.01';weight.placeholder='ไม่ระบุ';weight.value=logs.at(-1)?.weight??target.weight??'';weight.inputMode='decimal';
@@ -97,8 +113,9 @@ export function initTrainingSession({getRecords,saveRecords}){
    const left=remainingSeconds(deadline);
    const time=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');
    if(clock.textContent!==time)clock.textContent=time;
+   ring.setAttribute('style','--p:'+(restTotal?Math.min(1,left/restTotal):0).toFixed(3));
    if(left)return;
-   stop();
+   stop();rest.classList.add('over');minus.hidden=plus.hidden=true;
    restLabel.textContent='ครบเวลาพักแล้ว เริ่มฝึกต่อได้';
    skip.textContent='ปิด';
    navigator.vibrate?.([150,100,150]);
@@ -114,14 +131,14 @@ export function initTrainingSession({getRecords,saveRecords}){
     if(!ok){notice.textContent='บันทึกไม่สำเร็จ กรอกไว้แล้ว กดจบเซ็ตเพื่อลองใหม่';return;}
     if(!active||selected()!==row.day)return;
     stop();
-    const restSeconds=target.rest_seconds??60;
+    const restSeconds=restFor(item);
     if(target.superset){
      const group=items.map((x,i)=>({x,i})).filter(({x})=>x.plan.id===item.plan.id&&x.target.superset===target.superset);
      const candidates=[...group.filter(x=>x.i>current),...group.filter(x=>x.i<=current)];
      const next=candidates.find(({x})=>!done(x));
      if(next)current=next.i;
     }
-    if(restSeconds>0&&(!row.sessionComplete||!last||current<items.length-1))deadline=Date.now()+restSeconds*1000;
+    if(restSeconds>0&&(!row.sessionComplete||!last||current<items.length-1)){deadline=Date.now()+restSeconds*1000;restTotal=restSeconds;}
     render();
     if(deadline)session.querySelector('.ts-rest')?.scrollIntoView({block:'nearest'});
    }catch(error){notice.textContent=error.message;}

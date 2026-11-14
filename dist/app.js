@@ -5,7 +5,7 @@ import {initHistoryText} from './history-text.mjs?v=2';
 import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-units.mjs';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=9';
-import {initTrainingSession} from './training-session.mjs?v=23';
+import {initTrainingSession} from './training-session.mjs?v=24';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=2';
 import {initNutrition} from './nutrition.mjs?v=1';
