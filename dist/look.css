@@ -349,3 +349,7 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 /* ครั้ง / วินาที switch under a count field */
 select.effort-unit{display:block;width:100%;min-height:36px;margin-top:6px;padding:4px 8px;font-size:13px;border-radius:10px}
 .ts-log select.effort-unit{margin-top:0}
+.training-week-row.today .training-week-stamp span{color:#ffab79;font-weight:800}
+.training-week-row.selected .training-week-stamp,.training-week-row.selected .training-week-stamp strong{color:var(--accent)}
+.training-week-row.selected .training-week-card{background:linear-gradient(160deg,#3a2416,#2b2622 75%);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.training-week-row.selected .training-week-card small{color:#ffc39f}

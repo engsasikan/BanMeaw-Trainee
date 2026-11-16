@@ -1,4 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=6';
+import {renderPrograms} from './team-program.mjs?v=6';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=4';
@@ -52,12 +53,14 @@ function stylePlanDate(date){
  date.i.addEventListener('change',update);date.i.addEventListener('input',update);
  frame.append(display,icon,date.i);date.box.append(frame);update();
 }
-export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey}={}){
+export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey,scroll=true}={}){
  const section=el('section',undefined,'diary training-planner');
  const header=el('div',undefined,'plan-header');
  header.append(el('h2',!team?'โปรแกรมฝึกส่วนตัว':member?'จัดแผนฝึก · '+member.display_name:'จัดแผนฝึกทั้งทีม'));
- if(team)header.append(el('p',member?'เลือกท่าและกำหนดเป้าหมายให้สมาชิก':team.name+' · โปรแกรมจะส่งให้สมาชิกที่เข้าร่วมทีมแล้ว','muted'));
+ header.append(el('p',!team?'โปรแกรมที่คุณจัดเอง กดที่โปรแกรมเพื่อดูท่ารายวัน แก้ไข หรือลบ':member?'เลือกท่าและกำหนดเป้าหมายให้สมาชิก':team.name+' · โปรแกรมจะส่งให้สมาชิกที่เข้าร่วมทีมแล้ว','muted'));
  const message=el('p',undefined,'plan-message');message.setAttribute('role','status');
+ // Results of saving or deleting, shown above the program list while the form is closed.
+ const notice=el('p',undefined,'plan-message plan-notice');notice.setAttribute('role','status');
  const savedExercises=new Map();
  section.append(header);root.append(section);
  const form=el('form'),date=input('วันเริ่มโปรแกรม','date',day),end=input('วันสิ้นสุด','date',day);
@@ -245,11 +248,18 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  const save=el('button','บันทึกโปรแกรม','primary');save.type='submit';
  const footer=el('div',undefined,'program-footer');footer.append(message,save);form.append(footer);
  // Saved programs come first so they can be found and changed without scrolling past the new-program form.
- const list=el('div',undefined,'plan-saved');section.append(list,form);
- const cancel=el('button','ยกเลิกการแก้ไข','quiet');cancel.type='button';cancel.hidden=true;footer.append(cancel);
+ // The list of programs is the main view; the form opens only to create or edit one.
+ const list=el('div',undefined,'plan-saved team-program');form.hidden=true;section.append(notice,list,form);
+ const cancel=el('button','ยกเลิก','quiet');cancel.type='button';footer.append(cancel);
+ function openForm(){form.hidden=false;list.hidden=true;notice.textContent='';}
+ function closeForm(){form.hidden=true;list.hidden=false;}
+ const create=el('button','+ สร้างโปรแกรมใหม่','primary');create.type='button';
+ // After a program is saved the next "create" starts from a blank week.
+ let saved=false;
+ create.onclick=()=>{if(saved){saved=false;setRange(day,day);setSchedule(weekday=>weekday===initial.weekday?[]:null);}openForm();formTitle.textContent='สร้างโปรแกรมใหม่';form.scrollIntoView({block:'start'});};
  let editing=null,editItem=null,editingProgram=null;
  function finishEdit(){
-  editing=null;editItem=null;calendar.hidden=false;list.hidden=false;cancel.hidden=true;
+  editing=null;editItem=null;calendar.hidden=false;formTitle.hidden=false;closeForm();
   date.i.disabled=end.i.disabled=false;
   for(const item of schedule)item.fields.disabled=!item.check.checked;
   selectDay(initial);save.textContent='บันทึกโปรแกรม';
@@ -266,7 +276,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   panels.append(card);
   date.i.disabled=end.i.disabled=true;
   for(const item of schedule){item.card.hidden=true;item.fields.disabled=true;}
-  calendar.hidden=true;list.hidden=true;cancel.hidden=false;
+  openForm();calendar.hidden=true;formTitle.hidden=true;
   message.textContent='';save.textContent='บันทึกการแก้ไข';
   card.scrollIntoView({block:'start'});
  }
@@ -295,19 +305,19 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    const same=days.filter(plan=>weekdayOf(plan.day)===weekday);
    return (same.find(plan=>plan.day>=today)??same.at(-1))?.exercises;
   });
-  list.hidden=true;cancel.hidden=false;
+  openForm();
   formTitle.textContent='แก้ไขโปรแกรม · '+program.label;
   save.textContent='บันทึกการแก้ไขโปรแกรม';
   message.textContent='การแก้ไขมีผลกับวันตั้งแต่วันนี้ที่ยังไม่มีผลฝึก วันที่ผ่านมาแล้วยังเหมือนเดิม'+(team&&!member?' · ส่งให้สมาชิกทุกคนในทีม':'');
   form.scrollIntoView({block:'start'});
  }
  function finishProgram(){
-  editingProgram=null;list.hidden=false;cancel.hidden=true;
+  editingProgram=null;closeForm();
   formTitle.textContent='สร้างโปรแกรมใหม่';save.textContent='บันทึกโปรแกรม';
   setRange(day,day);setSchedule(weekday=>weekday===initial.weekday?[]:null);
   restoreDraft();
  }
- cancel.onclick=()=>{if(editingProgram)finishProgram();else closeEdit();message.textContent='';};
+ cancel.onclick=()=>{if(editingProgram)finishProgram();else if(editing)closeEdit();else closeForm();message.textContent='';};
  const path=team?'/api/teams/'+team.id+'/plans'+(member?'/'+encodeURIComponent(member.id):''):'/api/personal-plans';
  function exerciseValues(x){
   return x.type.i.value==='cardio'?
@@ -330,7 +340,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
      }
     }
     selectDay(schedule.find(item=>item.check.checked)??initial);
-    message.textContent='เปิดแบบร่างที่เก็บไว้ในเครื่องแล้ว';
+    message.textContent='เปิดแบบร่างที่เก็บไว้ในเครื่องแล้ว';create.textContent='+ ทำโปรแกรมที่ร่างไว้ต่อ';
    }
   }catch{}
  }
@@ -348,15 +358,14 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  }
  const dayLabel=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'numeric'});
  const rangeLabel=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'});
- const weekdayShort=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
  async function removeDays(program,query,question){
   if(!confirm(question))return;
   try{
    const result=await api(path+'?batch='+encodeURIComponent(program.batch)+query,{method:'DELETE'});
-   message.textContent=result.count?'ลบแล้ว '+result.count+(team&&!member?' รายการ':' วัน'):'ไม่มีวันที่ลบได้';
-   if(result.locked)message.textContent+=' · '+result.locked+' รายการมีผลฝึกแล้วจึงเก็บไว้';
+   notice.textContent=result.count?'ลบแล้ว '+result.count+(team&&!member?' รายการ':' วัน'):'ไม่มีวันที่ลบได้';
+   if(result.locked)notice.textContent+=' · '+result.locked+' รายการมีผลฝึกแล้วจึงเก็บไว้';
    onSaved?.();await load();
-  }catch(e){message.textContent=e.message;}
+  }catch(e){notice.textContent=e.message;}
  }
  function dayCard(p,program){
   const card=el('div',undefined,'entry'),label=dayLabel.format(new Date(p.day+'T12:00:00'));card.append(el('h3',label));
@@ -366,47 +375,36 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   remove.onclick=()=>removeDays(program,'&day='+p.day,'ลบแผนวันที่ '+label+(team&&!member?' ของทุกคนในทีม':'')+'?');
   card.append(edit,remove);return card;
  }
+ const labelOf=(first,last)=>first===last?rangeLabel.format(new Date(first+'T12:00:00')):rangeLabel.formatRange(new Date(first+'T12:00:00'),new Date(last+'T12:00:00'));
+ // An opened program: the Monday–Sunday view comes from team-program.mjs; these are the editing tools under it.
+ function programTools(p){
+  const today=localDay(),program={batch:p.batch,days:p.list,label:labelOf(p.first,p.last)};
+  const bar=el('div',undefined,'plan-program-actions');
+  const edit=el('button','แก้ไขโปรแกรม','primary');edit.type='button';edit.onclick=()=>editProgram(program);bar.append(edit);
+  if(p.list.some(plan=>plan.day>=today)){
+   const remove=el('button','ลบโปรแกรม','quiet');remove.type='button';
+   remove.onclick=()=>removeDays(program,'','ลบโปรแกรม '+program.label+(team&&!member?' ของทุกคนในทีม':'')+' ตั้งแต่วันนี้?\nวันที่ผ่านมาแล้วและวันที่มีผลฝึกจะเก็บไว้');
+   bar.append(remove);
+  }
+  const days=el('details',undefined,'plan-program-days');
+  days.append(el('summary','แก้หรือลบเฉพาะบางวัน ('+p.list.length+' วัน)'));
+  days.ontoggle=()=>{if(days.open&&days.children.length===1)days.append(...p.list.map(plan=>dayCard(plan,program)));};
+  return [bar,days];
+ }
  async function load(){
-  const {plans}=await api(path);list.replaceChildren(el('h3','โปรแกรมที่บันทึกไว้'));
+  const {plans}=await api(path);
   savedExercises.clear();
   for(const {exercises} of plans){
    for(const exercise of exercises)savedExercises.set(exercise.exercise,{
     name:exercise.exercise,group:exercise.trainingType==='cardio'?'คาร์ดิโอ':'',
    });
   }
-  if(!plans.length){list.append(el('p','ยังไม่มีโปรแกรม เริ่มสร้างด้านล่างได้เลย','muted'));return;}
-  // One card per saved program (everything saved together), not one per day.
-  const programs=new Map();
-  for(const p of plans){
-   const batch=p.batch_id??p.id;
-   if(!programs.has(batch))programs.set(batch,{batch,days:[]});
-   programs.get(batch).days.push(p);
-  }
-  const today=localDay();
-  const sorted=[...programs.values()].map(program=>{
-   program.days.sort((a,b)=>a.day.localeCompare(b.day));
-   const first=program.days[0].day,last=program.days.at(-1).day;
-   program.label=first===last?rangeLabel.format(new Date(first+'T12:00:00')):rangeLabel.formatRange(new Date(first+'T12:00:00'),new Date(last+'T12:00:00'));
-   program.upcoming=program.days.filter(p=>p.day>=today).length;
-   return program;
-  }).sort((a,b)=>Boolean(b.upcoming)-Boolean(a.upcoming)||a.days[0].day.localeCompare(b.days[0].day));
-  for(const program of sorted){
-   const card=el('div',undefined,'entry plan-program');
-   const weekdays=[...new Set(program.days.map(p=>weekdayOf(p.day)))].sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>weekdayShort[d]).join(' ');
-   card.append(el('h3',program.label),el('p',weekdays+' · '+program.days.length+' วัน · '+(program.upcoming?'เหลือ '+program.upcoming+' วัน':'จบแล้ว'),'muted plan-program-meta'));
-   const actions=el('div',undefined,'plan-program-actions');
-   const edit=el('button','แก้ไขโปรแกรม','primary');edit.type='button';edit.onclick=()=>editProgram(program);
-   actions.append(edit);
-   if(program.upcoming){
-    const remove=el('button','ลบโปรแกรม','quiet');remove.type='button';
-    remove.onclick=()=>removeDays(program,'','ลบโปรแกรม '+program.label+(team&&!member?' ของทุกคนในทีม':'')+' ตั้งแต่วันนี้?\nวันที่ผ่านมาแล้วและวันที่มีผลฝึกจะเก็บไว้');
-    actions.append(remove);
-   }
-   const days=el('details',undefined,'plan-program-days');
-   days.append(el('summary','ดูและแก้ทีละวัน ('+program.days.length+')'));
-   days.ontoggle=()=>{if(days.open&&days.children.length===1)days.append(...program.days.map(p=>dayCard(p,program)));};
-   card.append(actions,days);list.append(card);
-  }
+  renderPrograms(list,plans.map(plan=>({...plan,batch:plan.batch_id??plan.id})),localDay(),{
+   title:'โปรแกรมที่บันทึกไว้',actions:[create],
+   emptyText:'ยังไม่มีโปรแกรม กด "+ สร้างโปรแกรมใหม่" เพื่อเริ่ม',
+   note:team&&!member?'แก้แล้วจะเปลี่ยนให้สมาชิกทุกคน':'แก้ไขหรือลบได้',
+   detailTools:programTools,
+  });
  }
  form.onsubmit=async e=>{
   e.preventDefault();
@@ -431,25 +429,26 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     :await api(path,{method:'POST',body:JSON.stringify(payload)});
    if(editingProgram){
     finishProgram();
-    message.textContent='บันทึกการแก้ไขโปรแกรมแล้ว · '+result.count+' วัน'+(result.locked?' · '+result.locked+' รายการมีผลฝึกแล้วจึงคงเดิม':'');
+    notice.textContent='บันทึกการแก้ไขโปรแกรมแล้ว · '+result.count+' วัน'+(result.locked?' · '+result.locked+' รายการมีผลฝึกแล้วจึงคงเดิม':'');
     onSaved?.();
-    try{await load();}catch{message.textContent+=' · โหลดรายการล่าสุดไม่สำเร็จ';}
+    try{await load();}catch{notice.textContent+=' · โหลดรายการล่าสุดไม่สำเร็จ';}
     return;
    }
-   if(draftKey&&!editing){try{localStorage.removeItem(draftKey);}catch{}}
+   if(draftKey&&!editing){try{localStorage.removeItem(draftKey);}catch{}create.textContent='+ สร้างโปรแกรมใหม่';}
    onSaved?.(editing?undefined:result.firstDay);
    if(editing){
-    closeEdit();message.textContent='บันทึกการแก้ไขแล้ว';
-    try{await load();}catch{message.textContent+=' · โหลดรายการล่าสุดไม่สำเร็จ';}
+    closeEdit();notice.textContent='บันทึกการแก้ไขแล้ว';
+    try{await load();}catch{notice.textContent+=' · โหลดรายการล่าสุดไม่สำเร็จ';}
     return;
    }
-   message.textContent='บันทึกโปรแกรมแล้ว '+result.count+' วัน'+(team&&!member?' · สมาชิก '+result.members+' คน':'');
-   try{await load();}catch{message.textContent+=' · โหลดรายการแผนล่าสุดไม่สำเร็จ';}
+   closeForm();message.textContent='';saved=true;
+   notice.textContent='บันทึกโปรแกรมแล้ว '+result.count+' วัน'+(team&&!member?' · สมาชิก '+result.members+' คน':'');
+   try{await load();}catch{notice.textContent+=' · โหลดรายการแผนล่าสุดไม่สำเร็จ';}
   }catch(e){message.textContent=e.message;}
   finally{save.disabled=cancel.disabled=false;save.textContent=editing?'บันทึกการแก้ไข':editingProgram?'บันทึกการแก้ไขโปรแกรม':'บันทึกโปรแกรม';}
  };
  await load();
- section.scrollIntoView({behavior:'smooth',block:'start'});
+ if(scroll)section.scrollIntoView({behavior:'smooth',block:'start'});
 }
 const weekLabels=['MON','TUE','WED','THU','FRI','SAT','SUN'];
 const shortDate=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'});
@@ -486,13 +485,14 @@ function trainingWeek(root,days,day,plans,onSelectDay){
   button.onclick=()=>onSelectDay?.(date);
   strip.append(button);
   if(!entries.length)return;
-  const item=el('div',undefined,'training-week-row');
+  // The selected day's row stands out so it is clear which program day is open below.
+  const item=el('div',undefined,'training-week-row'+(date===day?' selected':'')+(date===today?' today':''));
   const stamp=el('div',undefined,'training-week-stamp');
   stamp.append(el('span',weekLabels[index]),el('strong',number));
   const cards=el('div',undefined,'training-week-cards');
   for(const plan of entries){
    const card=el('button',undefined,'training-week-card');
-   card.type='button';
+   card.type='button';if(date===day)card.setAttribute('aria-current','true');
    card.append(el('strong',plan.team_name),el('small',plan.exercises.length+' ท่า'),el('span','›','training-week-chevron'));
    card.onclick=()=>{
     if(date===day){

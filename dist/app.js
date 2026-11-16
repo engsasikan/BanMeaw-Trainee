@@ -13,12 +13,12 @@ import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=35';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=36';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
-import {initTeams,loadTeams} from './team.mjs?v=75';
+import {initTeams,loadTeams} from './team.mjs?v=76';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
 import {initBody,quickWeigh} from './body.mjs?v=40';
 import {initToday} from './today.mjs?v=21';
@@ -97,23 +97,22 @@ const workoutNav=node('div',undefined,'workout-section-nav');workoutNav.setAttri
 const programPanel=node('section',undefined,'workout-program');programPanel.id='workout-program';
 const dailyPlans=node('section',undefined,'diary training-entry');
 const personalEditor=node('div');
-const personalToggle=node('button','จัดการโปรแกรมส่วนตัว','quiet');
-personalToggle.type='button';personalToggle.setAttribute('aria-expanded','false');
-personalEditor.hidden=true;
-personalToggle.onclick=async()=>{
- const opening=personalEditor.hidden;
- personalEditor.hidden=!opening;personalToggle.setAttribute('aria-expanded',String(opening));
- if(opening&&!personalEditor.childElementCount){
-  personalEditor.append(node('p','กำลังโหลดโปรแกรมส่วนตัว…','muted'));
-  const host=node('div');personalEditor.append(host);
-  try{await trainerPlanner(host,null,null,{day:$('day').value||localDay(),draftKey:'banmeaw-plan-draft:personal:'+profileId,onSaved:firstDay=>{if(firstDay&&firstDay!==$('day').value)selectDay(firstDay);else refreshDailyPlans();}});personalEditor.firstElementChild.remove();}
-  catch(error){personalEditor.replaceChildren(node('p',error.message+' · ปิดแล้วเปิดใหม่เพื่อลองอีกครั้ง','muted'));personalEditor.dataset.failed='true';}
- }else if(!opening&&personalEditor.dataset.failed){
-  personalEditor.replaceChildren();delete personalEditor.dataset.failed;
+// The personal program list sits under the week view and loads once signed in; its form opens only to create or edit.
+async function loadPersonalPlanner(){
+ if(!profileId||personalEditor.dataset.state)return;
+ personalEditor.dataset.state='loading';
+ personalEditor.replaceChildren(node('p','กำลังโหลดโปรแกรมส่วนตัว…','muted'));
+ const host=node('div');
+ try{
+  await trainerPlanner(host,null,null,{day:$('day').value||localDay(),scroll:false,draftKey:'banmeaw-plan-draft:personal:'+profileId,onSaved:firstDay=>{if(firstDay&&firstDay!==$('day').value)selectDay(firstDay);else refreshDailyPlans();}});
+  personalEditor.replaceChildren(host);personalEditor.dataset.state='ready';
+ }catch(error){
+  const retry=node('button','ลองโหลดอีกครั้ง','quiet');retry.type='button';retry.onclick=()=>{delete personalEditor.dataset.state;loadPersonalPlanner();};
+  personalEditor.replaceChildren(node('p','โหลดโปรแกรมส่วนตัวไม่สำเร็จ · '+error.message,'muted'),retry);personalEditor.dataset.state='failed';
  }
-};
-function refreshDailyPlans(){return showDailyPlans(dailyPlans,$('day').value||localDay(),{records,onStart:startPlanExercise,onSelectDay:selectDay});}
-programPanel.append(dailyPlans,personalToggle,personalEditor);
+}
+function refreshDailyPlans(){loadPersonalPlanner();return showDailyPlans(dailyPlans,$('day').value||localDay(),{records,onStart:startPlanExercise,onSelectDay:selectDay});}
+programPanel.append(dailyPlans,personalEditor);
 anatomyBrowser.before(programPanel);
 const workoutSections=[['program','โปรแกรมฝึก',programPanel],['pick','เลือกท่า',anatomyBrowser],['log','บันทึกผล',workoutComposer],['history','ประวัติ',workoutHistory]].map(([key,title,panel])=>{
  const button=node('button',title);button.type='button';button.setAttribute('aria-controls',panel.id);button.onclick=()=>{showWorkoutSection(key);if(key==='program')openTodayPlans();if(panel.getBoundingClientRect().top<workoutNav.getBoundingClientRect().bottom)panel.scrollIntoView({block:'start'});};workoutNav.append(button);return {key,button,panel};

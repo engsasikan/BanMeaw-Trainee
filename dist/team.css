@@ -293,11 +293,11 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .program-superset ul{margin:0;padding-left:18px;display:grid;gap:4px}
 .program-day-card small{color:#c2bcb8}
 .plan-form-title{font-size:17px;margin:0}
-.plan-saved .plan-program{display:grid;gap:10px;margin-bottom:12px;background:#242626;border:1px solid #3d4140}
-.plan-program h3{margin:0;font-size:17px}
-.plan-program-meta{margin:0;font-size:13px}
 .plan-program-actions{display:flex;flex-wrap:wrap;gap:8px}
 .plan-program-actions button{flex:1 1 140px;width:auto;margin:0;min-height:40px;padding:8px 16px;font-size:14px;border-radius:12px}
 .plan-program-days summary{cursor:pointer;font-size:13px;color:#ffa668;padding:6px 0}
 .plan-program-days .entry{margin-top:10px;background:#2c2e2e}
 .plan-program-days .entry>button{margin:12px 8px 0 0;font-size:12px;min-height:36px;padding:6px 12px}
+.plan-notice{margin:0 0 12px}
+.training-planner .plan-saved{margin-top:8px}
+.plan-saved .program-actions .primary{width:100%}

@@ -29,7 +29,7 @@ export function groupPrograms(rows,today){
   list.sort((a,b)=>a.day<b.day?-1:a.day>b.day?1:0);
   const first=list[0].day,last=list.at(-1).day,week=Array.from({length:7},()=>null);
   for(let i=0;i<7;i++){const days=list.filter(row=>weekdayIndex(row.day)===i);const pick=days.find(row=>row.day>=today)??days.at(-1);if(pick)week[i]={day:pick.day,exercises:pick.exercises};}
-  return {batch,first,last,days:list.length,week,status:last<today?'ended':first>today?'upcoming':'current',today:list.find(row=>row.day===today)||null};
+  return {batch,first,last,days:list.length,list,week,status:last<today?'ended':first>today?'upcoming':'current',today:list.find(row=>row.day===today)||null};
  });
  const rank={current:0,upcoming:1,ended:2};
  return programs.sort((a,b)=>rank[a.status]-rank[b.status]||(a.status==='ended'?(a.first<b.first?1:-1):(a.first<b.first?-1:1)));
@@ -60,9 +60,9 @@ function programList(box,programs,open){
  }
  box.append(list);
 }
-function programDetail(box,p,today,{onBack,onTrainToday}){
+function programDetail(box,p,today,{onBack,onTrainToday,note='ดูได้อย่างเดียว แก้ไขได้เฉพาะเทรนเนอร์',detailTools}){
  const back=node('button','‹ โปรแกรมทั้งหมด','quiet program-back');back.type='button';back.onclick=onBack;
- const head=node('div',undefined,'program-head');head.append(node('span',statusText[p.status],'program-status'),node('h3','โปรแกรม '+rangeText(p)),node('p',p.days+' วันฝึก · ดูได้อย่างเดียว แก้ไขได้เฉพาะเทรนเนอร์','muted'));
+ const head=node('div',undefined,'program-head');head.append(node('span',statusText[p.status],'program-status'),node('h3','โปรแกรม '+rangeText(p)),node('p',p.days+' วันฝึก · '+note,'muted'));
  const strip=node('div',undefined,'program-week-strip');
  WEEK.forEach(([short],i)=>{const cell=node('span',undefined,'program-week-cell'+(p.week[i]?' has':'')+(p.today&&weekdayIndex(today)===i?' now':''));cell.append(node('small',short),node('b',p.week[i]?String(p.week[i].exercises.length):'–'));cell.title=p.week[i]?p.week[i].exercises.length+' ท่า':'วันพัก';strip.append(cell);});
  const rows=node('div',undefined,'program-days');
@@ -75,16 +75,18 @@ function programDetail(box,p,today,{onBack,onTrainToday}){
   card.append(summary,steps);row.append(stamp,card);rows.append(row);
  });
  box.append(back,head,strip);
+ if(detailTools)box.append(...detailTools(p));
  if(p.today&&onTrainToday){const go=node('button','ไปฝึกตามแผนวันนี้ →','primary program-go');go.type='button';go.onclick=onTrainToday;box.append(go);}
  box.append(rows);
 }
-export function renderPrograms(box,rows,today,{onTrainToday,actions=[]}={}){
+// Planners pass `detailTools` (edit/delete buttons for an opened program) and their own texts.
+export function renderPrograms(box,rows,today,{onTrainToday,actions=[],title='โปรแกรมการฝึก',emptyText='เทรนเนอร์ยังไม่ได้จัดโปรแกรมให้ทีมนี้',note,detailTools}={}){
  const programs=groupPrograms(rows,today);
  const showList=()=>{
-  box.replaceChildren(node('h3','โปรแกรมการฝึก'));
+  box.replaceChildren(node('h3',title));
   if(actions.length){const bar=node('div',undefined,'program-actions');bar.append(...actions);box.append(bar);}
-  if(!programs.length){box.append(node('p','เทรนเนอร์ยังไม่ได้จัดโปรแกรมให้ทีมนี้','muted'));return;}
-  programList(box,programs,p=>{box.replaceChildren();programDetail(box,p,today,{onBack:showList,onTrainToday});box.scrollIntoView({block:'start'});});
+  if(!programs.length){box.append(node('p',emptyText,'muted'));return;}
+  programList(box,programs,p=>{box.replaceChildren();programDetail(box,p,today,{onBack:showList,onTrainToday,note,detailTools});box.scrollIntoView({block:'start'});});
  };
  showList();
 }
