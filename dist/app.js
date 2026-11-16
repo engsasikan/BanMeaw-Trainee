@@ -13,12 +13,13 @@ import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=39';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=40';
+import {programEnding,endingNotice} from './team-program.mjs?v=9';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
-import {initTeams,loadTeams} from './team.mjs?v=79';
+import {initTeams,loadTeams} from './team.mjs?v=80';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
 import {initBody,quickWeigh} from './body.mjs?v=40';
 import {initToday} from './today.mjs?v=21';
@@ -98,23 +99,45 @@ const workoutHistory=$('workout-list-title').closest('section');workoutHistory.i
 const workoutNav=node('div',undefined,'workout-section-nav');workoutNav.setAttribute('role','group');workoutNav.setAttribute('aria-label','เมนูหน้าฝึก');
 const programPanel=node('section',undefined,'workout-program');programPanel.id='workout-program';
 const dailyPlans=node('section',undefined,'diary training-entry');
+// Personal programs are managed on their own full screen, opened from the button beside the page title.
 const personalEditor=node('div');
-// The personal program list sits under the week view and loads once signed in; its form opens only to create or edit.
+const programSheet=node('section',undefined,'program-sheet');programSheet.hidden=true;programSheet.setAttribute('aria-label','จัดการโปรแกรมฝึก');
+const sheetBar=node('div',undefined,'program-sheet-bar'),sheetBack=node('button','‹ กลับ','program-sheet-back');sheetBack.type='button';
+sheetBar.append(sheetBack,node('strong','จัดการโปรแกรมฝึก'));programSheet.append(sheetBar,personalEditor);document.body.append(programSheet);
+let personalPlanner=null;
+function openProgramSheet({create=false}={}){
+ programSheet.hidden=false;document.body.classList.add('ts-open');programSheet.scrollTop=0;
+ loadPersonalPlanner().then(()=>{if(create)personalPlanner?.create();});
+}
+function closeProgramSheet(){programSheet.hidden=true;document.body.classList.remove('ts-open');}
+sheetBack.onclick=closeProgramSheet;
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!programSheet.hidden)closeProgramSheet();});
+$('program-manage-open').onclick=()=>openProgramSheet();
 async function loadPersonalPlanner(){
  if(!profileId||personalEditor.dataset.state)return;
  personalEditor.dataset.state='loading';
  personalEditor.replaceChildren(node('p','กำลังโหลดโปรแกรมส่วนตัว…','muted'));
  const host=node('div');
  try{
-  await trainerPlanner(host,null,null,{day:$('day').value||localDay(),scroll:false,draftKey:'banmeaw-plan-draft:personal:'+profileId,onSaved:firstDay=>{if(firstDay&&firstDay!==$('day').value)selectDay(firstDay);else refreshDailyPlans();}});
+  personalPlanner=await trainerPlanner(host,null,null,{day:$('day').value||localDay(),scroll:false,draftKey:'banmeaw-plan-draft:personal:'+profileId,onSaved:firstDay=>{refreshEnding();if(firstDay&&firstDay!==$('day').value)selectDay(firstDay);else refreshDailyPlans();}});
   personalEditor.replaceChildren(host);personalEditor.dataset.state='ready';
  }catch(error){
   const retry=node('button','ลองโหลดอีกครั้ง','quiet');retry.type='button';retry.onclick=()=>{delete personalEditor.dataset.state;loadPersonalPlanner();};
   personalEditor.replaceChildren(node('p','โหลดโปรแกรมส่วนตัวไม่สำเร็จ · '+error.message,'muted'),retry);personalEditor.dataset.state='failed';
  }
 }
-function refreshDailyPlans(){loadPersonalPlanner();return showDailyPlans(dailyPlans,$('day').value||localDay(),{records,onStart:startPlanExercise,onSelectDay:selectDay});}
-programPanel.append(dailyPlans,personalEditor);
+// A reminder above the week view when the personal program is about to run out (or just has).
+const endingBox=node('div',undefined,'program-ending-slot');let endingChecked=false;
+async function refreshEnding(){
+ if(!profileId)return;endingChecked=true;
+ try{
+  const {plans}=await api('/api/personal-plans'),ending=programEnding(plans,localDay());
+  const notice=ending&&endingNotice(ending,{subject:'โปรแกรมส่วนตัว',onAction:()=>openProgramSheet({create:true}),dismissKey:'banmeaw-ending-hidden:personal:'+profileId});
+  endingBox.replaceChildren(...(notice?[notice]:[]));
+ }catch{endingChecked=false;}
+}
+function refreshDailyPlans(){if(!endingChecked)refreshEnding();return showDailyPlans(dailyPlans,$('day').value||localDay(),{records,onStart:startPlanExercise,onSelectDay:selectDay});}
+programPanel.append(endingBox,dailyPlans);
 anatomyBrowser.before(programPanel);
 const workoutSections=[['program','โปรแกรมฝึก',programPanel],['pick','เลือกท่า',anatomyBrowser],['log','บันทึกผล',workoutComposer],['history','ประวัติ',workoutHistory]].map(([key,title,panel])=>{
  const button=node('button',title);button.type='button';button.setAttribute('aria-controls',panel.id);button.onclick=()=>{showWorkoutSection(key);if(key==='program')openTodayPlans();if(panel.getBoundingClientRect().top<workoutNav.getBoundingClientRect().bottom)panel.scrollIntoView({block:'start'});};workoutNav.append(button);return {key,button,panel};

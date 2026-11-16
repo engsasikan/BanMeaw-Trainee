@@ -5,8 +5,8 @@ import {nutritionEditor} from './nutrition.mjs?v=1';
 import {weeklyCard,planComparison,feedbackPanel} from './coach-ui.mjs?v=6';
 import {workoutDescription} from './progress.mjs?v=6';
 import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=9';
-import {trainerPlanner} from './plans.mjs?v=39';
-import {teamPrograms} from './team-program.mjs?v=8';
+import {trainerPlanner} from './plans.mjs?v=40';
+import {teamPrograms} from './team-program.mjs?v=9';
 import {api} from './account.js?v=2';
 import {createBodyViewer} from './body.mjs?v=40';
 const $=id=>document.getElementById(id);
@@ -132,13 +132,13 @@ function appendMemberWorkouts(root,rows,member,createRow){
   section.append(header,sequence);root.append(section);
  }
 }
-function openPlanner(team,member,day){
+function openPlanner(team,member,day,{openCreate=false}={}){
  const box=openTeamViewer();
  bodyView?.dispose();bodyView=null;
  const progress=node('p','กำลังโหลดแผนฝึก…','muted');
  progress.dataset.loading='true';progress.setAttribute('role','status');
  const planner=node('div');box.replaceChildren(progress,planner);box.scrollIntoView({block:'start'});
- trainerPlanner(planner,team,member,{day,draftKey:'banmeaw-plan-draft:'+myId+':'+team.id+':'+(member?.id??'team')})
+ trainerPlanner(planner,team,member,{day,openCreate,draftKey:'banmeaw-plan-draft:'+myId+':'+team.id+':'+(member?.id??'team')})
   .catch(error=>{planner.prepend(node('p',error.message,'muted'));})
   .finally(()=>progress.remove());
 }
@@ -271,7 +271,7 @@ async function showTeam(id,day=teamDay||localDayTeam()){
  const selectSection=organizeTeam(view,{tab,onClose:()=>{bodyView?.dispose();bodyView=null;}});
  if(my_role==='owner')view.querySelector('#team-section-manage').prepend(teamPhotoSettings(team));
  const coaching=my_role==='owner'||my_role==='trainer';
- view.querySelector('#team-section-program').append(teamPrograms(team,{api,myId,role:my_role,today:localDayTeam(),onTrainToday:()=>document.querySelector('[data-view="workout"]')?.click(),actions:coaching?[button('จัดแผนฝึกทั้งทีม','primary',()=>openPlanner(team,null,day))]:[]}));
+ view.querySelector('#team-section-program').append(teamPrograms(team,{api,myId,role:my_role,today:localDayTeam(),onTrainToday:()=>document.querySelector('[data-view="workout"]')?.click(),actions:coaching?[button('จัดแผนฝึกทั้งทีม','primary',()=>openPlanner(team,null,day))]:[],onPlanNew:coaching?()=>openPlanner(team,null,day,{openCreate:true}):null}));
  if(my_role==='owner'||my_role==='trainer'){
   const shortcuts=node('div',undefined,'team-member-shortcuts');
   shortcuts.append(button('จัดแผนฝึกทั้งทีม','primary',()=>openPlanner(team,null,day)));

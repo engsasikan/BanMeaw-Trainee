@@ -33,3 +33,13 @@ test('Super sets are named on the day card and a group needs at least two streng
  assert.deepEqual(supersetGroups(day),[{letter:'A',count:2},{letter:'B',count:2}]);
  assert.equal(exerciseLine({exercise:'Row',sets:3,reps:12,weight:null,superset:'B'},{withGroup:false}),'Row · 3 เซ็ต × 12 ครั้ง');
 });
+test('a reminder shows when planned days run out within a week, not for far-off or long-past ends',async()=>{
+ const {programEnding}=await import('../dist/team-program.mjs');
+ const rows=days=>days.map(day=>({day}));
+ assert.deepEqual(programEnding(rows(['2026-11-10','2026-11-20']),'2026-11-16'),{last:'2026-11-20',daysLeft:4});
+ assert.deepEqual(programEnding(rows(['2026-11-16']),'2026-11-16'),{last:'2026-11-16',daysLeft:0});
+ assert.deepEqual(programEnding(rows(['2026-11-12']),'2026-11-16'),{last:'2026-11-12',daysLeft:-4});
+ assert.equal(programEnding(rows(['2026-11-16','2026-12-20']),'2026-11-16'),null,'a later program is still running');
+ assert.equal(programEnding(rows(['2026-10-01']),'2026-11-16'),null,'ended long ago');
+ assert.equal(programEnding([],'2026-11-16'),null);
+});

@@ -483,3 +483,31 @@ body.ts-open{overflow:hidden}
 .guided-training .ts-std-go{width:100%;max-width:340px;min-height:56px;margin:0;border-radius:999px;font-size:1.05rem;font-weight:800}
 .ts-std .quiet{width:100%;max-width:340px;margin:0;border-radius:999px}
 .ts-std>.muted{margin:0;font-size:12px}
+/* Program manager: header button and its full screen */
+#program-manage-open{display:none}
+body:has(#workout-panel:not([hidden])) #program-manage-open{display:inline-flex;align-items:center;flex:none;min-height:44px;padding:6px 14px;border:1px solid #65432e;border-radius:12px;background:#2b211b;color:#ffc39f;font-size:.82rem;font-weight:700}
+.program-sheet{position:fixed;inset:0;z-index:190;overflow-y:auto;overscroll-behavior:contain;padding:0 16px calc(32px + env(safe-area-inset-bottom));background:var(--ink)}
+.program-sheet[hidden]{display:none}
+.program-sheet>*{max-width:760px;margin-left:auto;margin-right:auto}
+.program-sheet-bar{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:max(12px,env(safe-area-inset-top)) 0 12px;background:linear-gradient(var(--ink) 82%,#0b0b0b00)}
+.program-sheet-bar strong{text-align:center;font-size:1.05rem}
+.program-sheet-bar::after{content:"";width:72px}
+.program-sheet-back{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--card-2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer}
+.program-sheet .training-planner{margin-top:4px}
+/* Reminder that a program is about to run out */
+.program-ending-slot:empty{display:none}
+.program-ending-slot{margin-bottom:12px}
+.program-ending{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:6px 12px;padding:14px 44px 14px 14px;border-radius:18px;background:linear-gradient(150deg,#3a2416,#241b16 70%);border:1px solid #ff702866}
+.program-ending.ended{background:linear-gradient(150deg,#3a1d1d,#241818 70%);border-color:#ff6b6b66}
+.program-ending-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#ff70282e;font-size:18px;font-weight:800;color:#ffab79}
+.program-ending.ended .program-ending-icon{background:#ff6b6b2e;color:#ff9b9b}
+.program-ending-text{display:grid;gap:2px;min-width:0}
+.program-ending-text strong{font-size:15px}
+.program-ending-text small{color:#c2bcb8;font-size:12px;line-height:1.5}
+.program-ending .program-ending-go{grid-column:1/-1;width:100%;min-height:44px;margin:4px 0 0;border-radius:12px;font-weight:800}
+.program-ending-hide{position:absolute;top:8px;right:8px;width:32px;height:32px;min-height:32px;padding:0;border:0;border-radius:50%;background:none;color:var(--soft);font-size:14px;cursor:pointer}
+.team-program>.program-ending{margin:0}
+body:has(#workout-panel:not([hidden])) .heading{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+body:has(#workout-panel:not([hidden])) .heading h1{min-width:0}
+body:has(#workout-panel:not([hidden])) .heading h1{font-size:clamp(1.4rem,6.2vw,2.4rem);white-space:nowrap}
+body:has(#workout-panel:not([hidden])) #program-manage-open{white-space:nowrap;padding:6px 10px}

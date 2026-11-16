@@ -89,10 +89,11 @@ function programDetail(box,p,today,{onBack,onTrainToday,note='ดูได้อ
  box.append(rows);
 }
 // Planners pass `detailTools` (edit/delete buttons for an opened program) and their own texts.
-export function renderPrograms(box,rows,today,{onTrainToday,actions=[],title='โปรแกรมการฝึก',emptyText='เทรนเนอร์ยังไม่ได้จัดโปรแกรมให้ทีมนี้',note,detailTools}={}){
+export function renderPrograms(box,rows,today,{onTrainToday,actions=[],title='โปรแกรมการฝึก',emptyText='เทรนเนอร์ยังไม่ได้จัดโปรแกรมให้ทีมนี้',note,detailTools,banner}={}){
  const programs=groupPrograms(rows,today);
  const showList=()=>{
   box.replaceChildren(node('h3',title));
+  if(banner)box.append(banner);
   if(actions.length){const bar=node('div',undefined,'program-actions');bar.append(...actions);box.append(bar);}
   if(!programs.length){box.append(node('p',emptyText,'muted'));return;}
   programList(box,programs,p=>{box.replaceChildren();programDetail(box,p,today,{onBack:showList,onTrainToday,note,detailTools});box.scrollIntoView({block:'start'});});
@@ -100,12 +101,40 @@ export function renderPrograms(box,rows,today,{onTrainToday,actions=[],title='�
  showList();
 }
 // Trainees read their own copies (one row per day, with its batch); owners and trainers read the team's list.
-export function teamPrograms(team,{api,myId,role,today,onTrainToday,actions}){
+export function teamPrograms(team,{api,myId,role,today,onTrainToday,actions,onPlanNew}){
  const box=node('section',undefined,'diary team-program');
  box.append(node('h3','โปรแกรมการฝึก'),node('p','กำลังโหลดโปรแกรม…','muted'));
  const trainer=role==='owner'||role==='trainer';
  api('/api/teams/'+team.id+'/plans'+(trainer?'':'/'+encodeURIComponent(myId)))
-  .then(({plans})=>renderPrograms(box,plans.map(p=>({batch:trainer?p.id:p.batch_id??p.id,day:p.day,exercises:p.exercises})),today,{onTrainToday,actions}))
+  .then(({plans})=>{
+   const rows=plans.map(p=>({batch:trainer?p.id:p.batch_id??p.id,day:p.day,exercises:p.exercises}));
+   // Trainers get a reminder when the team's planned days are about to run out.
+   const ending=trainer&&onPlanNew?programEnding(rows,today):null;
+   const banner=ending?endingNotice(ending,{subject:'โปรแกรมทีม',actionText:'จัดแผนฝึกทั้งทีม',onAction:onPlanNew,dismissKey:'banmeaw-ending-hidden:team:'+team.id}):null;
+   renderPrograms(box,rows,today,{onTrainToday,actions,banner});
+  })
   .catch(error=>{box.replaceChildren(node('h3','โปรแกรมการฝึก'),node('p','โหลดโปรแกรมไม่สำเร็จ · '+error.message,'muted'));});
+ return box;
+}
+// When the planned days run out: the last planned day and how many days are left until it (negative once it
+// has passed). Null when there is nothing planned, the end is more than `ahead` days away, or it passed more
+// than `behind` days ago (an old program is not worth a reminder).
+export function programEnding(rows,today,{ahead=7,behind=7}={}){
+ if(!rows.length)return null;
+ const last=rows.reduce((max,row)=>row.day>max?row.day:max,rows[0].day);
+ const daysLeft=Math.round((Date.parse(last+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/864e5);
+ if(daysLeft>ahead||daysLeft<-behind)return null;
+ return {last,daysLeft};
+}
+// The reminder card: how long is left, a button to plan the next program, and a way to hide it for this end date.
+export function endingNotice({last,daysLeft},{subject='โปรแกรม',actionText='วางแผนโปรแกรมใหม่',onAction,dismissKey}={}){
+ try{if(dismissKey&&localStorage.getItem(dismissKey)===last)return null;}catch{}
+ const box=node('div',undefined,'program-ending'+(daysLeft<0?' ended':''));box.setAttribute('role','status');
+ const when=daysLeft>1?'จะหมดในอีก '+daysLeft+' วัน':daysLeft===1?'จะหมดพรุ่งนี้':daysLeft===0?'หมดวันนี้':'จบไปแล้ว '+(-daysLeft)+' วัน';
+ const text=node('div',undefined,'program-ending-text');
+ text.append(node('strong',subject+when),node('small','วันสุดท้าย '+fullDate.format(at(last))+' · วางแผนโปรแกรมต่อได้เลย จะได้ฝึกต่อเนื่อง'));
+ box.append(node('span',daysLeft<0?'!':'⏳','program-ending-icon'),text);
+ if(onAction){const go=node('button',actionText,'primary program-ending-go');go.type='button';go.onclick=onAction;box.append(go);}
+ if(dismissKey){const hide=node('button','✕','program-ending-hide');hide.type='button';hide.setAttribute('aria-label','ซ่อนการแจ้งเตือนนี้');hide.onclick=()=>{try{localStorage.setItem(dismissKey,last);}catch{}box.remove();};box.append(hide);}
  return box;
 }

@@ -1,5 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=6';
-import {renderPrograms} from './team-program.mjs?v=8';
+import {renderPrograms} from './team-program.mjs?v=9';
 import {comparePlan} from './progress.mjs?v=6';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
@@ -58,7 +58,7 @@ function stylePlanDate(date){
  date.i.addEventListener('change',update);date.i.addEventListener('input',update);
  frame.append(display,icon,date.i);date.box.append(frame);update();
 }
-export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey,scroll=true}={}){
+export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey,scroll=true,openCreate=false}={}){
  const section=el('section',undefined,'diary training-planner');
  const header=el('div',undefined,'plan-header');
  header.append(el('h2',!team?'โปรแกรมฝึกส่วนตัว':member?'จัดแผนฝึก · '+member.display_name:'จัดแผนฝึกทั้งทีม'));
@@ -461,7 +461,9 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   finally{save.disabled=cancel.disabled=false;save.textContent=editing?'บันทึกการแก้ไข':editingProgram?'บันทึกการแก้ไขโปรแกรม':'บันทึกโปรแกรม';}
  };
  await load();
- if(scroll)section.scrollIntoView({behavior:'smooth',block:'start'});
+ if(openCreate)create.onclick();
+ else if(scroll)section.scrollIntoView({behavior:'smooth',block:'start'});
+ return {create:()=>create.onclick(),reload:load};
 }
 const weekLabels=['MON','TUE','WED','THU','FRI','SAT','SUN'];
 const shortDate=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'});
