@@ -58,6 +58,58 @@ function stylePlanDate(date){
  date.i.addEventListener('change',update);date.i.addEventListener('input',update);
  frame.append(display,icon,date.i);date.box.append(frame);update();
 }
+// The team's (or your own) warm-up and cool-down, used on days whose plan has none. Empty means the app's
+// standard set. Each move is timed, like the standard ones.
+function routineEditor(path,{team}){
+ const box=el('details',undefined,'routine-editor');
+ const summary=el('summary');summary.append(el('strong',team?'ชุดวอร์มอัพ/คูลดาวน์ของทีม':'ชุดวอร์มอัพ/คูลดาวน์ของฉัน'),el('small','ใช้ในวันที่แผนไม่ได้ใส่วอร์มอัพหรือคูลดาวน์ไว้','muted'));
+ box.append(summary);
+ const body=el('div',undefined,'routine-body'),message=el('p',undefined,'plan-message');message.setAttribute('role','status');
+ const parts={};
+ for(const [phase,label] of [['warmup','วอร์มอัพ'],['cooldown','คูลดาวน์']]){
+  const part=el('section',undefined,'routine-part '+phase),rows=el('div',undefined,'routine-rows'),empty=el('p','ว่าง · จะใช้ชุดมาตรฐานของแอป','muted routine-empty');
+  const add=el('button','+ เพิ่มท่า'+label,'quiet plan-add');add.type='button';
+  const entries=[];
+  const refresh=()=>{empty.hidden=entries.length>0;add.disabled=entries.length>=10;};
+  const addRow=(move={})=>{
+   const row=el('div',undefined,'routine-row'),name=planExercisePicker(()=>{},new Map());
+   const seconds=input('วินาที','number',move.seconds??(phase==='warmup'?45:30));seconds.i.min=10;seconds.i.max=600;seconds.i.step=5;seconds.i.required=true;seconds.i.inputMode='numeric';
+   const remove=el('button','✕','quiet routine-remove');remove.type='button';remove.setAttribute('aria-label','นำท่านี้ออก');
+   const entry={row,name,seconds};entries.push(entry);
+   remove.onclick=()=>{entries.splice(entries.indexOf(entry),1);row.remove();refresh();};
+   if(move.exercise)name.choose({name:move.exercise});
+   row.append(name.box,seconds.box,remove);rows.append(row);refresh();return entry;
+  };
+  add.onclick=()=>{if(entries.length<10)addRow().name.focus();};
+  part.append(el('h4',label),rows,empty,add);body.append(part);
+  parts[phase]={entries,addRow,clear:()=>{entries.splice(0);rows.replaceChildren();refresh();}};
+  refresh();
+ }
+ const save=el('button','บันทึกชุดนี้','primary'),reset=el('button','ใช้ชุดมาตรฐานของแอป','quiet');save.type=reset.type='button';
+ const actions=el('div',undefined,'routine-actions');actions.append(save,reset);
+ body.append(actions,message);box.append(body);
+ const fill=routine=>{for(const phase of ['warmup','cooldown']){parts[phase].clear();for(const move of routine?.[phase]??[])parts[phase].addRow(move);}};
+ const values=()=>Object.fromEntries(['warmup','cooldown'].map(phase=>[phase,parts[phase].entries.map(({name,seconds})=>({exercise:name.i.value.trim(),seconds:Number(seconds.i.value)}))]));
+ async function store(routine){
+  save.disabled=reset.disabled=true;message.textContent='กำลังบันทึก…';
+  try{const result=await api(path,{method:'PUT',body:JSON.stringify(routine)});fill(result.routine);message.textContent=result.routine?'บันทึกแล้ว · ใช้ในวันที่แผนไม่ได้ใส่ไว้':'กลับไปใช้ชุดมาตรฐานของแอปแล้ว';}
+  catch(error){message.textContent=error.message;}
+  finally{save.disabled=reset.disabled=false;}
+ }
+ save.onclick=()=>{
+  const routine=values(),missing=[...routine.warmup,...routine.cooldown].find(m=>!m.exercise);
+  if(missing){message.textContent='เลือกชื่อท่าให้ครบก่อนบันทึก';return;}
+  if([...routine.warmup,...routine.cooldown].some(m=>!(m.seconds>=10&&m.seconds<=600))){message.textContent='เวลาแต่ละท่าต้องเป็น 10–600 วินาที';return;}
+  store(routine);
+ };
+ reset.onclick=()=>{if(confirm('ล้างชุดนี้และกลับไปใช้ชุดมาตรฐานของแอป?'))store({warmup:[],cooldown:[]});};
+ let loaded=false;
+ box.addEventListener('toggle',async()=>{
+  if(!box.open||loaded)return;loaded=true;message.textContent='กำลังโหลด…';
+  try{fill((await api(path)).routine);message.textContent='';}catch(error){loaded=false;message.textContent=error.message;}
+ });
+ return box;
+}
 export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey,scroll=true,openCreate=false}={}){
  const section=el('section',undefined,'diary training-planner');
  const header=el('div',undefined,'plan-header');
@@ -262,10 +314,13 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  const footer=el('div',undefined,'program-footer');footer.append(message,save);form.append(footer);
  // Saved programs come first so they can be found and changed without scrolling past the new-program form.
  // The list of programs is the main view; the form opens only to create or edit one.
- const list=el('div',undefined,'plan-saved team-program');form.hidden=true;section.append(notice,list,form);
+ const list=el('div',undefined,'plan-saved team-program');form.hidden=true;
+ // Warm-up/cool-down set: for the whole team or your own programs (not when planning for one member).
+ const routine=member?null:routineEditor(team?'/api/teams/'+team.id+'/routine':'/api/routine',{team});
+ section.append(notice,list,...(routine?[routine]:[]),form);
  const cancel=el('button','ยกเลิก','quiet');cancel.type='button';footer.append(cancel);
- function openForm(){form.hidden=false;list.hidden=true;notice.textContent='';}
- function closeForm(){form.hidden=true;list.hidden=false;}
+ function openForm(){form.hidden=false;list.hidden=true;if(routine)routine.hidden=true;notice.textContent='';}
+ function closeForm(){form.hidden=true;list.hidden=false;if(routine)routine.hidden=false;}
  const create=el('button','+ สร้างโปรแกรมใหม่','primary');create.type='button';
  // After a program is saved the next "create" starts from a blank week.
  let saved=false;

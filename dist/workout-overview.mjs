@@ -83,7 +83,9 @@ export function estimateKcal(seconds,{cardio=[],weightKg=null}={}){
 }
 // Standard warm-up and cool-down, used when the trainer's plan has none of its own. Picked by what the main work
 // trains most: legs, upper body, or a general mix. Every move is timed and has a demo picture in the library.
-const move=(exercise,seconds,phase)=>({exercise,sets:1,seconds,weight:null,rest_seconds:0,phase,standard:true});
+const move=(exercise,seconds,phase,source='standard')=>({exercise,sets:1,seconds,weight:null,rest_seconds:0,phase,standard:true,source});
+// A trainer's or member's own set ({exercise, seconds} moves) as timed steps, like the standard ones.
+export const routineMoves=(moves,phase,source)=>(moves??[]).map(({exercise,seconds})=>move(exercise,seconds,phase,source));
 const WARMUP={
  general:[['Jack Jump (กระโดดตบ)',45],['Inchworm (เดินมือ)',45],['World Greatest Stretch (ยืดทั้งตัว)',60],['Squat To Overhead Reach With Twist (สควอตบิดตัว)',45]],
  lower:[['Jack Jump (กระโดดตบ)',45],['Walking High Knees Lunge (ยกเข่าสลับลันจ์)',45],['World Greatest Stretch (ยืดทั้งตัว)',60],['Squat To Overhead Reach With Twist (สควอตบิดตัว)',45]],

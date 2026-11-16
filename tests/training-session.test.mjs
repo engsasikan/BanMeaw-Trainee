@@ -102,3 +102,20 @@ test('standard warm-up runs as timed steps that are not saved, then the plan sta
  assert.ok(session.textContent.includes('Squat'));assert.equal(writes,0);
  nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
 });
+test("a team's own warm-up replaces the standard one; the standard cool-down stays when the team set has none",async()=>{
+ const nodes=new Map(['dashboard-panel','today-card','workout-panel','day'].map(id=>[id,new Element('div')]));nodes.get('day').value=TODAY;
+ const doc=new EventTarget();doc.createElement=tag=>new Element(tag);doc.getElementById=id=>nodes.get(id);globalThis.document=doc;globalThis.window=new EventTarget();
+ globalThis.__routineCalls=[];
+ const stub='export function switchView(){}; export async function api(path){globalThis.__routineCalls.push(path);return path.endsWith("/routine")?{routine:{warmup:[{exercise:"Arm Circles",seconds:30},{exercise:"Leg Swings",seconds:30}],cooldown:[]}}:{ok:true}}; export function createMuscleFocus(){return {el:document.createElement("section"),show(){}}};';
+ const built=await build({entryPoints:['dist/training-session.mjs'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'test-adapters',setup(b){b.onResolve({filter:/dashboard\.mjs|account\.js|exercise-preview\.mjs/},args=>({path:args.path,namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:stub,loader:'js'}));}}]});
+ const {initTrainingSession}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text+'//routine').toString('base64'));
+ initTrainingSession({getRecords:()=>[],saveRecords:async()=>true});
+ const plan={id:'55555555-5555-4555-8555-555555555555',team_id:'66666666-6666-4666-8666-666666666666',team_name:'Girl Gym',day:TODAY,exercises:[{exercise:'Squat',sets:2,reps:10}]};
+ window.dispatchEvent(new CustomEvent('training-plans',{detail:{day:TODAY,plans:[plan]}}));window.dispatchEvent(new CustomEvent('training-start'));
+ await new Promise(resolve=>setTimeout(resolve));
+ const session=nodes.get('workout-panel').children[0];
+ assert.deepEqual(globalThis.__routineCalls,['/api/teams/66666666-6666-4666-8666-666666666666/routine']);
+ assert.match(session.textContent,/วอร์มอัพ · ชุดของทีม/);assert.match(session.textContent,/Arm Circles/);assert.match(session.textContent,/Leg Swings/);
+ assert.doesNotMatch(session.textContent,/Jack Jump/);assert.match(session.textContent,/คูลดาวน์ · ชุดมาตรฐาน/);
+ nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
+});

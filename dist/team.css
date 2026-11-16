@@ -319,3 +319,24 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .program-exercises .program-phase{display:block;margin:6px 0 0 -18px;font-size:12px;font-weight:800;letter-spacing:.3px;color:#ffc39f}
 .program-exercises .program-phase.warmup{color:#ffd27a}
 .program-exercises .program-phase.cooldown{color:#8fd0ff}
+/* Team / personal warm-up and cool-down set, under the program list */
+.routine-editor{margin-top:14px;border-radius:18px;background:var(--card-2,#1b1b1b);border:1px solid #333}
+.routine-editor[hidden]{display:none}
+.routine-editor>summary{display:grid;gap:2px;padding:14px 16px;cursor:pointer;list-style:none}
+.routine-editor>summary::-webkit-details-marker{display:none}
+.routine-editor>summary strong::before{content:"⚙ ";color:#ffab79}
+.routine-editor>summary small{font-size:12px}
+.routine-body{display:grid;gap:14px;padding:0 16px 16px}
+.routine-part{display:grid;gap:8px}
+.routine-part h4{margin:6px 0 0;font-size:14px}
+.routine-part.warmup h4{color:#ffd27a}
+.routine-part.cooldown h4{color:#8fd0ff}
+.routine-rows{display:grid;gap:8px}
+.routine-row{display:grid;grid-template-columns:minmax(0,1fr) 48px;gap:8px;align-items:end;padding:10px;border-radius:14px;background:#ffffff06;border:1px solid #ffffff10}
+.routine-row>.plan-name{grid-column:1/-1;min-width:0}
+.training-planner .routine-row label{font-size:12px}
+.routine-row .routine-remove{width:48px;min-height:48px;padding:0;border-radius:12px}
+.routine-empty{margin:0;font-size:13px}
+.routine-empty[hidden]{display:none}
+.routine-actions{display:flex;flex-wrap:wrap;gap:8px}
+.routine-actions button{flex:1 1 150px;min-height:44px;margin:0;border-radius:12px;font-weight:800}
