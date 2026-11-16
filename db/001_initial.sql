@@ -158,6 +158,10 @@ CREATE INDEX IF NOT EXISTS team_redemptions_team ON team_redemptions(team_id,cre
 ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS team_visible boolean NOT NULL DEFAULT false;
 
 
+-- Carbohydrate goal next to calories and protein (optional), and a member's own daily food goal for when
+-- no trainer has set one: {"calories":1800,"protein":110,"carbs":200}.
+ALTER TABLE nutrition_targets ADD COLUMN IF NOT EXISTS carbs numeric;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS nutrition_goal jsonb;
 -- Apple Health / Apple Watch: daily totals and workouts per member, and the hashed key a member's iPhone Shortcut uses.
 CREATE TABLE IF NOT EXISTS health_keys (
   user_id text PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,

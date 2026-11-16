@@ -27,7 +27,8 @@ export function validateRecords(records){
   // Optional numbers for the day's totals against the trainer's goal: whole kcal, protein to 0.1 g.
   if(r.kcal!=null&&(!Number.isInteger(r.kcal)||r.kcal<0||r.kcal>10000))throw new Error('พลังงานต้องเป็น 0–10,000 kcal');
   if(r.protein!=null&&(typeof r.protein!=='number'||!Number.isFinite(r.protein)||r.protein<0||r.protein>1000||Math.round(r.protein*10)!==r.protein*10))throw new Error('โปรตีนต้องเป็น 0–1,000 กรัม');
-  ids.add(r.id);return {id:r.id,day:r.day,meal:r.meal,time:r.time,text:r.text.trim(),...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{}),...(r.kcal!=null?{kcal:r.kcal}:{}),...(r.protein!=null?{protein:r.protein}:{})};
+  if(r.carbs!=null&&(typeof r.carbs!=='number'||!Number.isFinite(r.carbs)||r.carbs<0||r.carbs>2000||Math.round(r.carbs*10)!==r.carbs*10))throw new Error('คาร์บต้องเป็น 0–2,000 กรัม');
+  ids.add(r.id);return {id:r.id,day:r.day,meal:r.meal,time:r.time,text:r.text.trim(),...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{}),...(r.kcal!=null?{kcal:r.kcal}:{}),...(r.protein!=null?{protein:r.protein}:{}),...(r.carbs!=null?{carbs:r.carbs}:{})};
  });
 }
 export function read(storage){return validateRecords(JSON.parse(storage.getItem(KEY)||'[]'));}

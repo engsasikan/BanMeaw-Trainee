@@ -1,4 +1,4 @@
-import {mealNumbers,dayTotals} from './meal-nutrition.mjs?v=1';
+import {mealNumbers,dayTotals,totalsText} from './meal-nutrition.mjs?v=2';
 export function traineeSnapshot(bodyRecords,records,day){
  const history=bodyRecords.filter(r=>r.day<=day).sort((a,b)=>b.day.localeCompare(a.day));
  const weight=history.find(r=>r.weight!=null),height=history.find(r=>r.height!=null);
@@ -9,7 +9,7 @@ export function traineeCopyText(member,snapshot,day){
  if(snapshot.meals?.length){
   lines.push('','อาหาร');
   for(const meal of snapshot.meals){lines.push('','• '+[meal.meal,meal.time,({'pre-workout':'ก่อนฝึก','post-workout':'หลังฝึก'}[meal.workoutTiming]||meal.workoutTiming)].filter(Boolean).join(' · '));for(const line of (meal.text||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean))lines.push('  – '+line);const numbers=mealNumbers(meal);if(numbers)lines.push('  – '+numbers);}
-  const totals=dayTotals(snapshot.meals);if(totals.meals>totals.missing)lines.push('','รวมที่จดไว้: '+totals.kcal.toLocaleString('th-TH')+' kcal · โปรตีน '+totals.protein.toLocaleString('th-TH')+' g');
+  const totals=dayTotals(snapshot.meals);if(totals.meals>totals.missing)lines.push('','รวมที่จดไว้: '+totalsText(totals));
  }
  if(snapshot.workouts?.length){
   lines.push('','ออกกำลังกาย');

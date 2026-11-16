@@ -18,7 +18,7 @@ export function frequentMeals(records,day,{days=60,limit=6}={}){
   .sort((a,b)=>b.count-a.count||b.latest.day.localeCompare(a.latest.day))
   .slice(0,limit)
   .map(g=>({text:g.text,count:g.count,meal:[...g.mealCounts].sort((a,b)=>b[1]-a[1])[0][0],
-   ...(g.latest.kcal!=null?{kcal:g.latest.kcal}:{}),...(g.latest.protein!=null?{protein:g.latest.protein}:{}),
+   ...(g.latest.kcal!=null?{kcal:g.latest.kcal}:{}),...(g.latest.protein!=null?{protein:g.latest.protein}:{}),...(g.latest.carbs!=null?{carbs:g.latest.carbs}:{}),
    ...(g.latest.workoutTiming?{workoutTiming:g.latest.workoutTiming}:{})}));
 }
 
@@ -29,6 +29,6 @@ export function previousDayCopies(records,day,newId=()=>crypto.randomUUID()){
  return list.filter(r=>r.day===before&&!present.has(r.meal+'|'+key(r.text)))
   .sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'))
   .map(r=>({id:newId(),day,meal:r.meal,time:r.time??'',text:r.text.trim(),
-   ...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{}),...(r.kcal!=null?{kcal:r.kcal}:{}),...(r.protein!=null?{protein:r.protein}:{})}));
+   ...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{}),...(r.kcal!=null?{kcal:r.kcal}:{}),...(r.protein!=null?{protein:r.protein}:{}),...(r.carbs!=null?{carbs:r.carbs}:{})}));
 }
 export const previousDay=day=>shiftDay(day,-1);

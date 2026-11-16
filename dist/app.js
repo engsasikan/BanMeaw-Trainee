@@ -9,9 +9,9 @@ import {initWorkoutPairs} from './workout-pairs.mjs?v=12';
 import {initTrainingSession} from './training-session.mjs?v=37';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=6';
-import {initNutrition} from './nutrition.mjs?v=2';
-import {mealNumbers,dayTotals,progress} from './meal-nutrition.mjs?v=1';
-import {frequentMeals,previousDayCopies,previousDay} from './meal-shortcuts.mjs?v=1';
+import {initNutrition} from './nutrition.mjs?v=3';
+import {mealNumbers,dayTotals,progress} from './meal-nutrition.mjs?v=2';
+import {frequentMeals,previousDayCopies,previousDay} from './meal-shortcuts.mjs?v=2';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
@@ -23,10 +23,10 @@ import {auth,api} from './account.js?v=5';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=19';
 import {attachExercisePicker} from './exercise-picker.mjs?v=13';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
-import {initTeams,loadTeams} from './team.mjs?v=83';
+import {initTeams,loadTeams} from './team.mjs?v=84';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
 import {initBody,quickWeigh} from './body.mjs?v=40';
-import {initToday} from './today.mjs?v=22';
+import {initToday} from './today.mjs?v=23';
 import {initMotion} from './motion.mjs?v=2';
 import {initHealthHistory} from './health-ui.mjs?v=3';
 import {personalRecord} from './personal-record.mjs?v=3';
@@ -58,7 +58,7 @@ const legacyRecords=(()=>{try{return read(localStorage);}catch{return [];}})();s
 $('day').value=localDay();$('time').value=new Date().toTimeString().slice(0,5);$('meal').value=mealForTime($('time').value)||'มื้อเช้า';
 let saving=false,workoutPlan=null,workoutPairs=null;
 const trainingSession=initTrainingSession({getRecords:()=>records,saveRecords});
-const diaryTools=initDiaryTools({getRecords:()=>records,getEditing:()=>workoutEditing,reuseMeal:r=>{editing=null;openMealForm();$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('meal').value=r.meal;$('details').value=r.text;$('meal-kcal').value=r.kcal??'';$('meal-protein').value=r.protein??'';document.querySelectorAll('[name="workout-timing"]').forEach(i=>i.checked=i.value===(r.workoutTiming||''));count();$('details').setCustomValidity('');$('details').focus();},reuseWorkout:fillWorkoutDraft});
+const diaryTools=initDiaryTools({getRecords:()=>records,getEditing:()=>workoutEditing,reuseMeal:r=>{editing=null;openMealForm();$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('meal').value=r.meal;$('details').value=r.text;$('meal-kcal').value=r.kcal??'';$('meal-protein').value=r.protein??'';$('meal-carbs').value=r.carbs??'';document.querySelectorAll('[name="workout-timing"]').forEach(i=>i.checked=i.value===(r.workoutTiming||''));count();$('details').setCustomValidity('');$('details').focus();},reuseWorkout:fillWorkoutDraft});
 
 initCompactWorkout();
 
@@ -154,10 +154,28 @@ async function saveRecords(next,formId=null){
 function reset(){editing=null;$('meal-form').reset();closeMealForm();$('time').value=new Date().toTimeString().slice(0,5);$('meal').value=mealForTime($('time').value)||'มื้อเช้า';$('form-title').textContent='เพิ่มมื้ออาหาร';$('save').textContent='บันทึกมื้ออาหาร';$('count').textContent='0 / 3,000';resetWorkout();}
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 // The day's food: a summary (meals, kcal and protein against the trainer's goal) and the meals in time order.
-let nutritionGoals=[];
-window.addEventListener('nutrition-goals',event=>{nutritionGoals=event.detail??[];renderMeals();});
+// Goals: from a trainer if one has set them, otherwise the member's own (set right on this page).
+let nutritionGoals=[],ownGoal=null,ownGoalOpen=false;
+window.addEventListener('nutrition-goals',event=>{nutritionGoals=event.detail?.goals??[];ownGoal=event.detail?.own??null;renderMeals();});
+function ownGoalForm(){
+ const form=node('form',undefined,'own-goal-form'),fields=node('div',undefined,'meal-numbers');
+ const field=(id,label,unit,min,max,step,value,required)=>{const box=node('label',label+' ');box.append(node('span',unit,'optional'));const input=node('input');input.type='number';input.id=id;input.min=min;input.max=max;input.step=step;input.required=required;input.inputMode='decimal';input.value=value??'';box.append(input);fields.append(box);return input;};
+ const kcal=field('own-kcal','พลังงาน','kcal/วัน',1,20000,1,ownGoal?.calories,true),protein=field('own-protein','โปรตีน','g/วัน',0.1,1000,0.1,ownGoal?.protein,true),carbs=field('own-carbs','คาร์บ','g/วัน',0,3000,0.1,ownGoal?.carbs,false);
+ const save=node('button',ownGoal?'บันทึกเป้าหมาย':'ตั้งเป้าหมาย','primary');save.type='submit';
+ const cancel=node('button','ยกเลิก','quiet');cancel.type='button';cancel.onclick=()=>{ownGoalOpen=false;renderMeals();};
+ const actions=node('div',undefined,'own-goal-actions');actions.append(save,cancel);
+ if(ownGoal){const clear=node('button','ลบเป้าหมาย','quiet own-goal-clear');clear.type='button';clear.onclick=async()=>{if(!confirm('ลบเป้าหมายของคุณ?'))return;try{await api('/api/nutrition',{method:'PUT',body:JSON.stringify({clear:true})});ownGoal=null;ownGoalOpen=false;renderMeals();tell('ลบเป้าหมายแล้ว');}catch(error){tell(error.message);}};actions.append(clear);}
+ const message=node('p',undefined,'muted');message.setAttribute('role','status');
+ form.append(node('strong','เป้าหมายต่อวันของฉัน'),fields,node('small','ไม่รู้จะตั้งเท่าไหร่ ถามเทรนเนอร์ หรือเริ่มจากน้ำหนักตัว (กก.) × 30 kcal และโปรตีน × 1.6 g','muted'),actions,message);
+ form.onsubmit=async event=>{
+  event.preventDefault();save.disabled=true;message.textContent='กำลังบันทึก…';
+  try{const result=await api('/api/nutrition',{method:'PUT',body:JSON.stringify({calories:Number(kcal.value),protein:Number(protein.value),carbs:carbs.value===''?null:Number(carbs.value)})});ownGoal=result.own;ownGoalOpen=false;renderMeals();tell('บันทึกเป้าหมายแล้ว');}
+  catch(error){message.textContent=error.message;save.disabled=false;}
+ };
+ return form;
+}
 function renderFoodToday(meals,day){
- const box=$('food-today'),totals=dayTotals(meals),goal=nutritionGoals[0];
+ const box=$('food-today'),totals=dayTotals(meals),trainerGoal=nutritionGoals[0],goal=trainerGoal??ownGoal;
  const isToday=day===localDay(),title=isToday?'วันนี้':new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(day+'T12:00:00'));
  const head=node('div',undefined,'food-today-head');head.append(node('p','FOOD DIARY · '+title,'eyebrow'),node('h2',meals.length?meals.length+' มื้อ':'ยังไม่มีมื้อ'));
  const chips=node('div',undefined,'food-meal-chips');
@@ -171,12 +189,19 @@ function renderFoodToday(meals,day){
   if(p){const track=node('div',undefined,'intake-track'+(p.over?' over':''));const fill=node('span');fill.style.width=(p.ratio*100).toFixed(1)+'%';track.append(fill);track.setAttribute('role','progressbar');track.setAttribute('aria-valuenow',String(p.percent));track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-label',label+' '+p.percent+'% ของเป้าหมาย');row.append(track,node('small',p.over?'เกินเป้า '+(p.percent-100)+'%':'เหลือ '+Math.max(0,Math.round((target-value)*10)/10).toLocaleString('th-TH')+' '+unit,'muted'));}
   return row;
  };
- bars.append(bar('พลังงาน',totals.kcal,goal?.calories,'kcal'),bar('โปรตีน',totals.protein,goal?.protein,'g'));
+ bars.append(bar('พลังงาน',totals.kcal,goal?.calories,'kcal'),bar('โปรตีน',totals.protein,goal?.protein,'g'),bar('คาร์บ',totals.carbs,goal?.carbs,'g'));
  const notes=node('div',undefined,'food-today-notes');
- if(goal)notes.append(node('small','เป้าหมายจาก '+goal.trainer_name+' · '+goal.team_name,'muted'));
- else notes.append(node('small','ยังไม่มีเป้าหมายอาหารจากเทรนเนอร์ · ยอดรวมยังดูได้','muted'));
- if(totals.missing)notes.append(node('small',totals.missing+' มื้อยังไม่ได้ใส่ kcal/โปรตีน จึงยังไม่รวมในยอด','food-today-missing'));
- box.replaceChildren(head,bars,notes);
+ if(trainerGoal)notes.append(node('small','เป้าหมายจาก '+trainerGoal.trainer_name+' · '+trainerGoal.team_name,'muted'));
+ else{
+  // No trainer goal: the member manages their own.
+  const line=node('div',undefined,'own-goal-line');
+  line.append(node('small',ownGoal?'เป้าหมายที่คุณตั้งเอง':'ยังไม่มีเป้าหมาย · ตั้งเองได้ หรือรอเทรนเนอร์กำหนดให้','muted'));
+  const open=node('button',ownGoal?'แก้เป้าหมาย':'ตั้งเป้าหมายเอง','quiet own-goal-open');open.type='button';open.onclick=()=>{ownGoalOpen=true;renderMeals();};
+  if(!ownGoalOpen)line.append(open);
+  notes.append(line);
+ }
+ if(totals.missing)notes.append(node('small',totals.missing+' มื้อยังไม่ได้ใส่ตัวเลข จึงยังไม่รวมในยอด','food-today-missing'));
+ box.replaceChildren(head,bars,notes,...(!trainerGoal&&ownGoalOpen?[ownGoalForm()]:[]));
 }
 // Foods eaten often (a tap fills the form) and copying the day before's meals.
 function renderMealShortcuts(day){
@@ -204,7 +229,7 @@ function renderMealShortcuts(day){
     reset();openMealForm();
     // Today the meal follows the clock; another day keeps the meal this food is usually eaten at.
     $('meal').value=day===localDay()?(mealForTime($('time').value)||food.meal):food.meal;
-    $('details').value=food.text;$('meal-kcal').value=food.kcal??'';$('meal-protein').value=food.protein??'';
+    $('details').value=food.text;$('meal-kcal').value=food.kcal??'';$('meal-protein').value=food.protein??'';$('meal-carbs').value=food.carbs??'';
     document.querySelectorAll('[name="workout-timing"]').forEach(input=>input.checked=input.value===(food.workoutTiming||''));
     count();$('details').setCustomValidity('');$('details').focus({preventScroll:true});
    };
@@ -228,7 +253,7 @@ function renderMeals(){
  if(!meals.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีมื้อที่บันทึก'),node('p','กด "+ เพิ่มมื้อ" เพื่อจดมื้อแรกของวัน'));$('entries').append(box);return;}
  for(const r of meals){const card=node('article',undefined,'entry');card.dataset.id=r.id;const top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top);if(r.workoutTiming)card.append(node('span',r.workoutTiming==='pre-workout'?'Pre-workout · ก่อนฝึก':'Post-workout · หลังฝึก','meal-timing-badge'));card.append(node('p',r.text,'entry-text'));
   const numbers=mealNumbers(r);if(numbers)card.append(node('p',numbers,'meal-numbers-line'));
-  const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;openMealForm();$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;$('meal-kcal').value=r.kcal??'';$('meal-protein').value=r.protein??'';document.querySelectorAll('[name="workout-timing"]').forEach(input=>input.checked=input.value===(r.workoutTiming||''));$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';count();$('details').focus({preventScroll:true});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=async()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(await saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
+  const actions=node('div',undefined,'entry-actions');const edit=node('button','แก้ไข');edit.type='button';edit.setAttribute('aria-label','แก้ไข '+r.meal+' '+r.time);edit.onclick=()=>{editing=r.id;openMealForm();$('meal').value=r.meal;$('time').value=r.time;$('details').value=r.text;$('meal-kcal').value=r.kcal??'';$('meal-protein').value=r.protein??'';$('meal-carbs').value=r.carbs??'';document.querySelectorAll('[name="workout-timing"]').forEach(input=>input.checked=input.value===(r.workoutTiming||''));$('form-title').textContent='แก้ไขมื้ออาหาร';$('save').textContent='บันทึกการแก้ไข';count();$('details').focus({preventScroll:true});};const del=node('button','ลบ','delete');del.type='button';del.setAttribute('aria-label','ลบ '+r.meal+' '+r.time);del.onclick=async()=>{if(confirm('ลบรายการ '+r.meal+' นี้ไหม?')){if(await saveRecords(records.filter(x=>x.id!==r.id))){if(editing===r.id)reset();render();tell('ลบรายการแล้ว');}}};actions.append(edit,del);card.append(actions);$('entries').append(card);}
 }
 function count(){$('count').textContent=$('details').value.length.toLocaleString('en-US')+' / 3,000';}
 function updateTrainingType(){window.dispatchEvent(new Event('workout-type-change'));const cardio=$('training-type').value==='cardio';$('strength-fields').hidden=cardio;$('cardio-fields').hidden=!cardio;for(const id of ['weight','sets','reps'])$(id).disabled=cardio;workoutWeight.select.disabled=cardio;for(const id of ['duration','distance','incline','speed'])$(id).disabled=!cardio;$('duration').required=cardio;$('exercise').placeholder=cardio?'ค้นหา เช่น เดิน วิ่ง ปั่นจักรยาน':'ค้นหาชื่อท่า เช่น squat หรือ ขา';workoutPairs?.sync();}
@@ -396,8 +421,8 @@ $('time').addEventListener('change',()=>{const meal=mealForTime($('time').value)
 $('meal').addEventListener('change',()=>{const start={'มื้อเช้า':'08:00','มื้อกลางวัน':'12:00','มื้อเย็น':'16:00'}[$('meal').value];if(start)$('time').value=start;});
 $('details').addEventListener('input',count);
 $('meal-form').addEventListener('submit',async e=>{e.preventDefault();const text=$('details').value.trim(),day=$('day').value;if(!text){$('details').setCustomValidity('กรุณาใส่รายละเอียดอาหาร');$('details').reportValidity();return;}if(!day){$('day').reportValidity();return;}const number=(id,parse)=>$(id).value===''?undefined:parse($(id).value);
- const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text,workoutTiming:document.querySelector('[name="workout-timing"]:checked').value,kcal:number('meal-kcal',v=>Math.round(Number(v))),protein:number('meal-protein',v=>Math.round(Number(v)*10)/10)};
- for(const id of ['meal-kcal','meal-protein'])if(!$(id).reportValidity())return;editing=row.id;const next=[...records.filter(r=>r.id!==row.id),row];if(await saveRecords(next,'meal-form')){reset();render();tell('บันทึกเรียบร้อยแล้ว');diaryTools.setStatus('meal-form','success','บันทึกมื้ออาหารแล้ว ✓');}});
+ const row={id:editing||crypto.randomUUID(),day,meal:$('meal').value,time:$('time').value,text,workoutTiming:document.querySelector('[name="workout-timing"]:checked').value,kcal:number('meal-kcal',v=>Math.round(Number(v))),protein:number('meal-protein',v=>Math.round(Number(v)*10)/10),carbs:number('meal-carbs',v=>Math.round(Number(v)*10)/10)};
+ for(const id of ['meal-kcal','meal-protein','meal-carbs'])if(!$(id).reportValidity())return;editing=row.id;const next=[...records.filter(r=>r.id!==row.id),row];if(await saveRecords(next,'meal-form')){reset();render();tell('บันทึกเรียบร้อยแล้ว');diaryTools.setStatus('meal-form','success','บันทึกมื้ออาหารแล้ว ✓');}});
 $('details').addEventListener('input',()=>$('details').setCustomValidity(''));
 $('cancel').onclick=reset;$('meal-add-open').onclick=()=>{reset();openMealForm();$('details').focus({preventScroll:true});};$('day').onchange=()=>{reset();render();};
 function selectDay(day){if($('day').value===day)return;$('day').value=day;$('day').dispatchEvent(new Event('change'));}
