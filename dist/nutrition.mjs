@@ -10,14 +10,13 @@ export async function nutritionEditor(root,team,member){
  form.onsubmit=async e=>{e.preventDefault();save.disabled=true;status.textContent='กำลังบันทึก…';try{const result=await api(path,{method:'PUT',body:JSON.stringify({calories:Number(calories.value),protein:Number(protein.value)})});status.textContent='บันทึกแล้ว: '+description(result.goal);}catch(error){status.textContent=error.message;}finally{save.disabled=false;}};
  }catch(error){status.textContent='โหลดเป้าหมายไม่ได้: '+error.message;const retry=el('button','ลองใหม่','quiet');retry.type='button';retry.onclick=()=>{box.remove();nutritionEditor(root,team,member);};box.append(retry);}
 }
+// The member's daily food goals from their trainers. The food page shows the day's totals against them.
 export function initNutrition(){
- const box=document.getElementById('nutrition-goals');let seq=0;
- async function load(){const request=++seq;box.replaceChildren(el('h3','เป้าหมายอาหารต่อวัน'),el('p','กำลังโหลด…','muted'));
- try{const {goals}=await api('/api/nutrition');if(request!==seq)return;box.replaceChildren(el('h3','เป้าหมายอาหารต่อวัน'));
- if(!goals.length)box.append(el('p','ยังไม่มีเป้าหมายอาหารจากเทรนเนอร์','muted'));
- for(const goal of goals){const card=el('div',undefined,'nutrition-goal');card.append(el('strong',description(goal)),el('p',goal.team_name+' · กำหนดโดย '+goal.trainer_name,'muted'));box.append(card);}
- }catch(error){if(request===seq){box.replaceChildren(el('p','โหลดเป้าหมายไม่ได้: '+error.message,'muted'));const retry=el('button','ลองใหม่','quiet');retry.type='button';retry.onclick=load;box.append(retry);}}
+ let seq=0;
+ async function load(){
+  const request=++seq;
+  try{const {goals}=await api('/api/nutrition');if(request===seq)window.dispatchEvent(new CustomEvent('nutrition-goals',{detail:goals}));}catch{}
  }
  document.querySelectorAll('[data-view="food"]').forEach(button=>button.addEventListener('click',load));
- window.addEventListener('diary-records',()=>{if(!document.getElementById('food-panel').hidden)load();});
+ return {load};
 }

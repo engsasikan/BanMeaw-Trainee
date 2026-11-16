@@ -1,5 +1,5 @@
 import {BOWEL_STATUS_LABELS} from './body-data.mjs?v=4';
-import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=9';
+import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=10';
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
 // It follows the page's selected date (date bar / calendar), like the rest of the overview.

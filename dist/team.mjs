@@ -1,10 +1,11 @@
 import {groupWorkouts} from './workout-groups.mjs?v=2';
 import {organizeTeam,openTeamViewer,closeTeamViewer} from './team-layout.mjs?v=4';
 import {teamGame} from './team-game.mjs?v=6';
-import {nutritionEditor} from './nutrition.mjs?v=1';
+import {nutritionEditor} from './nutrition.mjs?v=2';
+import {mealNumbers,dayTotals} from './meal-nutrition.mjs?v=1';
 import {weeklyCard,planComparison,feedbackPanel} from './coach-ui.mjs?v=6';
 import {workoutDescription} from './progress.mjs?v=6';
-import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=9';
+import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=10';
 import {trainerPlanner} from './plans.mjs?v=42';
 import {teamPrograms} from './team-program.mjs?v=9';
 import {api} from './account.js?v=5';
@@ -311,7 +312,9 @@ async function loadTraineeSummaries(team,members,role,day,request,view){
     const content=node('div',undefined,'trainee-details-content');details.append(content);box.append(details);
     content.append(node('h4','อาหาร · '+thaiDate(day)));
     if(!snapshot.meals.length)content.append(node('p','ยังไม่มีบันทึกอาหารในวันที่เลือก','muted'));
-    for(const meal of snapshot.meals){const row=node('div',undefined,'trainee-meal');row.append(node('strong',[meal.meal,meal.time,meal.workoutTiming==='pre-workout'?'ก่อนฝึก':meal.workoutTiming==='post-workout'?'หลังฝึก':''].filter(Boolean).join(' · ')),node('p',meal.text));content.append(row);}
+    // The day's noted kcal and protein first, so a trainer sees them against the goal at a glance.
+    const totals=dayTotals(snapshot.meals);if(totals.meals>totals.missing)content.append(node('p','รวมที่จดไว้: '+totals.kcal.toLocaleString('th-TH')+' kcal · โปรตีน '+totals.protein.toLocaleString('th-TH')+' g'+(totals.missing?' (อีก '+totals.missing+' มื้อไม่ได้ใส่ตัวเลข)':''),'trainee-meal-totals'));
+    for(const meal of snapshot.meals){const row=node('div',undefined,'trainee-meal');row.append(node('strong',[meal.meal,meal.time,meal.workoutTiming==='pre-workout'?'ก่อนฝึก':meal.workoutTiming==='post-workout'?'หลังฝึก':''].filter(Boolean).join(' · ')),node('p',meal.text));const numbers=mealNumbers(meal);if(numbers)row.append(node('small',numbers,'meal-numbers-line'));content.append(row);}
     content.append(node('h4','การฝึก'));
     const copyAll=copyAllWorkoutsButton(snapshot.workouts,member);if(copyAll)content.append(copyAll);
     if(!snapshot.workouts.length)content.append(node('p','ยังไม่มีบันทึกการฝึกในวันที่เลือก','muted'));
@@ -378,7 +381,7 @@ async function viewMember(team,member){
    });
    for(const r of dayRecords.filter(r=>r.kind!=='workout')){
     const row=node('div',undefined,'team-log meal');
-    row.append(node('strong',r.meal+(r.time?' · '+r.time:'')+(r.workoutTiming?' · '+r.workoutTiming:'')),node('span',r.text));group.append(row);
+    row.append(node('strong',r.meal+(r.time?' · '+r.time:'')+(r.workoutTiming?' · '+r.workoutTiming:'')),node('span',r.text+(mealNumbers(r)?' · '+mealNumbers(r):'')));group.append(row);
    }
    box.append(group);
   }

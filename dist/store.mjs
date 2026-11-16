@@ -24,7 +24,10 @@ export function validateRecords(records){
   }
   if(!r||typeof r.id!=='string'||!r.id||r.id.length>100||ids.has(r.id)||typeof r.day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(r.day)||localDay(new Date(r.day+'T12:00:00'))!==r.day||!MEALS.includes(r.meal)||typeof r.text!=='string'||!r.text.trim()||r.text.length>3000||typeof r.time!=='string'||!/^$|^([01]\d|2[0-3]):[0-5]\d$/.test(r.time))throw new Error('ข้อมูลในไฟล์ไม่ถูกต้อง');
   if(r.workoutTiming!==undefined&&!WORKOUT_TIMINGS.includes(r.workoutTiming))throw new Error('ช่วงการฝึกไม่ถูกต้อง');
-  ids.add(r.id);return {id:r.id,day:r.day,meal:r.meal,time:r.time,text:r.text.trim(),...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{})};
+  // Optional numbers for the day's totals against the trainer's goal: whole kcal, protein to 0.1 g.
+  if(r.kcal!=null&&(!Number.isInteger(r.kcal)||r.kcal<0||r.kcal>10000))throw new Error('พลังงานต้องเป็น 0–10,000 kcal');
+  if(r.protein!=null&&(typeof r.protein!=='number'||!Number.isFinite(r.protein)||r.protein<0||r.protein>1000||Math.round(r.protein*10)!==r.protein*10))throw new Error('โปรตีนต้องเป็น 0–1,000 กรัม');
+  ids.add(r.id);return {id:r.id,day:r.day,meal:r.meal,time:r.time,text:r.text.trim(),...(r.workoutTiming?{workoutTiming:r.workoutTiming}:{}),...(r.kcal!=null?{kcal:r.kcal}:{}),...(r.protein!=null?{protein:r.protein}:{})};
  });
 }
 export function read(storage){return validateRecords(JSON.parse(storage.getItem(KEY)||'[]'));}

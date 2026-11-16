@@ -6,3 +6,39 @@
 #food-panel>.diary[aria-labelledby="list-title"]{grid-area:meals;min-width:0;border-radius:22px;padding:26px;background:#1d1f20;border-color:#35393a}#food-panel .list-heading h2{font-size:22px}#food-panel #total{font-size:12px;color:#ffb284;background:#ff70281a;border:1px solid #62422e;padding:5px 10px}#food-panel #date-label{font-size:13px;margin:8px 0 22px;color:#9ba49e}#food-panel #entries{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;align-items:stretch}#food-panel #entries>.empty{grid-column:1/-1}#food-panel .entry{display:flex;flex-direction:column;border:1px solid #3d4540;border-left:1px solid #3d4540;border-radius:16px;background:#252a27;padding:19px;margin:0;min-width:0}#food-panel .entry h3{font-size:16px;color:#efbb98}#food-panel .entry time{font-size:11px;border:1px solid #4b554d;border-radius:7px;padding:3px 7px;background:#ffffff03;color:#b5c1b8;white-space:nowrap}#food-panel .entry-text{font-size:15px;line-height:1.9;color:#e1e6e1;margin:16px 0 20px;overflow-wrap:anywhere;flex:1}.meal-timing-badge{display:inline-block;align-self:flex-start;margin:12px 0 0;padding:4px 8px;border-radius:6px;color:#a6d4b5;border:1px solid #41644b;background:#314b3433;font-size:10px}#food-panel .entry-actions{border-top:1px solid #3e4740;padding-top:12px;gap:8px}#food-panel .entry-actions button{font-size:12px;min-height:36px;padding:7px 14px;border-radius:9px;background:#333c35;border-color:#49534b}#food-panel .entry-actions .delete{margin-left:auto;background:transparent;color:#c89892;border-color:#604541}#food-panel .empty{padding:36px 22px;background:#242925;border-color:#49564c}#food-panel .empty h3{color:#dce4dc}.nutrition-goals{grid-area:goals}#food-panel #nutrition-goals{padding:20px 24px;border-radius:18px;background:#1e2120;border-color:#333b36}#food-panel #nutrition-goals:empty{display:none}#food-panel #nutrition-goals>h3{font-size:14px;margin:0;color:#b9c6bc}#food-panel #nutrition-goals>p{font-size:13px;margin:6px 0 0;color:#88968c}#food-panel .nutrition-goal{font-size:14px;margin-top:12px}#food-panel .nutrition-goal p{margin-bottom:0}
 @media(max-width:1000px){#food-panel{grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr);gap:18px}#food-panel .compose,#food-panel>.diary[aria-labelledby="list-title"]{padding:22px}.food-overview{padding:24px}.food-overview h2{font-size:23px}}
 @media(max-width:760px){#food-panel{grid-template-columns:minmax(0,1fr);grid-template-areas:"overview" "compose" "meals" "goals";gap:18px}.food-overview{padding:22px 20px;border-radius:20px;gap:14px}.food-overview h2{font-size:21px;line-height:1.45}.food-overview p:not(.eyebrow){font-size:12px}.food-overview-count{min-width:74px;padding-left:14px}.food-overview-count strong{font-size:40px}.food-overview-count>span{font-size:11px}#food-panel .compose,#food-panel>.diary[aria-labelledby="list-title"]{padding:20px}#food-panel .entry{padding:17px}#food-panel .entry-text{font-size:15px}.timing-options span{font-size:11px}.timing-options small{font-size:9px}}
+
+/* Food page: day summary with kcal/protein against the goal, the day's meals, and the form behind "+ เพิ่มมื้อ". */
+#food-panel,#food-panel.grid{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:none!important;max-width:760px;width:100%;margin:0 auto;gap:16px}
+#food-panel>*{grid-area:auto!important;min-width:0}
+.food-today{display:grid;gap:16px;padding:22px;border:1px solid #60402e;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#ff702830,transparent 60%),linear-gradient(150deg,#2b1d14,#1d1d1d 70%)}
+.food-today-head .eyebrow{margin:0;font-size:11px;letter-spacing:.12em}
+.food-today-head h2{margin:4px 0 0;font-size:26px}
+.intake-bars{display:grid;gap:12px}
+.intake-row{display:grid;gap:6px}
+.intake-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.intake-top span{font-size:13px;color:#d4c4b8}
+.intake-top strong{font-size:17px;font-variant-numeric:tabular-nums}
+.intake-track{height:10px;border-radius:99px;background:#ffffff14;overflow:hidden}
+.intake-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#ff9b52,#ff7028);transition:width .4s}
+.intake-track.over span{background:linear-gradient(90deg,#ff8a7a,#e04848)}
+.intake-row small{font-size:12px}
+.food-today-notes{display:grid;gap:4px}
+.food-today-notes small{font-size:12px}
+.food-today-missing{color:#ffc39f}
+#food-panel .food-day .list-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+#food-panel .food-day .list-heading h2{margin:0}
+#food-panel .food-day #date-label{margin:4px 0 0}
+#food-panel #meal-add-open{flex:none;width:auto;min-height:44px;margin:0;padding:0 18px;border-radius:12px;font-weight:800}
+#food-panel #meal-add-open[hidden]{display:none}
+#food-panel .food-day #entries{margin-top:16px}
+#food-panel .compose[hidden]{display:none}
+#food-panel .compose>.eyebrow{margin-top:0}
+.meal-numbers{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+#food-panel .meal-numbers label{display:grid;gap:8px;margin:4px 0 0;font-size:13px}
+#food-panel .meal-numbers .optional{font-size:11px;color:#8c9790}
+#food-panel .meal-numbers+.meal-note{margin:8px 0 16px}
+#food-panel .compose .cancel{width:100%;min-height:46px;margin-top:8px;border-radius:12px}
+.meal-numbers-line{margin:-8px 0 14px;font-size:13px;font-weight:700;color:#ffb07c}
+.trainee-meal .meal-numbers-line{display:block;margin:4px 0 0}
+.trainee-meal-totals{margin:0 0 8px;font-weight:700;color:#ffb07c}
+@media(max-width:520px){.food-today{padding:18px;border-radius:20px}.food-today-head h2{font-size:22px}}
