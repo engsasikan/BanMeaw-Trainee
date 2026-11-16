@@ -2,7 +2,7 @@ export const BOWEL_STATUS_LABELS={passed:'ถ่ายแล้ว',pending:'ย
 // Body measurement records, shared by the browser and the Worker.
 // Fields follow the InBody result sheet (e.g. InBody 380); every numeric field is optional.
 // Segments: ra/la = right/left arm, trunk, rl/ll = right/left leg (InBody sheet order).
-import {localDay} from './store.mjs?v=4';
+import {localDay} from './store.mjs?v=19';
 export const SEGMENTS=[['ra','แขนขวา'],['la','แขนซ้าย'],['trunk','ลำตัว'],['rl','ขาขวา'],['ll','ขาซ้าย']];
 const f=(label,unit,min,max,dp=1)=>({label,unit,min,max,dp});
 export const FIELDS={

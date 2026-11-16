@@ -1,10 +1,10 @@
 import {attachWeightUnit,formatLoggedWeight} from './weight-units.mjs';
 import {comparePlan,workoutDescription} from './progress.mjs?v=6';
-import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=4';
+import {previousExercise,remainingSeconds} from './diary-tools.mjs?v=6';
 import {switchView} from './dashboard.mjs?v=13';
-import {api} from './account.js?v=4';
+import {api} from './account.js?v=5';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
-import {localDay} from './store.mjs?v=18';
+import {localDay} from './store.mjs?v=19';
 import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
 import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine} from './workout-overview.mjs?v=4';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -13,7 +13,39 @@ export function initTrainingSession({getRecords,saveRecords}){
  const focus=createMuscleFocus();
  let plans=[],activePlanId=null,day='',items=[],current=0,active=false,busy=false,deadline=null,restTotal=0,ticker=null,summary=false,overview=false,paused=false,interlude=null,pausedRest=null,clockTicker=null,holdTicker=null,autoNext=null,media=null;
  // Full screen while training: the page behind does not scroll.
- const fullScreen=on=>{session.classList[on?'add':'remove']('ts-full');document.body?.classList[on?'add':'remove']('ts-open');};
+ const fullScreen=on=>{session.classList[on?'add':'remove']('ts-full');document.body?.classList[on?'add':'remove']('ts-open');keepAwake(on);};
+ // Keep the phone's screen on while training, so rest and hold timers stay in view. The browser drops the lock
+ // when the tab is hidden, so it is asked for again on return.
+ let wakeLock=null,wantAwake=false;
+ async function keepAwake(on){
+  wantAwake=on;
+  if(!on){const lock=wakeLock;wakeLock=null;try{await lock?.release();}catch{}return;}
+  if(wakeLock||!globalThis.navigator?.wakeLock||document.visibilityState==='hidden')return;
+  try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener?.('release',()=>{wakeLock=null;});}catch{wakeLock=null;}
+ }
+ document.addEventListener?.('visibilitychange',()=>{if(wantAwake&&document.visibilityState==='visible')keepAwake(true);});
+ // A short double beep when a timer ends: iPhones cannot vibrate from a web page, so sound is the signal there.
+ // It can be muted from the pause menu; browsers only allow sound after a tap, so the first tap unlocks it.
+ let audio=null;
+ const soundOn=()=>{try{return localStorage.getItem('banmeaw-timer-sound')!=='off';}catch{return true;}};
+ const setSound=on=>{try{localStorage.setItem('banmeaw-timer-sound',on?'on':'off');}catch{}};
+ function unlockSound(){
+  const Context=globalThis.AudioContext||globalThis.webkitAudioContext;if(!Context||!soundOn())return;
+  try{audio??=new Context();if(audio.state==='suspended')audio.resume();}catch{audio=null;}
+ }
+ function alertDone(pattern){
+  navigator.vibrate?.(pattern);
+  if(!soundOn()||!audio)return;
+  try{
+   const now=audio.currentTime;
+   for(const [offset,pitch] of [[0,880],[0.22,1175]]){
+    const tone=audio.createOscillator(),gain=audio.createGain();tone.type='sine';tone.frequency.value=pitch;
+    gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.35,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.18);
+    tone.connect(gain).connect(audio.destination);tone.start(now+offset);tone.stop(now+offset+0.2);
+   }
+  }catch{}
+ }
+ session.addEventListener?.('click',unlockSound);
  const clearClocks=()=>{clearInterval(clockTicker);clearInterval(holdTicker);clearTimeout(autoNext);clockTicker=holdTicker=autoNext=null;};
  // The workout clock, kept for the browser tab: when it started, time spent paused, and whether it is
  // paused or finished now. Leaving and coming back keeps counting.
@@ -104,7 +136,8 @@ export function initTrainingSession({getRecords,saveRecords}){
   const box=el('section',undefined,'ts-pause');
   box.append(el('p','หยุดชั่วคราว','eyebrow'),el('h2',clockText(elapsedSeconds()),'ts-pause-time'),el('p','ฝึกไปแล้ว · ท่าที่ '+(current+1)+' จาก '+items.length+' · '+items[current].target.exercise,'muted'));
   const menu=el('div',undefined,'ts-pause-menu');
-  menu.append(
+  const sound=button((soundOn()?'🔔 เสียงเตือนหมดเวลา: เปิด':'🔕 เสียงเตือนหมดเวลา: ปิด'),()=>{setSound(!soundOn());if(soundOn())unlockSound();render();},'ts-pause-item');
+  menu.append(sound,
    button('↻ เริ่มใหม่ตั้งแต่ท่าแรก',()=>{if(!confirm('เริ่มจับเวลาใหม่และกลับไปท่าแรก?\nเซ็ตที่บันทึกแล้วยังอยู่'))return;paused=false;pausedRest=null;freshClock();current=0;render();},'ts-pause-item'),
    ...(items.some(x=>phaseOf(x.target)==='cooldown')&&phaseOf(items[current].target)!=='cooldown'?[button('⤓ ข้ามไปคูลดาวน์',()=>{paused=false;pausedRest=null;resumeClock();current=items.findIndex(x=>phaseOf(x.target)==='cooldown');interlude=null;render();},'ts-pause-item')]:[]),
    button('✓ จบการฝึก · ดูสรุป',()=>{paused=false;pausedRest=null;summary=true;render();},'ts-pause-item good'),
@@ -275,7 +308,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   const hold=button('',()=>{
    if(holdTicker){clearInterval(holdTicker);holdTicker=null;showHold();return;}
    const total=Math.max(1,Number(reps.value)||30),end=Date.now()+total*1000;
-   const tickHold=()=>{const left=Math.max(0,Math.ceil((end-Date.now())/1000));hold.textContent=left?'⏱ '+clockText(left)+' · แตะเพื่อหยุด':'ครบ '+total+' วินาทีแล้ว · กดบันทึกเซ็ต';hold.classList[left?'add':'remove']('running');if(!left){clearInterval(holdTicker);holdTicker=null;navigator.vibrate?.([200,100,200]);}};
+   const tickHold=()=>{const left=Math.max(0,Math.ceil((end-Date.now())/1000));hold.textContent=left?'⏱ '+clockText(left)+' · แตะเพื่อหยุด':'ครบ '+total+' วินาทีแล้ว · กดบันทึกเซ็ต';hold.classList[left?'add':'remove']('running');if(!left){clearInterval(holdTicker);holdTicker=null;alertDone([200,100,200]);}};
    holdTicker=setInterval(tickHold,250);tickHold();
   },'ts-hold');
   const showHold=()=>{hold.hidden=!effort.timed();if(!holdTicker)hold.textContent='⏱ เริ่มจับเวลา '+(reps.value||0)+' วินาที';};
@@ -296,7 +329,7 @@ export function initTrainingSession({getRecords,saveRecords}){
    stop();rest.classList.add('over');minus.hidden=plus.hidden=true;
    restLabel.textContent='ครบเวลาพักแล้ว เริ่มฝึกต่อได้';
    skip.textContent='ปิด';
-   navigator.vibrate?.([150,100,150]);
+   alertDone([150,100,150]);
   }
   if(deadline){ticker=setInterval(tick,250);tick();}
   form.onsubmit=async e=>{
@@ -334,7 +367,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   const total=item.target.seconds||30;let left=total;
   const box=el('section',undefined,'ts-std'),clock=el('p',clockText(total),'ts-std-clock'),note=el('p','ชุดมาตรฐาน · ทำตามภาพ ไม่ต้องบันทึกผล','muted');
   const go=button('▶ เริ่ม '+total+' วินาที',()=>{},'primary ts-std-go'),skip=button(last?'ข้าม · ดูสรุป':'ข้ามท่านี้ →',()=>advance(last),'quiet');
-  const finish=()=>{clearInterval(holdTicker);holdTicker=null;markStandard(item);clock.textContent='เสร็จ ✓';box.classList.add('over');navigator.vibrate?.([150,80,150]);
+  const finish=()=>{clearInterval(holdTicker);holdTicker=null;markStandard(item);clock.textContent='เสร็จ ✓';box.classList.add('over');alertDone([150,80,150]);
    go.textContent=last?'ดูสรุป →':'ไปท่าถัดไป →';go.onclick=()=>advance(last);autoNext=setTimeout(()=>{if(active&&!paused&&items[current]===item)advance(last);},1500);};
   go.onclick=()=>{
    if(holdTicker){clearInterval(holdTicker);holdTicker=null;go.textContent='▶ ทำต่อ '+left+' วินาที';box.classList.remove('running');return;}

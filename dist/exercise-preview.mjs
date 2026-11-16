@@ -53,7 +53,7 @@ export function createMuscleFocus({collapsed=false}={}){
  async function draw(){
   try{
    // One figure per card: draws that start while body3d is still loading share the same mount.
-   mounting??=import('./body3d.js?v=26').then(m=>m.mountBody(stage));
+   mounting??=import('./body3d.js?v=27').then(m=>m.mountBody(stage));
    figure=await mounting;
    await figure.update({...body,focus,motion,demo},'focus');
    const inactive=!focus||content.hidden||checkingGif||useGif;

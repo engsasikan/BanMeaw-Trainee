@@ -1,6 +1,6 @@
 import {attachWeightUnit} from './weight-units.mjs';
 import {attachEffortUnit,looksTimed} from './effort.mjs?v=4';
-import {searchExercises} from './exercise-picker.mjs?v=11';
+import {searchExercises} from './exercise-picker.mjs?v=13';
 export function pairedWorkoutRows(first, partners, groupId) {
  if(!partners.length)return [first];
  return [first,...partners.map(p=>({id:p.id,day:first.day,kind:'workout',trainingType:'strength',exercise:p.exercise.trim(),weight:p.weight,...(p.weightUnit?{weightUnit:p.weightUnit}:{}),sets:p.sets,reps:p.reps??null,...(p.seconds!=null?{seconds:p.seconds}:{}),notes:''}))].map(r=>({...r,supersetId:groupId}));

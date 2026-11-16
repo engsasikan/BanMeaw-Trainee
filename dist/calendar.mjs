@@ -1,4 +1,4 @@
-import {localDay} from './store.mjs?v=4';
+import {localDay} from './store.mjs?v=19';
 let month=null,lastSelected=null,currentRecords=[];
 const $=id=>document.getElementById(id);
 export function monthCells(year,index){

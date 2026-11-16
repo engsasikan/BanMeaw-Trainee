@@ -7,7 +7,7 @@ import {workoutDescription} from './progress.mjs?v=6';
 import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=9';
 import {trainerPlanner} from './plans.mjs?v=40';
 import {teamPrograms} from './team-program.mjs?v=9';
-import {api} from './account.js?v=2';
+import {api} from './account.js?v=5';
 import {createBodyViewer} from './body.mjs?v=40';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -221,7 +221,7 @@ async function showTeam(id,day=teamDay||localDayTeam()){
   const scan=button('สแกน QR','quiet',async()=>{
    scan.disabled=true;scan.textContent='กำลังเปิด…';
    try{
-    const {openMemberQr}=await import('./member-qr.mjs?v=1');
+    const {openMemberQr}=await import('./member-qr.mjs?v=3');
     if(form.isConnected)openMemberQr({onScan:code=>{input.value=code;role.focus();}});
    }catch{say('เปิดตัวสแกนไม่ได้ กรอก ID สมาชิกได้เลย');}
    finally{scan.disabled=false;scan.textContent='สแกน QR';}
@@ -232,7 +232,7 @@ async function showTeam(id,day=teamDay||localDayTeam()){
   const generate=button('สร้าง QR เชิญเข้าทีม','primary',async()=>{
    generate.disabled=true;
    try{
-    const {openMemberQr}=await import('./member-qr.mjs?v=2');
+    const {openMemberQr}=await import('./member-qr.mjs?v=3');
     const {token}=await send('/api/teams/'+team.id+'/qr-invite','POST');
     const link=new URL('/',location.origin);link.searchParams.set('joinTeam',team.id);link.searchParams.set('invite',token);
     if(generate.isConnected)openMemberQr({code:link.href,teamInvite:true});

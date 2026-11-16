@@ -1,7 +1,7 @@
 // Small bits of motion so the diary answers back: the cat cheers when something is saved,
 // numbers count up, new cards slide in and finishing the day throws confetti.
 // Everything here is decoration: it reads the page and never changes saved data.
-import {personalRecord,recordText} from './personal-record.mjs?v=1';
+import {personalRecord,recordText} from './personal-record.mjs?v=3';
 const $=id=>document.getElementById(id);
 export const reducedMotion=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 

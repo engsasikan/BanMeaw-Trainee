@@ -3,8 +3,8 @@ import {traineeSnapshot,traineeCopyText} from './team-summary.mjs?v=9';
 // "Your day" card on the overview: the daily routine of weighing in, logging each meal and
 // sending the day's food log to the trainers (in the app, or shared to LINE / chat).
 // It follows the page's selected date (date bar / calendar), like the rest of the overview.
-import {api} from './account.js?v=2';
-import {localDay} from './store.mjs?v=13';
+import {api} from './account.js?v=5';
+import {localDay} from './store.mjs?v=19';
 import {switchView} from './dashboard.mjs?v=13';
 import {replay,cheer,celebrate} from './motion.mjs?v=2';
 import {loggedDays,streak,streakText,MILESTONES} from './streak.mjs?v=6';

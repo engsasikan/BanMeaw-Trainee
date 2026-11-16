@@ -1,4 +1,4 @@
-import {api} from './account.js?v=2';
+import {api} from './account.js?v=5';
 import {workoutDescription} from './progress.mjs?v=6';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const btn=(text,click,cls='quiet')=>{const b=el('button',text,cls);b.type='button';b.onclick=click;return b;};

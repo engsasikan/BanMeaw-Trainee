@@ -1,5 +1,5 @@
 import {FIELDS,SEGMENTS} from './body-data.mjs?v=4';
-import {localDay} from './store.mjs?v=4';
+import {localDay} from './store.mjs?v=19';
 
 const columns = {
  'น้ำหนัก(kg)':'weight',

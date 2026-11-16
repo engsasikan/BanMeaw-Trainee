@@ -1,6 +1,6 @@
 import {effortText} from './effort.mjs?v=4';
-import {previousExercise} from './diary-tools.mjs?v=4';
-import {api} from './account.js?v=2';
+import {previousExercise} from './diary-tools.mjs?v=6';
+import {api} from './account.js?v=5';
 import {weeklyProgress,comparePlan,workoutDescription} from './progress.mjs?v=6';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function weeklyCard(records,body,day){

@@ -26,7 +26,7 @@ export async function cropPhoto(image,{title='จัดกรอบรูปโ�
   dialog.showModal();
  });
 }
-import {api} from './account.js?v=2';
+import {api} from './account.js?v=5';
 export function initProfile(me){
  const photo=document.getElementById('profile-photo'),fallback=document.getElementById('profile-photo-fallback'),file=document.getElementById('profile-photo-file'),choose=document.getElementById('profile-photo-choose'),remove=document.getElementById('profile-photo-remove'),message=document.getElementById('profile-photo-message');
  document.getElementById('profile-photo-name').textContent=me.display_name;

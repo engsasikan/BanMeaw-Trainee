@@ -1,4 +1,4 @@
-import {api} from './account.js?v=2';
+import {api} from './account.js?v=5';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const description=g=>Number(g.calories).toLocaleString('th-TH')+' kcal / วัน · โปรตีน '+Number(g.protein).toLocaleString('th-TH')+' กรัม / วัน';
 export async function nutritionEditor(root,team,member){

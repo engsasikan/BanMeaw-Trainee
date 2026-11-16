@@ -1,5 +1,5 @@
 // Previously imported Health records still count toward the activity streak.
-import {api} from './account.js?v=4';
+import {api} from './account.js?v=5';
 
 export function initHealthHistory(){
  async function load(){

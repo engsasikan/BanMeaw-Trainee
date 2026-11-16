@@ -6,18 +6,18 @@ import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-
 import {attachEffortUnit,looksTimed,effortText,formatSeconds} from './effort.mjs?v=4';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=12';
-import {initTrainingSession} from './training-session.mjs?v=32';
+import {initTrainingSession} from './training-session.mjs?v=33';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
-import {initDiaryTools} from './diary-tools.mjs?v=5';
+import {initDiaryTools} from './diary-tools.mjs?v=6';
 import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
 import {showDailyPlans,trainerPlanner} from './plans.mjs?v=40';
 import {programEnding,endingNotice} from './team-program.mjs?v=9';
-import {auth,api} from './account.js?v=4';
-import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
-import {attachExercisePicker} from './exercise-picker.mjs?v=12';
+import {auth,api} from './account.js?v=5';
+import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=19';
+import {attachExercisePicker} from './exercise-picker.mjs?v=13';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
 import {initTeams,loadTeams} from './team.mjs?v=80';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
@@ -25,7 +25,7 @@ import {initBody,quickWeigh} from './body.mjs?v=40';
 import {initToday} from './today.mjs?v=21';
 import {initMotion} from './motion.mjs?v=2';
 import {initHealthHistory} from './health-ui.mjs?v=3';
-import {personalRecord} from './personal-record.mjs?v=2';
+import {personalRecord} from './personal-record.mjs?v=3';
 import {createAnatomyPicker} from './anatomy-picker.mjs?v=3';
 const $=id=>document.getElementById(id);let profileId,records=[],editing=null,workoutEditing=null,storageOK=true;
 attachExercisePicker();
@@ -277,7 +277,7 @@ function showAccount(me){
  const qr=node('button','QR','id-chip');qr.type='button';qr.setAttribute('aria-label','แสดง QR สมาชิกของฉัน');
  qr.onclick=async()=>{
   qr.disabled=true;
-  try{const {openMemberQr}=await import('./member-qr.mjs?v=1');openMemberQr({code:me.member_code});}
+  try{const {openMemberQr}=await import('./member-qr.mjs?v=3');openMemberQr({code:me.member_code});}
   catch{tell('เปิด QR ไม่สำเร็จ กรุณาลองอีกครั้ง');}
   finally{qr.disabled=false;}
  };

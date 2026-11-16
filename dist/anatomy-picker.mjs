@@ -1,4 +1,4 @@
-import {searchExercises} from './exercise-picker.mjs?v=10';
+import {searchExercises} from './exercise-picker.mjs?v=13';
 import {musclesFor,MUSCLE_LABELS} from './exercise-muscles.mjs?v=2';
 
 const GROUPS=[['pec','อก'],['deltoid','ไหล่'],['biceps','หน้าแขน'],['triceps','หลังแขน'],['abs','หน้าท้อง'],['oblique','ข้างท้อง'],['lat','ปีกหลัง'],['trap','บ่า / หลังบน'],['erector','หลังล่าง'],['glute','ก้น'],['quad','หน้าขา'],['hamstring','หลังขา'],['calf','น่อง']];
@@ -19,7 +19,7 @@ export function createAnatomyPicker({onChoose,actionLabel='เพิ่มเข
  async function drawFigure(){
   const ticket=++drawTicket;
   try{
-   mounting??=import('./body3d.js?v=24').then(m=>{map.replaceChildren();return m.mountBody(map,{fixedView:'front',onMuscleSelect:key=>{if(GROUPS.some(([k])=>k===key))select(key);}});});
+   mounting??=import('./body3d.js?v=27').then(m=>{map.replaceChildren();return m.mountBody(map,{fixedView:'front',onMuscleSelect:key=>{if(GROUPS.some(([k])=>k===key))select(key);}});});
    figure=await mounting;
    if(ticket!==drawTicket)return;
    await figure.update({sex:'male',height:175,weight:72,body_fat:12,focus:{primary:[selected],secondary:[]}},'focus');

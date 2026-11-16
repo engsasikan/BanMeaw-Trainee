@@ -256,3 +256,25 @@ test('exercises can be marked warm-up or cool-down; main work stays unmarked',()
  assert.throws(()=>planExercises({exercises:[{...exercise,phase:'stretch'}]}));
  assert.throws(()=>planExercises({exercises:[{...exercise,superset:'A',phase:'warmup'},{...exercise,superset:'A'}]}),/ช่วงเดียวกัน/);
 });
+test('a whole-program edit writes nothing unless the delete and insert both go through',async()=>{
+ const {PGlite}=await import('@electric-sql/pglite');
+ const db=new PGlite();
+ try{
+  await db.exec(`CREATE TABLE training_plans(id uuid DEFAULT gen_random_uuid(),team_id uuid,user_id text,day date,exercises jsonb,created_by text,batch_id uuid,team_wide boolean NOT NULL DEFAULT false);
+   CREATE TABLE daily_logs(user_id text,payload jsonb);`);
+  // Like the Neon driver: a query runs when awaited, or as part of a transaction.
+  const sql=(strings,...values)=>{const run=()=>db.query(strings.reduce((q,part,i)=>q+(i?'$'+i:'')+part,''),values).then(r=>r.rows);return {then:(ok,fail)=>run().then(ok,fail),run};};
+  let failing=false;
+  sql.transaction=async statements=>{if(failing)throw Error('connection lost');await db.exec('BEGIN');try{for(const s of statements)await s.run();await db.exec('COMMIT');}catch(e){await db.exec('ROLLBACK');throw e;}};
+  const call=(method,query='',body)=>handlePlans(new Request('https://example.com/api'+query,{method,...(body?{body:JSON.stringify(body)}:{})}),sql,{sub:'alice'},null,null,undefined,'2026-11-16');
+  await call('POST','',{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:1,exercises:[exercise]}]});
+  const before=(await db.query('SELECT day::text AS day FROM training_plans ORDER BY day')).rows.map(r=>r.day);
+  const {plans:[{batch_id}]}=await (await call('GET')).json();
+  failing=true;
+  await assert.rejects(call('PUT','?batch='+batch_id,{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:3,exercises:[exercise]}]}),/connection lost/);
+  assert.deepEqual((await db.query('SELECT day::text AS day FROM training_plans ORDER BY day')).rows.map(r=>r.day),before);
+  failing=false;
+  assert.equal((await call('PUT','?batch='+batch_id,{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:3,exercises:[exercise]}]})).status,200);
+  assert.deepEqual((await db.query('SELECT day::text AS day FROM training_plans ORDER BY day')).rows.map(r=>r.day),['2026-11-18','2026-11-25']);
+ }finally{await db.close();}
+});

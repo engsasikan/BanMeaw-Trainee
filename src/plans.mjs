@@ -173,7 +173,6 @@ async function replaceProgram(request,sql,{team,teamId,memberId,me,batch,today,j
  const rows=await programRows(sql,{teamId,memberId,batch});
  if(!rows.length)return json({error:'ไม่พบโปรแกรมนี้'},404);
  const removable=(await withoutResults(sql,rows.filter(row=>row.day>=today)));
- if(removable.length)await sql`DELETE FROM training_plans WHERE id=ANY(${removable.map(row=>String(row.id))}::uuid[])`;
  const gone=new Set(removable.map(row=>row.id));
  const kept=new Set(rows.filter(row=>!gone.has(row.id)).map(row=>row.user_id+' '+row.day));
  const future=plans.filter(plan=>plan.day>=today);
@@ -181,10 +180,14 @@ async function replaceProgram(request,sql,{team,teamId,memberId,me,batch,today,j
   SELECT owner_id AS user_id FROM trainer_teams WHERE id=${team.id}
   UNION SELECT user_id FROM team_members WHERE team_id=${team.id} AND status='active'`).map(row=>row.user_id);
  const inserts=recipients.flatMap(user=>future.filter(plan=>!kept.has(user+' '+plan.day)).map(plan=>({user,...plan})));
- if(inserts.length)await sql`
+ // Removing the old days and adding the new ones happen together: if either fails, the program stays as it was.
+ const writes=[];
+ if(removable.length)writes.push(sql`DELETE FROM training_plans WHERE id=ANY(${removable.map(row=>String(row.id))}::uuid[])`);
+ if(inserts.length)writes.push(sql`
   INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide)
   SELECT ${teamId}::uuid,p.user_id,p.day,p.exercises,${me},${batch}::uuid,${!memberId}
-  FROM jsonb_to_recordset(${JSON.stringify(inserts.map(({user,day,exercises})=>({user_id:user,day,exercises})))}::jsonb) AS p(user_id text,day date,exercises jsonb)`;
+  FROM jsonb_to_recordset(${JSON.stringify(inserts.map(({user,day,exercises})=>({user_id:user,day,exercises})))}::jsonb) AS p(user_id text,day date,exercises jsonb)`);
+ if(writes.length)await sql.transaction(writes);
  const locked=rows.filter(row=>row.day>=today&&!gone.has(row.id)).length;
  return json({ok:true,count:new Set(inserts.map(row=>row.day)).size,locked});
 }

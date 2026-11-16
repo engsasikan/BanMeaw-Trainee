@@ -1,6 +1,6 @@
 import {validateBackup} from './backup-data.mjs?v=5';
-import {auth,api} from './account.js?v=2';
-import {localDay} from './store.mjs?v=4';
+import {auth,api} from './account.js?v=5';
+import {localDay} from './store.mjs?v=19';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initPasswordReset(){
  const dialog=el('dialog',undefined,'account-reset-dialog'),title=el('h2','ลืมรหัสผ่าน'),form=el('form'),email=el('input'),password=el('input'),confirmation=el('input'),submit=el('button','ส่งลิงก์ตั้งรหัสผ่าน','primary'),message=el('p'),close=el('button','ปิด','quiet');
