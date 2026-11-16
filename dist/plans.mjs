@@ -58,58 +58,6 @@ function stylePlanDate(date){
  date.i.addEventListener('change',update);date.i.addEventListener('input',update);
  frame.append(display,icon,date.i);date.box.append(frame);update();
 }
-// The team's (or your own) warm-up and cool-down, used on days whose plan has none. Empty means the app's
-// standard set. Each move is timed, like the standard ones.
-function routineEditor(path,{team}){
- const box=el('details',undefined,'routine-editor');
- const summary=el('summary');summary.append(el('strong',team?'ชุดวอร์มอัพ/คูลดาวน์ของทีม':'ชุดวอร์มอัพ/คูลดาวน์ของฉัน'),el('small','ใช้ในวันที่แผนไม่ได้ใส่วอร์มอัพหรือคูลดาวน์ไว้','muted'));
- box.append(summary);
- const body=el('div',undefined,'routine-body'),message=el('p',undefined,'plan-message');message.setAttribute('role','status');
- const parts={};
- for(const [phase,label] of [['warmup','วอร์มอัพ'],['cooldown','คูลดาวน์']]){
-  const part=el('section',undefined,'routine-part '+phase),rows=el('div',undefined,'routine-rows'),empty=el('p','ว่าง · จะใช้ชุดมาตรฐานของแอป','muted routine-empty');
-  const add=el('button','+ เพิ่มท่า'+label,'quiet plan-add');add.type='button';
-  const entries=[];
-  const refresh=()=>{empty.hidden=entries.length>0;add.disabled=entries.length>=10;};
-  const addRow=(move={})=>{
-   const row=el('div',undefined,'routine-row'),name=planExercisePicker(()=>{},new Map());
-   const seconds=input('วินาที','number',move.seconds??(phase==='warmup'?45:30));seconds.i.min=10;seconds.i.max=600;seconds.i.step=5;seconds.i.required=true;seconds.i.inputMode='numeric';
-   const remove=el('button','✕','quiet routine-remove');remove.type='button';remove.setAttribute('aria-label','นำท่านี้ออก');
-   const entry={row,name,seconds};entries.push(entry);
-   remove.onclick=()=>{entries.splice(entries.indexOf(entry),1);row.remove();refresh();};
-   if(move.exercise)name.choose({name:move.exercise});
-   row.append(name.box,seconds.box,remove);rows.append(row);refresh();return entry;
-  };
-  add.onclick=()=>{if(entries.length<10)addRow().name.focus();};
-  part.append(el('h4',label),rows,empty,add);body.append(part);
-  parts[phase]={entries,addRow,clear:()=>{entries.splice(0);rows.replaceChildren();refresh();}};
-  refresh();
- }
- const save=el('button','บันทึกชุดนี้','primary'),reset=el('button','ใช้ชุดมาตรฐานของแอป','quiet');save.type=reset.type='button';
- const actions=el('div',undefined,'routine-actions');actions.append(save,reset);
- body.append(actions,message);box.append(body);
- const fill=routine=>{for(const phase of ['warmup','cooldown']){parts[phase].clear();for(const move of routine?.[phase]??[])parts[phase].addRow(move);}};
- const values=()=>Object.fromEntries(['warmup','cooldown'].map(phase=>[phase,parts[phase].entries.map(({name,seconds})=>({exercise:name.i.value.trim(),seconds:Number(seconds.i.value)}))]));
- async function store(routine){
-  save.disabled=reset.disabled=true;message.textContent='กำลังบันทึก…';
-  try{const result=await api(path,{method:'PUT',body:JSON.stringify(routine)});fill(result.routine);message.textContent=result.routine?'บันทึกแล้ว · ใช้ในวันที่แผนไม่ได้ใส่ไว้':'กลับไปใช้ชุดมาตรฐานของแอปแล้ว';}
-  catch(error){message.textContent=error.message;}
-  finally{save.disabled=reset.disabled=false;}
- }
- save.onclick=()=>{
-  const routine=values(),missing=[...routine.warmup,...routine.cooldown].find(m=>!m.exercise);
-  if(missing){message.textContent='เลือกชื่อท่าให้ครบก่อนบันทึก';return;}
-  if([...routine.warmup,...routine.cooldown].some(m=>!(m.seconds>=10&&m.seconds<=600))){message.textContent='เวลาแต่ละท่าต้องเป็น 10–600 วินาที';return;}
-  store(routine);
- };
- reset.onclick=()=>{if(confirm('ล้างชุดนี้และกลับไปใช้ชุดมาตรฐานของแอป?'))store({warmup:[],cooldown:[]});};
- let loaded=false;
- box.addEventListener('toggle',async()=>{
-  if(!box.open||loaded)return;loaded=true;message.textContent='กำลังโหลด…';
-  try{fill((await api(path)).routine);message.textContent='';}catch(error){loaded=false;message.textContent=error.message;}
- });
- return box;
-}
 export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,draftKey,scroll=true,openCreate=false}={}){
  const section=el('section',undefined,'diary training-planner');
  const header=el('div',undefined,'plan-header');
@@ -155,11 +103,11 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    [list[index],list[next]]=[list[next],list[index]];
    if(rests)block.forEach((member,index)=>{member.rest.i.value=rests[index];});
    entries.splice(0,entries.length,...order.flat());
-   rows.replaceChildren(...entries.map(member=>member.row));
    refresh();(control.disabled?entry.name.i:control).focus();
    message.textContent='ย้าย '+(entry.name.i.value||'ท่าฝึก')+(within?' ภายในชุด':'')+' แล้ว';
   }
   function refresh(){
+   layout();
    const order=blocks();
    count.textContent=entries.length+' / 30 ท่า';
    entries.forEach((entry,index)=>{
@@ -179,8 +127,25 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     entry.inner.hidden=members.length<2;
     entry.innerUp.disabled=memberIndex<=0;entry.innerDown.disabled=memberIndex>=members.length-1;
    });
-   more.disabled=entries.length>=30;
+   more.disabled=addWarm.disabled=addCool.disabled=entries.length>=30;
    persistDraft();
+  }
+  // Each day has its own warm-up, main work and cool-down; rows sit in the part their "ช่วงของท่า" says.
+  function layout(){
+   const rank={warmup:0,main:1,cooldown:2},sorted=entries.map((entry,i)=>[entry,i]).sort((a,b)=>rank[a[0].phase.i.value]-rank[b[0].phase.i.value]||a[1]-b[1]).map(([entry])=>entry);
+   entries.splice(0,entries.length,...sorted);
+   for(const [phase,box,empty] of [['warmup',warmRows,warmEmpty],['main',rows,null],['cooldown',coolRows,coolEmpty]]){
+    const mine=entries.filter(entry=>entry.phase.i.value===phase).map(entry=>entry.row);
+    if(mine.length!==box.children.length||mine.some((row,i)=>box.children[i]!==row))box.replaceChildren(...mine);
+    if(empty)empty.hidden=mine.length>0;
+   }
+  }
+  // A warm-up or cool-down move starts as one timed set with no rest; everything can still be changed.
+  function addPhase(phase){
+   if(entries.length>=30)return;
+   const entry=add();
+   entry.phase.i.value=phase;entry.sets.i.value=1;entry.rest.i.value=0;entry.effort.set(true);entry.reps.i.value=phase==='warmup'?45:30;
+   refresh();entry.name.focus();
   }
   function add(after=null){
    const row=el('fieldset',undefined,'plan-exercise'),number=el('legend'),remove=el('button','นำท่านี้ออก','quiet plan-remove');
@@ -251,9 +216,18 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    options.append(el('summary','ย้ายกลุ่มหรือแยกท่า'),superset.box);
    row.append(number,name.box,entry.order,entry.inner,type.box,phase.box,metrics,advanced,cardio,pair,options,remove);applyType();if(after)after.row.after(row);else rows.append(row);refresh();return entry;
   }
-  const more=el('button','+ เพิ่มท่าฝึก','quiet plan-add');more.type='button';more.onclick=()=>{if(entries.length<30){add();entries.at(-1).name.focus();}};
+  const more=el('button','+ เพิ่มท่าฝึก','quiet plan-add');more.type='button';more.onclick=()=>{if(entries.length<30){const entry=add();entry.name.focus();}};
   const actions=el('div',undefined,'plan-day-actions');actions.append(more);
-  host.append(rows,actions);
+  const phasePart=(phase,title,hint,addText)=>{
+   const part=el('section',undefined,'plan-phase '+phase),box=el('div',undefined,'plan-exercises'),empty=el('p',hint,'muted plan-phase-empty');
+   const button=el('button',addText,'quiet plan-add');button.type='button';button.onclick=()=>addPhase(phase);
+   part.append(el('h3',title),box,empty,button);return {part,box,empty,button};
+  };
+  const warm=phasePart('warmup','วอร์มอัพของวันนี้','ยังไม่ได้ใส่ · วันนี้จะใช้ชุดวอร์มอัพมาตรฐานของแอป','+ เพิ่มท่าวอร์มอัพ');
+  const cool=phasePart('cooldown','คูลดาวน์ของวันนี้','ยังไม่ได้ใส่ · วันนี้จะใช้ชุดคูลดาวน์มาตรฐานของแอป','+ เพิ่มท่าคูลดาวน์');
+  const warmRows=warm.box,warmEmpty=warm.empty,addWarm=warm.button,coolRows=cool.box,coolEmpty=cool.empty,addCool=cool.button;
+  const mainHead=el('h3','ท่าฝึกหลัก','plan-phase-main');
+  host.append(warm.part,mainHead,rows,actions,cool.part);
   add();
   const anatomy=el('details',undefined,'plan-anatomy');anatomy.append(el('summary','เลือกท่าจากแผนผังกล้ามเนื้อ'));
   anatomy.append(createAnatomyPicker({onChoose:exercise=>{
@@ -315,12 +289,10 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  // Saved programs come first so they can be found and changed without scrolling past the new-program form.
  // The list of programs is the main view; the form opens only to create or edit one.
  const list=el('div',undefined,'plan-saved team-program');form.hidden=true;
- // Warm-up/cool-down set: for the whole team or your own programs (not when planning for one member).
- const routine=member?null:routineEditor(team?'/api/teams/'+team.id+'/routine':'/api/routine',{team});
- section.append(notice,list,...(routine?[routine]:[]),form);
+ section.append(notice,list,form);
  const cancel=el('button','ยกเลิก','quiet');cancel.type='button';footer.append(cancel);
- function openForm(){form.hidden=false;list.hidden=true;if(routine)routine.hidden=true;notice.textContent='';}
- function closeForm(){form.hidden=true;list.hidden=false;if(routine)routine.hidden=false;}
+ function openForm(){form.hidden=false;list.hidden=true;notice.textContent='';}
+ function closeForm(){form.hidden=true;list.hidden=false;}
  const create=el('button','+ สร้างโปรแกรมใหม่','primary');create.type='button';
  // After a program is saved the next "create" starts from a blank week.
  let saved=false;
@@ -528,8 +500,11 @@ function shiftDate(day,offset){
  date.setUTCDate(date.getUTCDate()+offset);
  return date.toISOString().slice(0,10);
 }
-// A plan is finished once every exercise in it has a saved result.
-export const planFinished=(plan,records)=>comparePlan(plan,records).every(row=>row.actual);
+// A plan is finished once its main work has saved results (warm-up and cool-down can be skipped for the day).
+export const planFinished=(plan,records)=>{
+ const rows=comparePlan(plan,records),main=rows.filter(row=>row.target.phase!=='warmup'&&row.target.phase!=='cooldown');
+ return (main.length?main:rows).every(row=>row.actual);
+};
 function trainingWeek(root,days,day,plans,onSelectDay,records=[]){
  const week=el('section',undefined,'training-week');
  const header=el('div',undefined,'training-week-header');

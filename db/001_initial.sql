@@ -158,10 +158,6 @@ CREATE INDEX IF NOT EXISTS team_redemptions_team ON team_redemptions(team_id,cre
 ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS team_visible boolean NOT NULL DEFAULT false;
 
 
--- A trainer's own warm-up and cool-down for a team, and a member's own for personal programs:
--- {"warmup":[{"exercise":"…","seconds":45}],"cooldown":[…]}. Used when a day's plan has none of its own.
-ALTER TABLE trainer_teams ADD COLUMN IF NOT EXISTS routine jsonb;
-ALTER TABLE members ADD COLUMN IF NOT EXISTS routine jsonb;
 -- Apple Health / Apple Watch: daily totals and workouts per member, and the hashed key a member's iPhone Shortcut uses.
 CREATE TABLE IF NOT EXISTS health_keys (
   user_id text PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,

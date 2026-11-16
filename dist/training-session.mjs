@@ -6,7 +6,7 @@ import {api} from './account.js?v=5';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
 import {localDay} from './store.mjs?v=19';
 import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
-import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine,routineMoves} from './workout-overview.mjs?v=6';
+import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine} from './workout-overview.mjs?v=7';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
@@ -80,22 +80,9 @@ export function initTrainingSession({getRecords,saveRecords}){
  const allRows=()=>{
   const real=planRows();if(!real.length)return real;
   const standard=standardRoutine(real.map(x=>x.target)),plan=real[0].plan;
-  // The team's (or the member's own) set replaces the app's standard one when it has moves for that part.
-  const own=routines.get(routineKey(plan)),source=plan.team_id?'team':'personal';
-  if(own?.warmup?.length)standard.warmup=routineMoves(own.warmup,'warmup',source);
-  if(own?.cooldown?.length)standard.cooldown=routineMoves(own.cooldown,'cooldown',source);
   const extra=(phase,list)=>real.some(x=>phaseOf(x.target)===phase)?[]:list.map((target,i)=>({target,index:'std-'+phase+'-'+i,actual:null,plan,standard:true}));
   return [...extra('warmup',standard.warmup),...real,...extra('cooldown',standard.cooldown)];
  };
- // Saved warm-up/cool-down sets, per team or 'personal', loaded when a workout opens.
- const routines=new Map(),routineKey=plan=>plan.team_id||'personal';
- function loadRoutine(plan){
-  const key=routineKey(plan);if(routines.has(key))return;
-  routines.set(key,null);
-  api(plan.team_id?'/api/teams/'+encodeURIComponent(plan.team_id)+'/routine':'/api/routine')
-   .then(result=>{routines.set(key,result?.routine??null);if(active&&overview&&result?.routine)render();})
-   .catch(()=>routines.delete(key));
- }
  const doneKey=()=>startKey()+':standard',standardDone=new Map();
  const finishedStandard=()=>{try{const saved=JSON.parse(sessionStorage.getItem(doneKey()));if(Array.isArray(saved))return new Set(saved);}catch{}return new Set(standardDone.get(doneKey())??[]);};
  const markStandard=item=>{const set=finishedStandard();set.add(item.index);standardDone.set(doneKey(),[...set]);try{sessionStorage.setItem(doneKey(),JSON.stringify([...set]));}catch{}};
@@ -114,7 +101,7 @@ export function initTrainingSession({getRecords,saveRecords}){
  function button(text,fn,cls='quiet'){const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;}
  function stop(){clearInterval(ticker);ticker=null;deadline=null;restTotal=0;}
  // Starting opens the day's overview first; the workout itself begins from its start button.
- function start(event){if(busy||!plans.length||day!==selected()||day!==localDay())return;activePlanId=event.detail?.planId??null;const first=plans.find(plan=>!activePlanId||plan.id===activePlanId);if(first)loadRoutine(first);items=rows();if(!items.length)return;stop();current=Math.max(0,items.indexOf(nextTodo(items)));summary=false;overview=true;active=true;session.hidden=false;fullScreen(true);document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
+ function start(event){if(busy||!plans.length||day!==selected()||day!==localDay())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.indexOf(nextTodo(items)));summary=false;overview=true;active=true;session.hidden=false;fullScreen(true);document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return false;stop();clearClocks();active=false;session.hidden=true;fullScreen(false);document.getElementById('workout-panel').classList.remove('training-mode');return true;}
  function begin(key){if(busy)return;stop();items=rows();if(!items.length)return;current=Math.max(0,items.findIndex(x=>keyOf(x)===key));overview=false;summary=false;paused=false;pausedRest=null;interlude=null;resumeClock();render();session.scrollTo?.(0,0);}
  // Moving on: crossing from warm-up to main work (or main work to cool-down) shows a short break screen first.
@@ -210,7 +197,7 @@ export function initTrainingSession({getRecords,saveRecords}){
    if(phased){
     const header=el('div',undefined,'tso-phase-head'),title=el('div');
     const sources=new Set(mine.flatMap(block=>block.entries.map(({item})=>item.standard?item.target.source:'plan')));
-    const setName={standard:' · ชุดมาตรฐาน',team:' · ชุดของทีม',personal:' · ชุดของฉัน'}[sources.size===1?[...sources][0]:'']??'';
+    const setName=sources.size===1&&sources.has('standard')?' · ชุดมาตรฐาน':'';
     title.append(el('strong',label+setName),el('small','~'+estimateMinutes(mine.flatMap(block=>block.entries.map(({item})=>item.target)))+' นาที · '+mine.reduce((n,block)=>n+block.entries.length,0)+' ท่า'));
     header.append(title);
     // Warm-up and cool-down can be switched off for today; main work cannot.

@@ -121,3 +121,22 @@ test('saved programs are listed one card per program and can be edited or delete
  await new Promise(resolve=>setTimeout(resolve));
  assert.equal(globalThis.__programCalls.find(call=>call.method==='DELETE').path,'/api/personal-plans?batch='+batch);
 });
+test("each day has its own warm-up and cool-down: timed moves saved first and last in that day's plan",async()=>{
+ globalThis.document={createElement:tag=>new Element(tag)};
+ globalThis.__programPlans=[];globalThis.__programCalls=[];
+ const built=await build({entryPoints:['dist/plans.mjs'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'api-stub',setup(b){b.onResolve({filter:/account\.js/},()=>({path:'api',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:'export async function api(path,options={}){globalThis.__programCalls.push({path,method:options.method??"GET",body:options.body&&JSON.parse(options.body)});return options.method?{ok:true,count:1,firstDay:"2030-01-07"}:{plans:globalThis.__programPlans};}'}));}}]});
+ const {trainerPlanner}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text+'//perday').toString('base64'));
+ const root=new Element('div');await trainerPlanner(root,null,null,{day:'2030-01-07'});
+ const monday=flatten(root).find(x=>x.id==='program-day-1');
+ const rows=()=>flatten(monday).filter(x=>x.className==='plan-exercise');
+ const name=(row,value)=>{const search=flatten(row).find(x=>x.type==='search');search.value=value;search.dispatchEvent(new Event('input'));const enter=new Event('keydown');enter.key='Enter';search.dispatchEvent(enter);};
+ assert.match(monday.textContent,/วอร์มอัพของวันนี้/);assert.match(monday.textContent,/จะใช้ชุดวอร์มอัพมาตรฐานของแอป/);
+ name(rows()[0],'Squat');
+ click(monday,'+ เพิ่มท่าคูลดาวน์');click(monday,'+ เพิ่มท่าวอร์มอัพ');
+ // Rows sit in their part: warm-up first, cool-down last.
+ assert.deepEqual(rows().map(row=>row.dataset.phase),['warmup','main','cooldown']);
+ name(rows()[0],'Arm Circles');name(rows()[2],'Calf Stretch');
+ await flatten(root).find(x=>x.tagName==='form').onsubmit({preventDefault(){}});
+ const saved=globalThis.__programCalls.find(call=>call.method==='POST').body.schedule[0].exercises;
+ assert.deepEqual(saved.map(x=>[x.exercise,x.phase??'main',x.seconds??null,x.sets,x.rest_seconds]),[['Arm Circles','warmup',45,1,0],['Squat','main',null,3,60],['Calf Stretch','cooldown',30,1,0]]);
+});

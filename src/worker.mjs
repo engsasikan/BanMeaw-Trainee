@@ -1,5 +1,4 @@
 import {handleClientErrors} from './client-errors.mjs';
-import {handleRoutine} from './routine.mjs';
 import {handleGoogleLogin,googleLoginReady,verifyGoogleSession,resolveGoogleMember,checkGoogleMember,storeGoogleSession,revokeGoogleSession} from './google-login.mjs';
 import {handleTeamGame,awardDay} from './team-game.mjs';
 import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
@@ -68,7 +67,6 @@ export async function handleApi(request, env) {
   if(url.pathname==='/api/backup')return handleBackup(request,sql,user);
   if(url.pathname==='/api/health'||url.pathname.startsWith('/api/health/'))return handleHealth(request,sql,user);
   if(url.pathname==='/api/nutrition')return handleOwnNutrition(request,sql,user);
-  if(url.pathname==='/api/routine')return handleRoutine(request,sql,user);
   if(url.pathname==='/api/feedback')return handleOwnFeedback(request,sql,user);
   if(url.pathname==='/api/me/avatar')return handleAvatar(request,sql,user);
   if (url.pathname === '/api/me' && request.method === 'PATCH') {
@@ -159,7 +157,6 @@ export async function handleTeams(request,sql,user) {
   if(action==='game')return handleTeamGame(request,sql,user,team,mine,memberId);
   if(action==='nutrition'&&memberId)return handleNutrition(request,sql,user,team,mine,memberId);
   if(action==='plans')return handlePlans(request,sql,user,team,mine,memberId);
-  if(action==='routine'&&!memberId)return handleRoutine(request,sql,user,team,mine);
   if(action==='feedback'&&memberId)return handleFeedback(request,sql,user,team,mine,memberId);
   if(action==='members'&&memberId&&extra==='progress')return handleMemberProgress(request,sql,user,team,mine,memberId);
   const ownerOnly=()=>json({error:'เฉพาะผู้สร้างทีมเท่านั้น'},403);
