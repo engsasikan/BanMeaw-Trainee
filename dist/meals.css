@@ -42,3 +42,15 @@
 .trainee-meal .meal-numbers-line{display:block;margin:4px 0 0}
 .trainee-meal-totals{margin:0 0 8px;font-weight:700;color:#ffb07c}
 @media(max-width:520px){.food-today{padding:18px;border-radius:20px}.food-today-head h2{font-size:22px}}
+
+/* Shortcuts: copy the day before, and foods eaten often */
+.meal-shortcuts{display:grid;gap:10px;margin-top:14px}
+.meal-shortcuts:empty{display:none}
+#food-panel .meal-copy{justify-self:start;width:auto;min-height:40px;margin:0;padding:0 14px;border-radius:999px;border:1px dashed #6a4a35;background:#ff70280d;color:#ffc39f;font-size:13px;font-weight:700}
+.meal-frequent{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.meal-frequent-label{width:100%}
+.meal-frequent-label{flex:none;font-size:12px;color:#9ba49e}
+#food-panel .meal-chip{flex:none;display:grid;gap:1px;max-width:100%;min-height:44px;margin:0;padding:6px 12px;border-radius:14px;border:1px solid #474f49;background:#252a27;color:#e1e6e1;text-align:left;cursor:pointer}
+#food-panel .meal-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+#food-panel .meal-chip small{font-size:11px;color:#ffb07c}
+#food-panel .meal-chip:hover{border-color:#e88e53}

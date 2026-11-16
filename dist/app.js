@@ -11,6 +11,7 @@ import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=6';
 import {initNutrition} from './nutrition.mjs?v=2';
 import {mealNumbers,dayTotals,progress} from './meal-nutrition.mjs?v=1';
+import {frequentMeals,previousDayCopies,previousDay} from './meal-shortcuts.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
@@ -177,6 +178,41 @@ function renderFoodToday(meals,day){
  if(totals.missing)notes.append(node('small',totals.missing+' มื้อยังไม่ได้ใส่ kcal/โปรตีน จึงยังไม่รวมในยอด','food-today-missing'));
  box.replaceChildren(head,bars,notes);
 }
+// Foods eaten often (a tap fills the form) and copying the day before's meals.
+function renderMealShortcuts(day){
+ const box=$('meal-shortcuts');box.replaceChildren();
+ const copies=previousDayCopies(records,day);
+ if(copies.length){
+  const before=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short'}).format(new Date(previousDay(day)+'T12:00:00'));
+  const copy=node('button','⎘ คัดลอก '+copies.length+' มื้อจาก'+(day===localDay()?'เมื่อวาน':' '+before),'meal-copy');copy.type='button';
+  copy.onclick=async()=>{
+   if(!confirm('คัดลอกมื้อเหล่านี้มาที่'+(day===localDay()?'วันนี้':'วันที่เลือก')+'?\n\n'+copies.map(r=>'• '+r.meal+(r.time?' '+r.time:'')+': '+r.text.split(/\r?\n/)[0].slice(0,60)).join('\n')+'\n\nแก้หรือลบทีละมื้อได้หลังคัดลอก'))return;
+   copy.disabled=true;
+   if(await saveRecords([...records,...previousDayCopies(records,day)])){render();tell('คัดลอก '+copies.length+' มื้อแล้ว');}else copy.disabled=false;
+  };
+  box.append(copy);
+ }
+ const frequent=frequentMeals(records,day);
+ if(frequent.length){
+  const chips=node('div',undefined,'meal-frequent');chips.setAttribute('role','group');chips.setAttribute('aria-label','อาหารที่กินบ่อย');
+  chips.append(node('span','กินบ่อย','meal-frequent-label'));
+  for(const food of frequent){
+   const chip=node('button',undefined,'meal-chip');chip.type='button';
+   chip.append(node('span',food.text.split(/\r?\n/)[0]),...(food.kcal!=null?[node('small',food.kcal+' kcal')]:[]));
+   chip.title=food.text;chip.setAttribute('aria-label','จดมื้อ: '+food.text.split(/\r?\n/)[0]+' (กินมาแล้ว '+food.count+' ครั้ง)');
+   chip.onclick=()=>{
+    reset();openMealForm();
+    // Today the meal follows the clock; another day keeps the meal this food is usually eaten at.
+    $('meal').value=day===localDay()?(mealForTime($('time').value)||food.meal):food.meal;
+    $('details').value=food.text;$('meal-kcal').value=food.kcal??'';$('meal-protein').value=food.protein??'';
+    document.querySelectorAll('[name="workout-timing"]').forEach(input=>input.checked=input.value===(food.workoutTiming||''));
+    count();$('details').setCustomValidity('');$('details').focus({preventScroll:true});
+   };
+   chips.append(chip);
+  }
+  box.append(chips);
+ }
+}
 function openMealForm(){
  $('meal-compose').hidden=false;$('meal-add-open').hidden=true;
  requestAnimationFrame(()=>{$('meal-compose').scrollIntoView({behavior:'smooth',block:'start'});});
@@ -188,7 +224,7 @@ function renderMeals(){
  $('list-title').textContent=day===localDay()?'มื้อของวันนี้':'มื้อของวันที่เลือก';
  const meals=records.filter(r=>r.day===day&&r.kind!=='workout').sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  $('total').textContent=meals.length+' รายการ';$('entries').replaceChildren();
- renderFoodToday(meals,day);
+ renderFoodToday(meals,day);renderMealShortcuts(day);
  if(!meals.length){const box=node('div',undefined,'empty');box.append(node('span','+','empty-symbol'),node('h3','ยังไม่มีมื้อที่บันทึก'),node('p','กด "+ เพิ่มมื้อ" เพื่อจดมื้อแรกของวัน'));$('entries').append(box);return;}
  for(const r of meals){const card=node('article',undefined,'entry');card.dataset.id=r.id;const top=node('div',undefined,'entry-top');top.append(node('h3',r.meal));if(r.time)top.append(node('time',r.time));card.append(top);if(r.workoutTiming)card.append(node('span',r.workoutTiming==='pre-workout'?'Pre-workout · ก่อนฝึก':'Post-workout · หลังฝึก','meal-timing-badge'));card.append(node('p',r.text,'entry-text'));
   const numbers=mealNumbers(r);if(numbers)card.append(node('p',numbers,'meal-numbers-line'));
