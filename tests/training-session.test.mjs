@@ -79,6 +79,8 @@ test('warm-up and cool-down show as parts of the overview, can be switched off, 
  click('เริ่มฝึก');assert.match(session.textContent,/ฝึกหลัก · ท่าที่ 1 จาก 2/);assert.ok(session.textContent.includes('Squat'));
  // Moving on from main work shows the break screen before the cool-down.
  click('ข้ามท่านี้ →');assert.match(session.textContent,/ฝึกหลักเสร็จแล้ว ✓/);assert.match(session.textContent,/ได้เวลาคูลดาวน์แล้ว/);
+ // The break screen keeps the pause button; carrying on comes back to it.
+ click('หยุดชั่วคราว');assert.match(session.textContent,/▶ ฝึกต่อ/);click('▶ ฝึกต่อ');assert.match(session.textContent,/ได้เวลาคูลดาวน์แล้ว/);
  click('เริ่มคูลดาวน์ →');assert.match(session.textContent,/คูลดาวน์ · ท่าที่ 2 จาก 2/);
  nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
 });

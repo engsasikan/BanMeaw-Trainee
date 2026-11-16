@@ -468,7 +468,7 @@ body.ts-open{overflow:hidden}
 .tso-switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 .ts-steps li.warmup.now{background:#ffc04d}
 .ts-steps li.cooldown.now{background:#5fb8f0}
-.ts-interlude{display:grid;place-items:center;align-content:center;gap:12px;min-height:calc(100dvh - 60px);margin-top:16px;padding:32px 22px;border-radius:28px;text-align:center;background:linear-gradient(150deg,#f0a93a,#e0542a 55%,#c42f22)}
+.ts-interlude{display:grid;place-items:center;align-content:center;gap:12px;min-height:calc(100dvh - 150px);margin-top:4px;padding:32px 22px;border-radius:28px;text-align:center;background:linear-gradient(150deg,#f0a93a,#e0542a 55%,#c42f22)}
 .ts-interlude.cooldown{background:linear-gradient(150deg,#4fb3e8,#3a6fd8 60%,#2d45a8)}
 .ts-interlude-done{margin:0;font-size:14px;font-weight:800;letter-spacing:.5px;color:#fff}
 .ts-interlude-title{margin:0;font-size:2.2rem;line-height:1.2;color:#fff}

@@ -112,6 +112,17 @@ export function initTrainingSession({getRecords,saveRecords}){
   render();
   if(last&&realRows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));
  }
+ // Top bar of the workout and its break screens: back to the overview, time since the workout started, pause.
+ function workoutBar(){
+  const top=el('div',undefined,'ts-bar'),elapsed=el('div',undefined,'ts-elapsed'),elapsedClock=el('b');
+  const back=button('‹ ภาพรวม',()=>{if(busy)return;stop();interlude=null;overview=true;render();},'ts-back');
+  const pauseButton=button('Ⅱ',pause,'ts-exit ts-pause-button');pauseButton.setAttribute('aria-label','หยุดชั่วคราว');
+  elapsed.append(elapsedClock,el('small','ผ่านไป'));top.append(back,elapsed,pauseButton);session.append(top);
+  const tickClock=()=>{elapsedClock.textContent=clockText(elapsedSeconds());};tickClock();clockTicker=setInterval(tickClock,1000);
+  return top;
+ }
+ // Between warm-up and main work (or main work and cool-down). The bar above it keeps the clock and pause;
+ // pausing here and carrying on comes back to this screen.
  function renderInterlude(){
   const next=items[current].target,to=phaseOf(next);
   const box=el('section',undefined,'ts-interlude '+to);
@@ -245,13 +256,8 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(overview){renderOverview();return;}
   if(summary){endClock();renderSummary();return;}
   if(paused){renderPause();return;}
+  const top=workoutBar();
   if(interlude){renderInterlude();return;}
-  // Top bar: back to the overview, time since the workout started, pause.
-  const top=el('div',undefined,'ts-bar'),elapsed=el('div',undefined,'ts-elapsed'),elapsedClock=el('b');
-  const back=button('‹ ภาพรวม',()=>{if(busy)return;stop();overview=true;render();},'ts-back');
-  const pauseButton=button('Ⅱ',pause,'ts-exit ts-pause-button');pauseButton.setAttribute('aria-label','หยุดชั่วคราว');
-  elapsed.append(elapsedClock,el('small','ผ่านไป'));top.append(back,elapsed,pauseButton);session.append(top);
-  const tickClock=()=>{elapsedClock.textContent=clockText(elapsedSeconds());};tickClock();clockTicker=setInterval(tickClock,1000);
   const item=items[current],saved=draft(item),logs=saved?.setLogs||[],target=item.target,sets=Math.max(1,target.sets||1),finished=logs.length>=sets,last=current===items.length-1;
   // 1. Where am I: one bar per exercise in today's plan.
   const steps=el('ol',undefined,'ts-steps');
