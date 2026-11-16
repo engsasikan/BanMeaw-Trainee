@@ -310,3 +310,12 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .program-day-row.now.rest .program-day-card{background:#ff70280f;box-shadow:inset 0 0 0 1.5px #ff702866}
 .program-today-badge{justify-self:start;padding:2px 9px;border-radius:999px;background:#ff7028;color:#1b0f08;font-size:11px;font-weight:800}
 .program-day-row.now.rest .program-today-badge{background:#ff702833;color:#ffc39f}
+/* Planner: warm-up / cool-down exercises */
+.plan-exercise[data-phase=warmup]{border-color:#7a6230;background:#2a2617}
+.plan-exercise[data-phase=cooldown]{border-color:#2f5a78;background:#18232b}
+.plan-exercise[data-phase=warmup]>legend{color:#ffd27a}
+.plan-exercise[data-phase=cooldown]>legend{color:#8fd0ff}
+/* Program view: part headings inside a day */
+.program-exercises .program-phase{display:block;margin:6px 0 0 -18px;font-size:12px;font-weight:800;letter-spacing:.3px;color:#ffc39f}
+.program-exercises .program-phase.warmup{color:#ffd27a}
+.program-exercises .program-phase.cooldown{color:#8fd0ff}

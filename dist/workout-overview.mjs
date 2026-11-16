@@ -26,13 +26,17 @@ export function mainMuscles(targets,limit=3){
  for(const t of targets)for(const muscle of musclesFor(t.exercise)?.primary??[])count.set(muscle,(count.get(muscle)||0)+1);
  return [...count].sort((a,b)=>b[1]-a[1]).slice(0,limit).map(([muscle])=>MUSCLE_LABELS[muscle]).filter(Boolean);
 }
+// The parts of a workout, in order. Exercises without a phase are main work.
+export const PHASES=[['warmup','วอร์มอัพ'],['main','ฝึกหลัก'],['cooldown','คูลดาวน์']];
+export const phaseOf=target=>target?.phase==='warmup'||target?.phase==='cooldown'?target.phase:'main';
+export const phaseLabel=phase=>PHASES.find(([key])=>key===phase)?.[1]??'ฝึกหลัก';
 // Exercises in order; neighbours in the same plan and Super set become one block done round by round.
 export function workoutBlocks(items){
  const blocks=[];
  items.forEach((item,index)=>{
   const group=item.target.trainingType==='cardio'?null:item.target.superset||null,last=blocks.at(-1);
-  if(group&&last?.superset===group&&last.planId===item.plan.id)last.entries.push({item,index});
-  else blocks.push({superset:group,planId:item.plan.id,entries:[{item,index}]});
+  if(group&&last?.superset===group&&last.planId===item.plan.id&&last.phase===phaseOf(item.target))last.entries.push({item,index});
+  else blocks.push({superset:group,planId:item.plan.id,phase:phaseOf(item.target),entries:[{item,index}]});
  });
  for(const block of blocks){
   if(block.entries.length<2)block.superset=null;

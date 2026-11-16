@@ -59,3 +59,22 @@ test('training cannot start on a day other than today',async()=>{
  window.dispatchEvent(new CustomEvent('training-plans',{detail:{day:TOMORROW,plans:[{id:'p',day:TOMORROW,exercises:[{exercise:'Squat',sets:1,reps:5}]}]}}));window.dispatchEvent(new CustomEvent('training-start'));
  assert.equal(nodes.get('workout-panel').children[0].hidden,true);
 });
+test('warm-up and cool-down show as parts of the overview, can be switched off, and moving between parts pauses for a break screen',async()=>{
+ const nodes=new Map(['dashboard-panel','today-card','workout-panel','day'].map(id=>[id,new Element('div')]));nodes.get('day').value=TODAY;
+ const doc=new EventTarget();doc.createElement=tag=>new Element(tag);doc.getElementById=id=>nodes.get(id);globalThis.document=doc;globalThis.window=new EventTarget();
+ const built=await build({entryPoints:['dist/training-session.mjs'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'test-adapters',setup(b){b.onResolve({filter:/dashboard\.mjs|account\.js|exercise-preview\.mjs/},args=>({path:args.path,namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export function switchView(){}; export async function api(){return {ok:true}}; export function createMuscleFocus(){return {el:document.createElement("section"),show(){}}};',loader:'js'}));}}]});
+ const {initTrainingSession}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text+'//phases').toString('base64'));
+ initTrainingSession({getRecords:()=>[],saveRecords:async()=>true});
+ const plan={id:'22222222-2222-4222-8222-222222222222',day:TODAY,exercises:[{exercise:'Jumping Jack',sets:1,seconds:30,phase:'warmup'},{exercise:'Squat',sets:2,reps:10},{exercise:'Hamstring Stretch',sets:1,seconds:30,phase:'cooldown'}]};
+ window.dispatchEvent(new CustomEvent('training-plans',{detail:{day:TODAY,plans:[plan]}}));window.dispatchEvent(new CustomEvent('training-start'));
+ const session=nodes.get('workout-panel').children[0];
+ const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&(x.textContent===label||x['aria-label']===label));assert.ok(b,label);return b.onclick({currentTarget:b});};
+ assert.match(session.textContent,/วอร์มอัพ~\d+ นาที · 1 ท่า/);assert.match(session.textContent,/คูลดาวน์/);
+ // Switching warm-up off leaves it out: the workout starts at Squat.
+ const warm=flatten(session).find(x=>x.tagName==='input'&&x['aria-label']==='ปิดวอร์มอัพวันนี้');warm.checked=false;warm.onchange();
+ click('เริ่มฝึก');assert.match(session.textContent,/ฝึกหลัก · ท่าที่ 1 จาก 2/);assert.ok(session.textContent.includes('Squat'));
+ // Moving on from main work shows the break screen before the cool-down.
+ click('ข้ามท่านี้ →');assert.match(session.textContent,/ฝึกหลักเสร็จแล้ว ✓/);assert.match(session.textContent,/ได้เวลาคูลดาวน์แล้ว/);
+ click('เริ่มคูลดาวน์ →');assert.match(session.textContent,/คูลดาวน์ · ท่าที่ 2 จาก 2/);
+ nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
+});

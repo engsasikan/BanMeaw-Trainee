@@ -1,5 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=6';
-import {renderPrograms} from './team-program.mjs?v=7';
+import {renderPrograms} from './team-program.mjs?v=8';
 import {comparePlan} from './progress.mjs?v=6';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
@@ -17,6 +17,10 @@ function appendPlanExercise(card,r){
  item.append(el('strong',r.exercise),el('span',prescription(r),'muted'));card.append(item);
 }
 let pickerNumber=0;
+const PHASE_LABELS={warmup:'วอร์มอัพ',cooldown:'คูลดาวน์'};
+const phaseOf=entry=>entry.phase.i.value==='main'?{}:{phase:entry.phase.i.value};
+// Warm-up first, cool-down last; the order inside each part stays as the trainer arranged it.
+export const inPhaseOrder=exercises=>{const rank={warmup:0,main:1,cooldown:2};return exercises.map((x,i)=>[x,i]).sort((a,b)=>rank[a[0].phase??'main']-rank[b[0].phase??'main']||a[1]-b[1]).map(([x])=>x);};
 function planExercisePicker(onChoose,savedExercises){
  const box=el('div',undefined,'plan-name plan-inline-picker exercise-picker'),label=el('label','ชื่อท่า');
  const search=el('input');search.type='search';search.placeholder='ค้นหาท่า หรือพิมพ์ชื่อเอง';search.autocomplete='off';search.maxLength=150;
@@ -110,7 +114,9 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     const cardio=entry.type.i.value==='cardio',group=cardio?'':entry.superset.i.value;
     const members=group?membersOf(group):[];
     entry.options.hidden=!group;
-    entry.number.textContent=group?'Super set '+group+' · ท่าที่ '+(members.indexOf(entry)+1):'ท่าที่ '+(index+1);
+    const phase=PHASE_LABELS[entry.phase.i.value];
+    entry.number.textContent=(phase?phase+' · ':'')+(group?'Super set '+group+' · ท่าที่ '+(members.indexOf(entry)+1):'ท่าที่ '+(index+1));
+    entry.row.dataset.phase=entry.phase.i.value;
     entry.pair.hidden=cardio||Boolean(group&&members.at(-1)!==entry);
     entry.pair.disabled=entries.length>=30;
     const blockIndex=order.findIndex(block=>block.includes(entry)),memberIndex=members.indexOf(entry);
@@ -128,6 +134,9 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    const row=el('fieldset',undefined,'plan-exercise'),number=el('legend'),remove=el('button','นำท่านี้ออก','quiet plan-remove');
    remove.type='button';
    const type={box:el('label','ประเภท'),i:el('select')};type.box.append(type.i);
+   // Warm-up and cool-down exercises are shown as their own parts of the workout; saving puts them first and last.
+   const phase={box:el('label','ช่วงของท่า'),i:el('select')};phase.box.append(phase.i);
+   for(const [v,t] of [['main','ฝึกหลัก'],['warmup','วอร์มอัพ'],['cooldown','คูลดาวน์']]){const o=el('option',t);o.value=v;phase.i.append(o);}
    for(const [v,t] of [['strength','เวทเทรนนิ่ง (เซ็ต/ครั้ง)'],['cardio','คาร์ดิโอ (เวลา/ความชัน)']]){const o=el('option',t);o.value=v;type.i.append(o);}
    const name=planExercisePicker(exercise=>{if(exercise.group!==undefined)type.i.value=exercise.group==='คาร์ดิโอ'?'cardio':'strength';if(looksTimed(exercise.name)&&!effort.timed()){effort.set(true);reps.i.value=30;}applyType();refresh();},savedExercises);
    const weight=input('น้ำหนักที่ยก','number',''),sets=input('เซ็ต','number',3),reps=input('ครั้ง / เซ็ต','number',12);
@@ -149,7 +158,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    const cardio=el('div',undefined,'plan-metrics plan-cardio');cardio.append(duration.box,incline.box,speed.box,distance.box);
    function applyType(){const c=type.i.value==='cardio';metrics.hidden=advanced.hidden=c;cardio.hidden=!c;for(const f of [weight,sets,reps,rest])f.i.disabled=c;superset.i.disabled=weightUnit.select.disabled=effort.select.disabled=c;for(const f of [duration,incline,speed,distance])f.i.disabled=!c;}
    const pair=el('button','+ เพิ่มท่าใน Super set','quiet plan-pair');pair.type='button';
-   const entry={row,name,weightUnit,sets,reps,effort,number,rest,superset,type,duration,incline,speed,distance,pair};
+   const entry={row,name,weightUnit,sets,reps,effort,number,rest,superset,type,phase,duration,incline,speed,distance,pair};
    function orderControls(within){
     const bar=el('div',undefined,'plan-order');
     const controls=[-1,1].map(direction=>{
@@ -169,11 +178,13 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     const next=add(entry);
     superset.i.value=next.superset.i.value=group;
     next.sets.i.value=sets.i.value;
-    next.rest.i.value=rest.i.value;
+    next.rest.i.value=rest.i.value;next.phase.i.value=phase.i.value;
     rest.i.value=0;
     refresh();next.name.focus();
    };
-   superset.i.addEventListener('change',refresh);type.i.addEventListener('change',()=>{applyType();refresh();});
+   // A Super set is done back to back, so all its exercises share one part of the workout.
+   superset.i.addEventListener('change',()=>{const other=membersOf(superset.i.value).find(x=>x!==entry);if(other)phase.i.value=other.phase.i.value;refresh();});
+   phase.i.addEventListener('change',()=>{if(groupOf(entry))for(const x of membersOf(superset.i.value))x.phase.i.value=phase.i.value;refresh();});type.i.addEventListener('change',()=>{applyType();refresh();});
    remove.onclick=()=>{
     const group=superset.i.value,members=group?membersOf(group):[];
     const wasLast=members.at(-1)===entry;
@@ -186,7 +197,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    const options=el('details',undefined,'plan-exercise-options');
    entry.options=options;
    options.append(el('summary','ย้ายกลุ่มหรือแยกท่า'),superset.box);
-   row.append(number,name.box,entry.order,entry.inner,type.box,metrics,advanced,cardio,pair,options,remove);applyType();if(after)after.row.after(row);else rows.append(row);refresh();return entry;
+   row.append(number,name.box,entry.order,entry.inner,type.box,phase.box,metrics,advanced,cardio,pair,options,remove);applyType();if(after)after.row.after(row);else rows.append(row);refresh();return entry;
   }
   const more=el('button','+ เพิ่มท่าฝึก','quiet plan-add');more.type='button';more.onclick=()=>{if(entries.length<30){add();entries.at(-1).name.focus();}};
   const actions=el('div',undefined,'plan-day-actions');actions.append(more);
@@ -209,6 +220,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     }
     entry.effort.set(exercise.seconds!=null);if(exercise.seconds!=null)entry.reps.i.value=exercise.seconds;
     if(exercise.rest_seconds!=null)entry.rest.i.value=exercise.rest_seconds;
+    entry.phase.i.value=exercise.phase??'main';
    }
    refresh();
   }
@@ -322,8 +334,8 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  const path=team?'/api/teams/'+team.id+'/plans'+(member?'/'+encodeURIComponent(member.id):''):'/api/personal-plans';
  function exerciseValues(x){
   return x.type.i.value==='cardio'?
-   {trainingType:'cardio',exercise:x.name.i.value.trim(),duration:Number(x.duration.i.value),...Object.fromEntries(['incline','speed','distance'].filter(k=>x[k].i.value!=='').map(k=>[k,Number(x[k].i.value)]))}:
-   {exercise:x.name.i.value.trim(),...x.weightUnit.read(),sets:Number(x.sets.i.value),...(x.effort.timed()?{seconds:Number(x.reps.i.value)}:{reps:Number(x.reps.i.value)}),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null};
+   {trainingType:'cardio',exercise:x.name.i.value.trim(),duration:Number(x.duration.i.value),...Object.fromEntries(['incline','speed','distance'].filter(k=>x[k].i.value!=='').map(k=>[k,Number(x[k].i.value)])),...phaseOf(x)}:
+   {exercise:x.name.i.value.trim(),...x.weightUnit.read(),sets:Number(x.sets.i.value),...(x.effort.timed()?{seconds:Number(x.reps.i.value)}:{reps:Number(x.reps.i.value)}),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null,...phaseOf(x)};
  }
  function restoreDraft(){
   if(!draftKey)return;
@@ -419,7 +431,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    if(missing){if(!editing)selectDay(item);message.textContent='เลือกท่าฝึกวัน'+title;missing.name.focus();return;}
   }
   const payload={start:date.i.value,end:end.i.value,period:'program',schedule:active.map(({weekday,editor:{entries}})=>({weekday,
-   exercises:entries.map(exerciseValues)}))};
+   exercises:inPhaseOrder(entries.map(exerciseValues))}))};
   persistDraft();
   save.disabled=cancel.disabled=true;save.textContent='กำลังบันทึก…';
   try{

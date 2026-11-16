@@ -40,9 +40,14 @@ const statusText={current:'กำลังใช้อยู่',upcoming:'เ�
 // Super set groups in order of appearance: [{letter, count}]
 export function supersetGroups(exercises){const seen=new Map();for(const x of exercises)if(x.superset&&x.trainingType!=='cardio')seen.set(x.superset,(seen.get(x.superset)||0)+1);return [...seen].filter(([,n])=>n>1).map(([letter,count])=>({letter,count}));}
 // Exercises as a numbered list; each Super set is one boxed step whose exercises are done back to back.
+// When the plan has warm-up or cool-down exercises, each part gets a small heading.
+const PHASE_NAMES={warmup:'วอร์มอัพ',main:'ฝึกหลัก',cooldown:'คูลดาวน์'};
 export function exerciseList(exercises){
  const list=node('ol',undefined,'program-exercises'),groups=new Set(supersetGroups(exercises).map(g=>g.letter)),boxes=new Map();
+ const phased=exercises.some(x=>x.phase==='warmup'||x.phase==='cooldown');let phase=null;
  for(const x of exercises){
+  const part=x.phase==='warmup'||x.phase==='cooldown'?x.phase:'main';
+  if(phased&&part!==phase){phase=part;const head=node('li',PHASE_NAMES[part],'program-phase '+part);head.setAttribute('aria-hidden','true');list.append(head);}
   if(!groups.has(x.superset)){list.append(node('li',exerciseLine(x)));continue;}
   let box=boxes.get(x.superset);
   if(!box){const li=node('li',undefined,'program-superset'),inner=node('ul');li.append(node('strong','Super set '+x.superset+' · ทำต่อกันสลับไปจนครบเซ็ต'),inner);list.append(li);box=inner;boxes.set(x.superset,box);}

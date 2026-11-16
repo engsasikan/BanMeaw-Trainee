@@ -250,3 +250,9 @@ test('a saved program can be edited and deleted as a whole from today on, keepin
   assert.deepEqual(await days('owner'),[]);
  }finally{await db.close();}
 });
+test('exercises can be marked warm-up or cool-down; main work stays unmarked',()=>{
+ const warm={...exercise,exercise:'Jumping Jack',phase:'warmup'},cool={trainingType:'cardio',exercise:'Walk',duration:5,phase:'cooldown'};
+ assert.deepEqual(planExercises({exercises:[warm,{...exercise,phase:'main'},cool]}),[warm,exercise,cool]);
+ assert.throws(()=>planExercises({exercises:[{...exercise,phase:'stretch'}]}));
+ assert.throws(()=>planExercises({exercises:[{...exercise,superset:'A',phase:'warmup'},{...exercise,superset:'A'}]}),/ช่วงเดียวกัน/);
+});
