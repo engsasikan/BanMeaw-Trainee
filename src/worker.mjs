@@ -1,3 +1,4 @@
+import {handleClientErrors} from './client-errors.mjs';
 import {handleGoogleLogin,googleLoginReady,verifyGoogleSession,resolveGoogleMember,checkGoogleMember,storeGoogleSession,revokeGoogleSession} from './google-login.mjs';
 import {handleTeamGame,awardDay} from './team-game.mjs';
 import {handleNutrition,handleOwnNutrition} from './nutrition.mjs';
@@ -52,6 +53,8 @@ export async function handleApi(request, env) {
   if(url.pathname==='/api/health/ingest'){if(Number(request.headers.get('Content-Length')||0)>32768)return json({error:'ข้อมูลใหญ่เกินไป'},413);if(!env.DATABASE_URL)return json({error:'ยังไม่ได้ตั้งค่าฐานข้อมูล'},503);const sql=neon(env.DATABASE_URL);await initialize(sql);return handleHealthIngest(request,sql);}
   if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin) return json({error:'คำขอจากเว็บไซต์อื่นไม่ได้รับอนุญาต'},403);
   if (Number(request.headers.get('Content-Length') || 0) > ((url.pathname==='/api/me/avatar'||/^\/api\/teams\/[^/]+\/avatar$/.test(url.pathname))?65536:url.pathname==='/api/backup'||url.pathname==='/api/health/import'?262144:['POST','PUT'].includes(request.method)&&(url.pathname==='/api/personal-plans'||/^\/api\/teams\/[^/]+\/plans(?:\/[^/]+)?$/.test(url.pathname))?400000:16000)) return json({error:'ข้อมูลใหญ่เกินไป'},413);
+  // Browser error reports need no sign-in: errors can happen before or during it.
+  if (url.pathname === '/api/client-errors') return handleClientErrors(request);
   if (url.pathname === '/api/config') return json({ready:Boolean(env.DATABASE_URL && env.NEON_AUTH_BASE_URL),googleLoginReady:googleLoginReady(env)});
   if(url.pathname.startsWith('/api/google/')){const response=await handleGoogleLogin(request,env,{resolveMember:profile=>resolveGoogleMember(neon(env.DATABASE_URL),profile),checkMember:user=>checkGoogleMember(neon(env.DATABASE_URL),user),storeSession:user=>storeGoogleSession(neon(env.DATABASE_URL),user),revokeSession:user=>revokeGoogleSession(neon(env.DATABASE_URL),user)});if(response)return response;}
   if (!env.DATABASE_URL || !env.NEON_AUTH_BASE_URL) return json({error:'ยังไม่ได้ตั้งค่า DATABASE_URL และ NEON_AUTH_BASE_URL ใน Worker'},503);
@@ -322,5 +325,9 @@ export async function handleEntries(request,sql,user) {
 }
 export default {async fetch(request,env) {
   if (!new URL(request.url).pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-  try {return await handleApi(request,env);} catch(error) {return json({error:error.status?error.message:'ติดต่อฐานข้อมูลไม่ได้ กรุณาลองใหม่'},error.status||503);}
+  try {return await handleApi(request,env);} catch(error) {
+   // Unexpected failures are logged so they can be found later; expected ones (sign-in, permissions) carry a status.
+   if(!error.status)console.error(JSON.stringify({type:'server-error',method:request.method,path:new URL(request.url).pathname,message:String(error?.message??error).slice(0,500),stack:String(error?.stack??'').slice(0,2000)}));
+   return json({error:error.status?error.message:'ติดต่อฐานข้อมูลไม่ได้ กรุณาลองใหม่'},error.status||503);
+  }
 }};

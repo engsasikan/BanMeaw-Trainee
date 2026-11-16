@@ -13,6 +13,10 @@
     ]
   },
   "main": "src/worker.mjs",
+  // Keeps console output (browser error reports, unexpected server errors) in Workers Logs on the dashboard.
+  "observability": {
+    "enabled": true
+  },
   "rules": [
     {
       "type": "Text",
