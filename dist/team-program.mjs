@@ -56,6 +56,7 @@ function programList(box,programs,open){
  for(const p of programs){
   const card=node('button',undefined,'program-card '+p.status);card.type='button';
   card.append(node('span',statusText[p.status],'program-status'),node('strong','โปรแกรม '+rangeText(p)),node('small',p.days+' วันฝึก · '+trainingDays(p)),node('span','›','program-chevron'));
+  if(p.status==='current')card.append(node('small',p.today?'วันนี้ฝึก: '+WEEK[weekdayIndex(p.today.day)][2]+' · '+p.today.exercises.length+' ท่า':'วันนี้: วันพัก','program-today'));
   card.onclick=()=>open(p);list.append(card);
  }
  box.append(list);
@@ -63,14 +64,17 @@ function programList(box,programs,open){
 function programDetail(box,p,today,{onBack,onTrainToday,note='ดูได้อย่างเดียว แก้ไขได้เฉพาะเทรนเนอร์',detailTools}){
  const back=node('button','‹ โปรแกรมทั้งหมด','quiet program-back');back.type='button';back.onclick=onBack;
  const head=node('div',undefined,'program-head');head.append(node('span',statusText[p.status],'program-status'),node('h3','โปรแกรม '+rangeText(p)),node('p',p.days+' วันฝึก · '+note,'muted'));
+ // While the program runs, today's weekday is highlighted in the strip and in the list, and opens by itself.
+ const now=p.status==='current'?weekdayIndex(today):-1;
  const strip=node('div',undefined,'program-week-strip');
- WEEK.forEach(([short],i)=>{const cell=node('span',undefined,'program-week-cell'+(p.week[i]?' has':'')+(p.today&&weekdayIndex(today)===i?' now':''));cell.append(node('small',short),node('b',p.week[i]?String(p.week[i].exercises.length):'–'));cell.title=p.week[i]?p.week[i].exercises.length+' ท่า':'วันพัก';strip.append(cell);});
+ WEEK.forEach(([short],i)=>{const cell=node('span',undefined,'program-week-cell'+(p.week[i]?' has':'')+(now===i?' now':''));cell.append(node('small',short),node('b',p.week[i]?String(p.week[i].exercises.length):'–'));cell.title=p.week[i]?p.week[i].exercises.length+' ท่า':'วันพัก';strip.append(cell);});
  const rows=node('div',undefined,'program-days');
  WEEK.forEach(([short,en,name],i)=>{
-  const row=node('div',undefined,'program-day-row'+(p.week[i]?'':' rest')),stamp=node('div',undefined,'program-stamp');stamp.append(node('span',en),node('strong',short));
-  if(!p.week[i]){const rest=node('div',undefined,'program-day-card');rest.append(node('strong','วันพัก'),node('small','ไม่มีท่าในโปรแกรม'));row.append(stamp,rest);rows.append(row);return;}
-  const {exercises}=p.week[i],card=node('details',undefined,'program-day-card');
-  const summary=node('summary');const sets=supersetGroups(exercises);summary.append(node('strong',name+' · '+previewNames(exercises)),node('small',exercises.length+' ท่า'+(sets.length?' · Super set '+sets.map(g=>g.letter).join(', '):'')));
+  const row=node('div',undefined,'program-day-row'+(p.week[i]?'':' rest')+(now===i?' now':'')),stamp=node('div',undefined,'program-stamp');stamp.append(node('span',en),node('strong',short));
+  if(now===i)row.setAttribute('aria-current','date');
+  if(!p.week[i]){const rest=node('div',undefined,'program-day-card');if(now===i)rest.append(node('span','วันนี้','program-today-badge'));rest.append(node('strong','วันพัก'),node('small','ไม่มีท่าในโปรแกรม'));row.append(stamp,rest);rows.append(row);return;}
+  const {exercises}=p.week[i],card=node('details',undefined,'program-day-card');if(now===i)card.open=true;
+  const summary=node('summary');const sets=supersetGroups(exercises);if(now===i)summary.append(node('span','วันนี้ต้องฝึก','program-today-badge'));summary.append(node('strong',name+' · '+previewNames(exercises)),node('small',exercises.length+' ท่า'+(sets.length?' · Super set '+sets.map(g=>g.letter).join(', '):'')));
   const steps=exerciseList(exercises);
   card.append(summary,steps);row.append(stamp,card);rows.append(row);
  });

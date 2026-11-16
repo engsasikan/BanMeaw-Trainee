@@ -6,19 +6,19 @@ import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-
 import {attachEffortUnit,looksTimed,effortText,formatSeconds} from './effort.mjs?v=4';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=12';
-import {initTrainingSession} from './training-session.mjs?v=28';
+import {initTrainingSession} from './training-session.mjs?v=29';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=5';
 import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=36';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=37';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
-import {initTeams,loadTeams} from './team.mjs?v=76';
+import {initTeams,loadTeams} from './team.mjs?v=77';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
 import {initBody,quickWeigh} from './body.mjs?v=40';
 import {initToday} from './today.mjs?v=21';
@@ -39,8 +39,10 @@ const workoutComposer=node('details',undefined,'workout-composer');workoutCompos
 workoutComposer.append(node('summary','＋ เพิ่มท่า / Super set / คาร์ดิโอ'));
 // Trainers kept logging moves here expecting their team to get them; this is only their own diary.
 const coachLogNote=node('div',undefined,'coach-log-note');coachLogNote.hidden=true;coachLogNote.setAttribute('role','note');
-coachLogNote.append(node('p','ส่วนนี้บันทึกการฝึกของคุณเอง ลูกเทรนจะไม่เห็นท่าที่บันทึกตรงนี้ ถ้าจะจัดท่าให้ลูกเทรน ให้ไปที่ ทีม → เลือกทีม → จัดแผนฝึกทั้งทีม'));
-const coachLogGo=node('button','ไปจัดแผนให้ทีม →','quiet');coachLogGo.type='button';coachLogGo.onclick=()=>document.querySelector('[data-view="team"]')?.click();coachLogNote.append(coachLogGo);
+const coachLogText=node('div',undefined,'coach-log-text');coachLogText.append(node('strong','บันทึกส่วนตัวของคุณ'),node('p','ลูกเทรนจะไม่เห็นท่าที่บันทึกตรงนี้'));
+const coachLogGo=node('button','จัดแผนให้ทีม →','coach-log-go');coachLogGo.type='button';coachLogGo.onclick=()=>document.querySelector('[data-view="team"]')?.click();
+const coachLogIcon=node('span','i','coach-log-icon');coachLogIcon.setAttribute('aria-hidden','true');
+coachLogNote.append(coachLogIcon,coachLogText,coachLogGo);
 workoutComposer.append(coachLogNote);
 window.addEventListener('teams-loaded',e=>{coachLogNote.hidden=!e.detail.some(t=>t.status==='active'&&(t.my_role==='owner'||t.my_role==='trainer'));});
 const compose=$('workout-form').closest('.compose');compose.before(workoutComposer);workoutComposer.append(compose);

@@ -342,10 +342,16 @@ main:has(#workout-panel:not([hidden]) #workout-program:not([hidden])) .datebar{d
 .training-day-locked{display:grid;gap:10px;padding:14px 16px;border-radius:16px;background:#ffffff0a;border:1px dashed var(--line-2)}
 .training-day-locked p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
 .training-day-locked button{min-height:44px;width:100%}
-.coach-log-note{display:grid;gap:10px;margin:0 22px 16px;padding:14px 16px;border-radius:16px;background:#ff70280f;border:1px solid #ff702840}
+.coach-log-note{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;box-sizing:border-box;width:100%;max-width:860px;margin:0 auto 14px;padding:12px 12px 12px 14px;border-radius:16px;background:#ff70280f;border:1px solid #ff702833}
 .coach-log-note[hidden]{display:none}
-.coach-log-note p{margin:0;color:#ffc39f;font-size:14px;line-height:1.6}
-.coach-log-note button{justify-self:start;min-height:40px}
+.coach-log-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#ff702829;color:#ffab79;font:700 14px/1 Georgia,serif;font-style:italic}
+.coach-log-text{display:grid;gap:2px;min-width:0}
+.coach-log-text strong{font-size:14px;color:var(--text)}
+.coach-log-text p{margin:0;color:#c2bcb8;font-size:13px;line-height:1.5}
+.coach-log-note .coach-log-go{min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid #ff702866;background:none;color:#ffab79;font-size:13px;font-weight:700;white-space:nowrap}
+/* In the บันทึกผล tab the composer is not a collapsible box, so it needs no frame of its own around the note and form. */
+#workout-panel>.workout-section-composer{border:0;border-radius:0}
+@media(max-width:380px){.coach-log-note{grid-template-columns:28px minmax(0,1fr)}.coach-log-note .coach-log-go{grid-column:2;justify-self:start}}
 /* ครั้ง / วินาที switch under a count field */
 select.effort-unit{display:block;width:100%;min-height:36px;margin-top:6px;padding:4px 8px;font-size:13px;border-radius:10px}
 .ts-log select.effort-unit{margin-top:0}
@@ -353,3 +359,53 @@ select.effort-unit{display:block;width:100%;min-height:36px;margin-top:6px;paddi
 .training-week-row.selected .training-week-stamp,.training-week-row.selected .training-week-stamp strong{color:var(--accent)}
 .training-week-row.selected .training-week-card{background:linear-gradient(160deg,#3a2416,#2b2622 75%);box-shadow:inset 0 0 0 1.5px var(--accent)}
 .training-week-row.selected .training-week-card small{color:#ffc39f}
+/* Guided workout: full screen, with an overview before it starts */
+body.ts-open{overflow:hidden}
+.guided-training.ts-full{position:fixed;inset:0;z-index:200;max-width:none;width:auto;margin:0;padding:0 16px calc(28px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;align-content:start;background:var(--ink)}
+.guided-training.ts-full>*{width:100%;max-width:640px;justify-self:center;box-sizing:border-box}
+.ts-bar{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 10px;padding:max(12px,env(safe-area-inset-top)) 0 12px;background:linear-gradient(var(--ink) 82%,#0b0b0b00)}
+.ts-bar .ts-steps{grid-column:1/-1;margin:2px 0 0}
+.ts-bar .ts-steps li{height:5px}
+.ts-elapsed{display:flex;align-items:baseline;justify-content:center;gap:6px;min-width:0}
+.ts-elapsed b{font-size:2rem;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
+.ts-elapsed small{color:var(--soft);font-size:12px}
+.guided-training .ts-back{min-height:40px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--card-2);color:var(--text);font-size:13px;font-weight:700}
+.guided-training .ts-exit{display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;border:1px solid var(--line-2);background:var(--card-2);color:var(--text);font-size:16px}
+.ts-full .ts-hero .ts-name{font-size:1.9rem}
+.ts-thumb{position:relative;display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:12px;overflow:hidden;background:linear-gradient(145deg,#3a2416,#22201f);color:#ffab79;font-weight:800;font-size:1.2rem}
+.ts-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+.ts-thumb.has-img b{visibility:hidden}
+.tso-head{position:relative;display:grid;gap:4px;margin-top:max(12px,env(safe-area-inset-top));padding:22px 18px 20px;border-radius:24px;background:radial-gradient(circle at 85% 0,#ff702850,transparent 60%),linear-gradient(160deg,#2a1a10,var(--card) 70%);border:1px solid #ff702833}
+.tso-head .eyebrow{margin:0;padding-right:48px}
+.guided-training .tso-close{position:absolute;top:14px;right:14px}
+.tso-title{margin:0;font-size:2.1rem;line-height:1.15}
+.tso-plan{margin:0 0 10px;color:#ffc39f;font-size:14px}
+.tso-stats{display:flex;flex-wrap:wrap;gap:8px}
+.tso-stat{display:grid;gap:1px;padding:8px 12px;border-radius:12px;background:#00000045;border:1px solid var(--line-2);min-width:0}
+.tso-stat b{font-size:1.05rem;line-height:1.3;overflow-wrap:anywhere}
+.tso-stat small{color:var(--soft);font-size:11px}
+.tso-progress{margin:8px 0 0;color:var(--good);font-size:13px;font-weight:700}
+.tso-start-bar{position:sticky;top:0;z-index:3;padding:12px 0;background:linear-gradient(var(--ink) 75%,#0b0b0b00)}
+.guided-training .tso-start{width:100%;min-height:56px;margin:0;border-radius:16px;font-size:1.1rem;font-weight:800;box-shadow:0 10px 30px #ff702833}
+.tso-list{display:grid;gap:12px}
+.tso-block{display:grid;gap:2px;padding:6px;border-radius:18px;background:var(--card-2);border:1px solid var(--line)}
+.tso-block.superset{border-color:#ff702840;background:#ff70280a}
+.tso-block-label{margin:6px 10px 4px;font-size:13px;font-weight:700;color:#ffab79}
+.guided-training .tso-row{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;min-height:72px;margin:0;padding:8px;border:0;border-radius:14px;background:none;color:var(--text);text-align:left;cursor:pointer}
+.guided-training .tso-row:hover{background:#ffffff08}
+.tso-row-text{display:grid;gap:2px;min-width:0}
+.tso-row-text strong{font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.tso-row-text small{color:var(--soft);font-size:13px}
+.tso-row-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#ffffff0d;color:var(--soft);font-size:12px;font-weight:700}
+.tso-row.done .tso-row-mark{background:var(--good);color:#0d1a12}
+.tso-row.done strong{color:var(--soft)}
+.guided-training .ts-next{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;margin:0;padding:10px;border-radius:18px;border:1px dashed var(--line-2);background:#ffffff05;color:var(--text);text-align:left;opacity:.72;cursor:pointer}
+.guided-training .ts-next:hover{opacity:1}
+.ts-next-text{display:grid;gap:1px;min-width:0}
+.ts-next-text small:first-child{color:#ffab79;font-size:11px;font-weight:800;letter-spacing:.5px}
+.ts-next-text strong{overflow-wrap:anywhere}
+.ts-next-text small{color:var(--soft);font-size:12px}
+.ts-next-go{color:#ffab79;font-size:1.4rem}
+.guided-training .ts-hold{width:100%;min-height:52px;margin:10px 0 0;border-radius:14px;border:1px solid #ff702866;background:#ff702814;color:#ffab79;font-weight:800;font-variant-numeric:tabular-nums}
+.guided-training .ts-hold.running{background:#2a1a10;border:2px solid var(--accent);color:#ffb07c;font-size:1.15rem}
+.ts-hold[hidden]{display:none}

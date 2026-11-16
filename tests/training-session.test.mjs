@@ -27,7 +27,10 @@ test('guided training saves each set, resumes, retries failures and handles supe
  const plan={id:'11111111-1111-4111-8111-111111111111',day:TODAY,exercises:[{exercise:'Squat',sets:2,reps:12,weight:20,rest_seconds:30,superset:'A'},{exercise:'Row',sets:2,reps:10,weight:15,rest_seconds:0,superset:'A'}]};
  window.dispatchEvent(new CustomEvent('training-plans',{detail:{day:plan.day,plans:[plan]}}));window.dispatchEvent(new CustomEvent('training-start'));
  const session=nodes.get('workout-panel').children[0];
- const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&x.textContent===label);assert.ok(b,label);return b.onclick({currentTarget:b});};
+ const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&(x.textContent===label||x['aria-label']===label));assert.ok(b,label);return b.onclick({currentTarget:b});};
+ // Starting shows the day's overview first: exercise count, Super set block, then the start button.
+ assert.match(session.textContent,/Super set A · ทำต่อกัน 2 รอบ/);assert.match(session.textContent,/2 เซ็ต × 12 ครั้ง/);
+ click('เริ่มฝึก');
  const submit=()=>flatten(session).find(x=>x.tagName==='form').onsubmit({preventDefault(){}});
  const unit=flatten(session).find(x=>x.tagName==='select'&&x['aria-label']==='หน่วยน้ำหนักที่ยก');unit.value='lb';unit.dispatchEvent(new Event('change'));
  const weight=flatten(session).find(x=>x.tagName==='input'&&x.inputMode==='decimal');weight.value='100';
@@ -39,7 +42,7 @@ test('guided training saves each set, resumes, retries failures and handles supe
  fail=true;await submit();assert.equal(records.length,1);assert.ok(session.textContent.includes('บันทึกไม่สำเร็จ'));fail=false;
  await submit();assert.equal(records.length,2);assert.ok(session.textContent.includes('Squat'));
  assert.equal(rest().hidden,true);
- click('✕ ออกจากโหมดฝึก');window.dispatchEvent(new CustomEvent('training-start'));assert.ok(session.textContent.includes('ทำเซ็ต 2 เสร็จแล้ว'));
+ click('ออกจากโหมดฝึก');window.dispatchEvent(new CustomEvent('training-start'));click('ฝึกต่อ · ท่าที่ 1');assert.ok(session.textContent.includes('ทำเซ็ต 2 เสร็จแล้ว'));
  await submit();assert.equal(records.find(r=>r.exercise==='Squat').sessionComplete,true);await submit();assert.equal(records.find(r=>r.exercise==='Row').sessionComplete,true);
  click('จบการฝึกวันนี้ · ดูสรุป');assert.ok(session.textContent.includes('บันทึกครบ 2 / 2 ท่า'));assert.equal(writes,5);
  nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));assert.equal(session.hidden,true);assert.equal(nodes.get('workout-panel').classes.has('training-mode'),false);

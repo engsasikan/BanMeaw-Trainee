@@ -301,3 +301,12 @@ body:has(#team-detail-view:not([hidden])):has(#team-panel:not([hidden])) .headin
 .plan-notice{margin:0 0 12px}
 .training-planner .plan-saved{margin-top:8px}
 .plan-saved .program-actions .primary{width:100%}
+/* Today's day in a running program */
+.program-card .program-today{color:#ffab79;font-weight:700}
+.program-week-cell.now{color:#ffab79;font-weight:800}
+.program-week-cell.now:not(.has) b{border:1.5px solid #ff7028;color:#ffab79;background:none}
+.program-day-row.now .program-stamp,.program-day-row.now .program-stamp strong{color:#ffab79}
+.program-day-row.now .program-day-card{background:linear-gradient(160deg,#3a2416,#2b2622 75%);box-shadow:inset 0 0 0 1.5px #ff7028}
+.program-day-row.now.rest .program-day-card{background:#ff70280f;box-shadow:inset 0 0 0 1.5px #ff702866}
+.program-today-badge{justify-self:start;padding:2px 9px;border-radius:999px;background:#ff7028;color:#1b0f08;font-size:11px;font-weight:800}
+.program-day-row.now.rest .program-today-badge{background:#ff702833;color:#ffc39f}

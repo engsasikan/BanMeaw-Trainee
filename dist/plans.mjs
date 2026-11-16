@@ -1,5 +1,5 @@
 import {planComparison} from './coach-ui.mjs?v=6';
-import {renderPrograms} from './team-program.mjs?v=6';
+import {renderPrograms} from './team-program.mjs?v=7';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=4';
