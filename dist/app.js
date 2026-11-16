@@ -13,12 +13,12 @@ import {initNutrition} from './nutrition.mjs?v=1';
 import {initPasswordReset,initBackup} from './account-extras.mjs?v=6';
 import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
-import {showDailyPlans,trainerPlanner} from './plans.mjs?v=34';
+import {showDailyPlans,trainerPlanner} from './plans.mjs?v=35';
 import {auth,api} from './account.js?v=4';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=18';
 import {attachExercisePicker} from './exercise-picker.mjs?v=12';
 import {attachNavigation,renderDashboard,switchView} from './dashboard.mjs?v=13';
-import {initTeams,loadTeams} from './team.mjs?v=74';
+import {initTeams,loadTeams} from './team.mjs?v=75';
 import {openTeamWorkoutCopy} from './team-workout-copy.mjs?v=8';
 import {initBody,quickWeigh} from './body.mjs?v=40';
 import {initToday} from './today.mjs?v=21';
@@ -97,7 +97,7 @@ const workoutNav=node('div',undefined,'workout-section-nav');workoutNav.setAttri
 const programPanel=node('section',undefined,'workout-program');programPanel.id='workout-program';
 const dailyPlans=node('section',undefined,'diary training-entry');
 const personalEditor=node('div');
-const personalToggle=node('button','จัดโปรแกรมส่วนตัว','quiet');
+const personalToggle=node('button','จัดการโปรแกรมส่วนตัว','quiet');
 personalToggle.type='button';personalToggle.setAttribute('aria-expanded','false');
 personalEditor.hidden=true;
 personalToggle.onclick=async()=>{

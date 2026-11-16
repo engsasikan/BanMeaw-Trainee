@@ -85,3 +85,33 @@ test('planner pairs separate exercises, accepts custom names and saves superset 
  assert.deepEqual(reordered.slice(0,5).map(item=>item.exercise),
   ['Custom Coach Move','Dumbbell Curl','Machine Fly','Knee Push-up','Third Move']);
 });
+test('saved programs are listed one card per program and can be edited or deleted as a whole',async()=>{
+ globalThis.document={createElement:tag=>new Element(tag)};
+ globalThis.confirm=()=>true;
+ const batch='44444444-4444-4444-8444-444444444444';
+ const squat={exercise:'Squat',sets:3,reps:10,weight:20};
+ globalThis.__programPlans=[
+  {id:'a',batch_id:batch,day:'2030-01-07',exercises:[squat]},
+  {id:'b',batch_id:batch,day:'2030-01-09',exercises:[{...squat,exercise:'Row'}]},
+  {id:'c',batch_id:batch,day:'2030-01-14',exercises:[squat]},
+ ];
+ globalThis.__programCalls=[];
+ const built=await build({entryPoints:['dist/plans.mjs'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'api-stub',setup(b){b.onResolve({filter:/account\.js/},()=>({path:'api',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:'export async function api(path,options={}){globalThis.__programCalls.push({path,method:options.method??"GET",body:options.body&&JSON.parse(options.body)});return options.method?{ok:true,count:2,locked:0}:{plans:globalThis.__programPlans};}'}));}}]});
+ const {trainerPlanner}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+ const root=new Element('div');await trainerPlanner(root,null,null,{day:'2030-01-01'});
+ const cards=flatten(root).filter(x=>x.className==='entry plan-program');
+ assert.equal(cards.length,1);
+ assert.match(cards[0].textContent,/จ\. พ\. · 3 วัน · เหลือ 3 วัน/);
+ click(cards[0],'แก้ไขโปรแกรม');
+ const fieldValue=label=>flatten(root).find(x=>x.tagName==='label'&&x.text===label).children.find(x=>x.tagName==='div').children.at(-1).value;
+ assert.deepEqual([fieldValue('วันเริ่มโปรแกรม'),fieldValue('วันสิ้นสุด')],['2030-01-07','2030-01-14']);
+ const form=flatten(root).find(x=>x.tagName==='form');
+ await form.onsubmit({preventDefault(){}});
+ const put=globalThis.__programCalls.find(call=>call.method==='PUT');
+ assert.equal(put.path,'/api/personal-plans?batch='+batch);
+ assert.deepEqual(put.body.schedule.map(day=>[day.weekday,day.exercises[0].exercise]),[[1,'Squat'],[3,'Row']]);
+ assert.deepEqual([put.body.start,put.body.end],['2030-01-07','2030-01-14']);
+ click(flatten(root).find(x=>x.className==='entry plan-program'),'ลบโปรแกรม');
+ await new Promise(resolve=>setTimeout(resolve));
+ assert.equal(globalThis.__programCalls.find(call=>call.method==='DELETE').path,'/api/personal-plans?batch='+batch);
+});

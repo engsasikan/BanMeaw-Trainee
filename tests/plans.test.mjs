@@ -208,3 +208,45 @@ test('a trainee opening the team page sees the team program, including one saved
   assert.equal((await handlePlans(new Request('https://example.com/api/teams/'+team.id+'/plans/student?id='+got.plans[0].id,{method:'DELETE'}),sql,{sub:'student'},team,mine,'student')).status,403);
  }finally{await db.close();}
 });
+test('a saved program can be edited and deleted as a whole from today on, keeping past days and trained days',async()=>{
+ const {PGlite}=await import('@electric-sql/pglite');
+ const db=new PGlite();
+ try{
+  const team='22222222-2222-4222-8222-222222222222';
+  await db.exec(`
+   CREATE TABLE trainer_teams(id uuid,owner_id text,name text,owner_role text);
+   CREATE TABLE team_members(team_id uuid,user_id text,status text,team_role text);
+   CREATE TABLE training_plans(id uuid DEFAULT gen_random_uuid(),team_id uuid,user_id text,day date,exercises jsonb,created_by text,batch_id uuid,team_wide boolean NOT NULL DEFAULT false);
+   CREATE TABLE daily_logs(user_id text,payload jsonb);
+   INSERT INTO trainer_teams VALUES ('${team}','owner','Team','trainer');
+   INSERT INTO team_members VALUES ('${team}','student','active','trainee');
+  `);
+  const sql=async(strings,...values)=>(await db.query(strings.reduce((text,part,index)=>text+(index?'$'+index:'')+part,''),values)).rows;
+  sql.transaction=statements=>Promise.all(statements);
+  const call=(method,{teamObj=null,member,query='',body,today='2026-11-18'}={})=>handlePlans(new Request('https://example.com/api'+query,{method,...(body?{body:JSON.stringify(body)}:{})}),
+   sql,{sub:teamObj?'owner':'alice'},teamObj,null,member,today);
+  const days=async user=>(await db.query('SELECT day::text AS day,exercises->0->>\'exercise\' AS name FROM training_plans WHERE user_id=$1 ORDER BY day',[user])).rows.map(r=>r.day+' '+r.name);
+  // Personal: Mon+Wed for two weeks, edited on Wed 18th after training that day.
+  await call('POST',{body:{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:1,exercises:[exercise]},{weekday:3,exercises:[exercise]}]}});
+  const {plans}=await (await call('GET')).json();
+  const batch=plans[0].batch_id;
+  await db.query('INSERT INTO daily_logs VALUES ($1,$2)',['alice',JSON.stringify({planId:plans.find(p=>p.day==='2026-11-18').id})]);
+  const edit=await call('PUT',{query:'?batch='+batch,body:{period:'program',start:'2026-11-16',end:'2026-12-06',schedule:[{weekday:3,exercises:[{...exercise,exercise:'Row'}]},{weekday:5,exercises:[{...exercise,exercise:'Row'}]}]}});
+  assert.deepEqual(await edit.json(),{ok:true,count:5,locked:1});
+  assert.deepEqual(await days('alice'),['2026-11-16 Squat','2026-11-18 Squat','2026-11-20 Row','2026-11-25 Row','2026-11-27 Row','2026-12-02 Row','2026-12-04 Row']);
+  assert.equal(new Set((await db.query('SELECT batch_id FROM training_plans')).rows.map(r=>r.batch_id)).size,1);
+  assert.equal((await call('PUT',{query:'?batch=33333333-3333-4333-8333-333333333333',body:{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:1,exercises:[exercise]}]}})).status,404);
+  assert.deepEqual(await (await call('DELETE',{query:'?batch='+batch})).json(),{ok:true,count:5,locked:1});
+  assert.deepEqual(await days('alice'),['2026-11-16 Squat','2026-11-18 Squat']);
+  // Team-wide: the owner edits and deletes the program for every member.
+  const teamObj={id:team,owner_id:'owner'};
+  await call('POST',{teamObj,body:{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:5,exercises:[exercise]}]}});
+  const [{batch_id}]=(await (await call('GET',{teamObj})).json()).plans;
+  assert.deepEqual(await (await call('PUT',{teamObj,query:'?batch='+batch_id,body:{period:'program',start:'2026-11-16',end:'2026-11-29',schedule:[{weekday:6,exercises:[{...exercise,exercise:'Lunge'}]}]}})).json(),{ok:true,count:2,locked:0});
+  assert.deepEqual(await days('student'),['2026-11-21 Lunge','2026-11-28 Lunge']);
+  assert.deepEqual(await (await call('DELETE',{teamObj,query:'?batch='+batch_id+'&day=2026-11-21'})).json(),{ok:true,count:2,locked:0});
+  assert.deepEqual(await days('student'),['2026-11-28 Lunge']);
+  assert.deepEqual(await (await call('DELETE',{teamObj,query:'?batch='+batch_id})).json(),{ok:true,count:2,locked:0});
+  assert.deepEqual(await days('owner'),[]);
+ }finally{await db.close();}
+});

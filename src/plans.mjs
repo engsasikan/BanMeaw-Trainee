@@ -48,7 +48,10 @@ export function weeklyProgram({start,end,schedule}){
  if(used.size!==byWeekday.size)throw Error('บางวันฝึกไม่อยู่ในช่วงวันที่เลือก');
  return plans;
 }
-export async function handlePlans(request,sql,user,team,mine,memberId){
+// The program day in Thailand, where the gym is: a program edit only rewrites days from here on.
+export const bangkokDay=(now=Date.now())=>new Date(now+7*36e5).toISOString().slice(0,10);
+const uuidPattern=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+export async function handlePlans(request,sql,user,team,mine,memberId,today=bangkokDay()){
  const me=user.sub,personal=!team,teamId=team?.id??null;
  const owner=team?.owner_id===me,trainer=personal||owner||(mine?.status==='active'&&mine.team_role==='trainer');
  const json=(v,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
@@ -62,13 +65,20 @@ export async function handlePlans(request,sql,user,team,mine,memberId){
   if(team&&memberId===me&&me!==team.owner_id)await syncTeamPlans(sql,me);
   if(memberId)return json({plans:await sql`SELECT id,day::text AS day,exercises,created_by,batch_id FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId} ORDER BY day,id LIMIT 1000`});
   return json({plans:await sql`
-   SELECT DISTINCT ON (batch_id,day) batch_id AS id,day::text AS day,exercises
+   SELECT DISTINCT ON (batch_id,day) batch_id AS id,day::text AS day,exercises,batch_id
    FROM training_plans WHERE team_id=${team.id} AND (team_wide OR batch_id IN (
     SELECT batch_id FROM training_plans WHERE team_id=${team.id} GROUP BY batch_id HAVING count(DISTINCT user_id)>1
    ))
    ORDER BY batch_id,day,user_id LIMIT 1000`});
  }
  if(!trainer)return json({error:'เฉพาะเทรนเนอร์เท่านั้น' },403);
+ const params=new URL(request.url).searchParams,batch=params.get('batch');
+ if(batch!==null){
+  if(!uuidPattern.test(batch))return json({error:'รหัสโปรแกรมไม่ถูกต้อง'},400);
+  if(request.method==='PUT')return replaceProgram(request,sql,{team,teamId,memberId,me,batch,today,json});
+  if(request.method==='DELETE')return deleteProgram(sql,{teamId,memberId,batch,today,day:params.get('day'),json});
+  return json({error:'ไม่พบ API'},404);
+ }
  if(request.method==='PATCH'){
   const id=new URL(request.url).searchParams.get('id');
   if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);
@@ -129,6 +139,53 @@ export async function handlePlans(request,sql,user,team,mine,memberId){
   return json({ok:true,count:plans.length,firstDay:plans[0].day});
  }
  if(request.method==='DELETE'){const id=new URL(request.url).searchParams.get('id');if(!/^[0-9a-f-]{36}$/i.test(id||''))return json({error:'รหัสแผนไม่ถูกต้อง'},400);await sql`DELETE FROM training_plans WHERE id=${id} AND team_id IS NOT DISTINCT FROM ${teamId} AND user_id=${memberId}`;return json({ok:true});}return json({error:'ไม่พบ API'},404);
+}
+// Rows that belong to one saved program: one member's copy, or every member's copy of a team-wide program.
+function programRows(sql,{teamId,memberId,batch}){
+ return memberId
+  ?sql`SELECT id,user_id,day::text AS day FROM training_plans WHERE team_id IS NOT DISTINCT FROM ${teamId} AND batch_id=${batch} AND user_id=${memberId}`
+  :sql`SELECT id,user_id,day::text AS day FROM training_plans WHERE team_id=${teamId} AND batch_id=${batch} AND (team_wide OR batch_id IN (
+    SELECT batch_id FROM training_plans WHERE team_id=${teamId} GROUP BY batch_id HAVING count(DISTINCT user_id)>1))`;
+}
+// Saved results point at a plan id, so a day someone already trained keeps its prescription.
+async function withoutResults(sql,rows){
+ if(!rows.length)return [];
+ const logged=new Set((await sql`SELECT payload->>'planId' AS id FROM daily_logs WHERE payload->>'planId'=ANY(${rows.map(row=>String(row.id))}::text[])`).map(row=>row.id));
+ return rows.filter(row=>!logged.has(String(row.id)));
+}
+// Edit a whole program: days from today on that have no results are rewritten from the new weekly schedule.
+// Past days stay as they were, so history and team points do not change.
+async function replaceProgram(request,sql,{team,teamId,memberId,me,batch,today,json}){
+ let plans;
+ try{
+  const text=await request.text();if(text.length>100000)throw Error('ข้อมูลใหญ่เกินไป');
+  plans=weeklyProgram(JSON.parse(text));
+ }catch(error){return json({error:error.message},400);}
+ const rows=await programRows(sql,{teamId,memberId,batch});
+ if(!rows.length)return json({error:'ไม่พบโปรแกรมนี้'},404);
+ const removable=(await withoutResults(sql,rows.filter(row=>row.day>=today)));
+ if(removable.length)await sql`DELETE FROM training_plans WHERE id=ANY(${removable.map(row=>String(row.id))}::uuid[])`;
+ const gone=new Set(removable.map(row=>row.id));
+ const kept=new Set(rows.filter(row=>!gone.has(row.id)).map(row=>row.user_id+' '+row.day));
+ const future=plans.filter(plan=>plan.day>=today);
+ const recipients=memberId?[memberId]:(await sql`
+  SELECT owner_id AS user_id FROM trainer_teams WHERE id=${team.id}
+  UNION SELECT user_id FROM team_members WHERE team_id=${team.id} AND status='active'`).map(row=>row.user_id);
+ const inserts=recipients.flatMap(user=>future.filter(plan=>!kept.has(user+' '+plan.day)).map(plan=>({user,...plan})));
+ if(inserts.length)await sql`
+  INSERT INTO training_plans (team_id,user_id,day,exercises,created_by,batch_id,team_wide)
+  SELECT ${teamId}::uuid,p.user_id,p.day,p.exercises,${me},${batch}::uuid,${!memberId}
+  FROM jsonb_to_recordset(${JSON.stringify(inserts.map(({user,day,exercises})=>({user_id:user,day,exercises})))}::jsonb) AS p(user_id text,day date,exercises jsonb)`;
+ const locked=rows.filter(row=>row.day>=today&&!gone.has(row.id)).length;
+ return json({ok:true,count:new Set(inserts.map(row=>row.day)).size,locked});
+}
+// Delete a program from today on (or one day of it). Days with results and past days are kept as history.
+async function deleteProgram(sql,{teamId,memberId,batch,today,day,json}){
+ if(day!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(day))return json({error:'วันที่ไม่ถูกต้อง'},400);
+ const rows=(await programRows(sql,{teamId,memberId,batch})).filter(row=>day===null?row.day>=today:row.day===day);
+ const removable=await withoutResults(sql,rows);
+ if(removable.length)await sql`DELETE FROM training_plans WHERE id=ANY(${removable.map(row=>String(row.id))}::uuid[])`;
+ return json({ok:true,count:removable.length,locked:rows.length-removable.length});
 }
 // Team-wide plans are copied to each member when saved, so someone who joins later would never get them.
 // Give an active member their own copy of team-wide plans that were saved before they joined, for days from

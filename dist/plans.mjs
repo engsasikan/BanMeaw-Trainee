@@ -69,6 +69,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
  });
  const dates=el('div',undefined,'plan-dates');dates.append(date.box,end.box);
  const calendar=el('section',undefined,'program-calendar');
+ const formTitle=el('h3','สร้างโปรแกรมใหม่','plan-form-title');form.append(formTitle);
  calendar.append(el('h3','ช่วงโปรแกรม'),dates,el('h3','ตารางฝึกรายสัปดาห์'));
  form.append(calendar);
  let persistDraft=()=>{};
@@ -242,10 +243,11 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   if(item&&!editing)selectDay(item);
  },true);
  const save=el('button','บันทึกโปรแกรม','primary');save.type='submit';
- const footer=el('div',undefined,'program-footer');footer.append(message,save);form.append(footer);section.append(form);
- const list=el('div',undefined,'plan-saved');section.append(list);
+ const footer=el('div',undefined,'program-footer');footer.append(message,save);form.append(footer);
+ // Saved programs come first so they can be found and changed without scrolling past the new-program form.
+ const list=el('div',undefined,'plan-saved');section.append(list,form);
  const cancel=el('button','ยกเลิกการแก้ไข','quiet');cancel.type='button';cancel.hidden=true;footer.append(cancel);
- let editing=null,editItem=null;
+ let editing=null,editItem=null,editingProgram=null;
  function finishEdit(){
   editing=null;editItem=null;calendar.hidden=false;list.hidden=false;cancel.hidden=true;
   date.i.disabled=end.i.disabled=false;
@@ -269,14 +271,51 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   card.scrollIntoView({block:'start'});
  }
  const closeEdit=()=>{editItem?.card.remove();finishEdit();};
- cancel.onclick=()=>{closeEdit();message.textContent='';};
+ const weekdayOf=day=>new Date(day+'T12:00:00').getDay();
+ function setRange(start,last){
+  date.i.value=start;end.i.value=last;end.i.min=start;
+  for(const field of [date,end])field.i.dispatchEvent(new Event('input'));
+ }
+ // Fill the weekly form; weekdays without a saved prescription start as rest days.
+ function setSchedule(exercisesFor){
+  for(const item of schedule){
+   const exercises=exercisesFor(item.weekday);
+   item.check.checked=Boolean(exercises);item.fields.replaceChildren();item.editor=null;item.check.onchange();
+   if(exercises?.length)item.editor.fill(exercises);
+  }
+  selectDay(schedule.find(item=>item.check.checked)??initial);
+ }
+ function editProgram(program){
+  if(editing)closeEdit();
+  editingProgram=program;
+  const today=localDay(),days=program.days;
+  setRange(days[0].day,days.at(-1).day);
+  // Each weekday opens with its next upcoming prescription, or the last one if the program has ended.
+  setSchedule(weekday=>{
+   const same=days.filter(plan=>weekdayOf(plan.day)===weekday);
+   return (same.find(plan=>plan.day>=today)??same.at(-1))?.exercises;
+  });
+  list.hidden=true;cancel.hidden=false;
+  formTitle.textContent='แก้ไขโปรแกรม · '+program.label;
+  save.textContent='บันทึกการแก้ไขโปรแกรม';
+  message.textContent='การแก้ไขมีผลกับวันตั้งแต่วันนี้ที่ยังไม่มีผลฝึก วันที่ผ่านมาแล้วยังเหมือนเดิม'+(team&&!member?' · ส่งให้สมาชิกทุกคนในทีม':'');
+  form.scrollIntoView({block:'start'});
+ }
+ function finishProgram(){
+  editingProgram=null;list.hidden=false;cancel.hidden=true;
+  formTitle.textContent='สร้างโปรแกรมใหม่';save.textContent='บันทึกโปรแกรม';
+  setRange(day,day);setSchedule(weekday=>weekday===initial.weekday?[]:null);
+  restoreDraft();
+ }
+ cancel.onclick=()=>{if(editingProgram)finishProgram();else closeEdit();message.textContent='';};
  const path=team?'/api/teams/'+team.id+'/plans'+(member?'/'+encodeURIComponent(member.id):''):'/api/personal-plans';
  function exerciseValues(x){
   return x.type.i.value==='cardio'?
    {trainingType:'cardio',exercise:x.name.i.value.trim(),duration:Number(x.duration.i.value),...Object.fromEntries(['incline','speed','distance'].filter(k=>x[k].i.value!=='').map(k=>[k,Number(x[k].i.value)]))}:
    {exercise:x.name.i.value.trim(),...x.weightUnit.read(),sets:Number(x.sets.i.value),...(x.effort.timed()?{seconds:Number(x.reps.i.value)}:{reps:Number(x.reps.i.value)}),rest_seconds:Number(x.rest.i.value),superset:x.superset.i.value||null};
  }
- if(draftKey){
+ function restoreDraft(){
+  if(!draftKey)return;
   try{
    const draft=JSON.parse(localStorage.getItem(draftKey));
    if(draft){
@@ -294,8 +333,11 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
     message.textContent='เปิดแบบร่างที่เก็บไว้ในเครื่องแล้ว';
    }
   }catch{}
+ }
+ if(draftKey){
+  restoreDraft();
   persistDraft=()=>{
-   if(editing)return;
+   if(editing||editingProgram)return;
    try{
     localStorage.setItem(draftKey,JSON.stringify({start:date.i.value,end:end.i.value,schedule:schedule
      .filter(item=>item.editor).map(item=>({weekday:item.weekday,enabled:item.check.checked,exercises:item.editor.entries.map(exerciseValues)}))}));
@@ -304,21 +346,66 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   form.addEventListener('input',persistDraft);
   form.addEventListener('change',persistDraft);
  }
+ const dayLabel=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'numeric'});
+ const rangeLabel=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+ const weekdayShort=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+ async function removeDays(program,query,question){
+  if(!confirm(question))return;
+  try{
+   const result=await api(path+'?batch='+encodeURIComponent(program.batch)+query,{method:'DELETE'});
+   message.textContent=result.count?'ลบแล้ว '+result.count+(team&&!member?' รายการ':' วัน'):'ไม่มีวันที่ลบได้';
+   if(result.locked)message.textContent+=' · '+result.locked+' รายการมีผลฝึกแล้วจึงเก็บไว้';
+   onSaved?.();await load();
+  }catch(e){message.textContent=e.message;}
+ }
+ function dayCard(p,program){
+  const card=el('div',undefined,'entry'),label=dayLabel.format(new Date(p.day+'T12:00:00'));card.append(el('h3',label));
+  for(const r of p.exercises)appendPlanExercise(card,r);
+  const edit=el('button','แก้ไขท่าวันนี้','quiet');edit.type='button';edit.onclick=()=>editPlan(p);
+  const remove=el('button','ลบเฉพาะวันนี้','quiet');remove.type='button';
+  remove.onclick=()=>removeDays(program,'&day='+p.day,'ลบแผนวันที่ '+label+(team&&!member?' ของทุกคนในทีม':'')+'?');
+  card.append(edit,remove);return card;
+ }
  async function load(){
-  const {plans}=await api(path);list.replaceChildren(el('h3','แผนที่บันทึกไว้'));
+  const {plans}=await api(path);list.replaceChildren(el('h3','โปรแกรมที่บันทึกไว้'));
   savedExercises.clear();
   for(const {exercises} of plans){
    for(const exercise of exercises)savedExercises.set(exercise.exercise,{
     name:exercise.exercise,group:exercise.trainingType==='cardio'?'คาร์ดิโอ':'',
    });
   }
-  if(!plans.length)list.append(el('p','ยังไม่มีแผน เริ่มจัดท่าฝึกด้านบนได้เลย','muted'));
+  if(!plans.length){list.append(el('p','ยังไม่มีโปรแกรม เริ่มสร้างด้านล่างได้เลย','muted'));return;}
+  // One card per saved program (everything saved together), not one per day.
+  const programs=new Map();
   for(const p of plans){
-   const card=el('div',undefined,'entry'),day=new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',year:'numeric'}).format(new Date(p.day+'T12:00:00'));card.append(el('h3',day));
-   for(const r of p.exercises)appendPlanExercise(card,r);
-   const edit=el('button','แก้ไขท่า','quiet');edit.type='button';edit.onclick=()=>editPlan(p);card.append(edit);
-   if(team&&!member){list.append(card);continue;}
-   const b=el('button','ลบแผนวันนี้','quiet');b.type='button';b.onclick=async()=>{if(!confirm('ลบแผนวันที่ '+day+'?'))return;try{await api(path+'?id='+p.id,{method:'DELETE'});onSaved?.();await load();}catch(e){message.textContent=e.message;}};card.append(b);list.append(card);
+   const batch=p.batch_id??p.id;
+   if(!programs.has(batch))programs.set(batch,{batch,days:[]});
+   programs.get(batch).days.push(p);
+  }
+  const today=localDay();
+  const sorted=[...programs.values()].map(program=>{
+   program.days.sort((a,b)=>a.day.localeCompare(b.day));
+   const first=program.days[0].day,last=program.days.at(-1).day;
+   program.label=first===last?rangeLabel.format(new Date(first+'T12:00:00')):rangeLabel.formatRange(new Date(first+'T12:00:00'),new Date(last+'T12:00:00'));
+   program.upcoming=program.days.filter(p=>p.day>=today).length;
+   return program;
+  }).sort((a,b)=>Boolean(b.upcoming)-Boolean(a.upcoming)||a.days[0].day.localeCompare(b.days[0].day));
+  for(const program of sorted){
+   const card=el('div',undefined,'entry plan-program');
+   const weekdays=[...new Set(program.days.map(p=>weekdayOf(p.day)))].sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>weekdayShort[d]).join(' ');
+   card.append(el('h3',program.label),el('p',weekdays+' · '+program.days.length+' วัน · '+(program.upcoming?'เหลือ '+program.upcoming+' วัน':'จบแล้ว'),'muted plan-program-meta'));
+   const actions=el('div',undefined,'plan-program-actions');
+   const edit=el('button','แก้ไขโปรแกรม','primary');edit.type='button';edit.onclick=()=>editProgram(program);
+   actions.append(edit);
+   if(program.upcoming){
+    const remove=el('button','ลบโปรแกรม','quiet');remove.type='button';
+    remove.onclick=()=>removeDays(program,'','ลบโปรแกรม '+program.label+(team&&!member?' ของทุกคนในทีม':'')+' ตั้งแต่วันนี้?\nวันที่ผ่านมาแล้วและวันที่มีผลฝึกจะเก็บไว้');
+    actions.append(remove);
+   }
+   const days=el('details',undefined,'plan-program-days');
+   days.append(el('summary','ดูและแก้ทีละวัน ('+program.days.length+')'));
+   days.ontoggle=()=>{if(days.open&&days.children.length===1)days.append(...program.days.map(p=>dayCard(p,program)));};
+   card.append(actions,days);list.append(card);
   }
  }
  form.onsubmit=async e=>{
@@ -337,9 +424,18 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
   persistDraft();
   save.disabled=cancel.disabled=true;save.textContent='กำลังบันทึก…';
   try{
-   const result=editing
+   const result=editingProgram
+    ?await api(path+'?batch='+encodeURIComponent(editingProgram.batch),{method:'PUT',body:JSON.stringify(payload)})
+    :editing
     ?await api(path+'?id='+encodeURIComponent(editing.id),{method:'PATCH',body:JSON.stringify({day:editing.day,exercises:payload.schedule[0].exercises})})
     :await api(path,{method:'POST',body:JSON.stringify(payload)});
+   if(editingProgram){
+    finishProgram();
+    message.textContent='บันทึกการแก้ไขโปรแกรมแล้ว · '+result.count+' วัน'+(result.locked?' · '+result.locked+' รายการมีผลฝึกแล้วจึงคงเดิม':'');
+    onSaved?.();
+    try{await load();}catch{message.textContent+=' · โหลดรายการล่าสุดไม่สำเร็จ';}
+    return;
+   }
    if(draftKey&&!editing){try{localStorage.removeItem(draftKey);}catch{}}
    onSaved?.(editing?undefined:result.firstDay);
    if(editing){
@@ -350,7 +446,7 @@ export async function trainerPlanner(root,team,member,{day=localDay(),onSaved,dr
    message.textContent='บันทึกโปรแกรมแล้ว '+result.count+' วัน'+(team&&!member?' · สมาชิก '+result.members+' คน':'');
    try{await load();}catch{message.textContent+=' · โหลดรายการแผนล่าสุดไม่สำเร็จ';}
   }catch(e){message.textContent=e.message;}
-  finally{save.disabled=cancel.disabled=false;save.textContent=editing?'บันทึกการแก้ไข':'บันทึกโปรแกรม';}
+  finally{save.disabled=cancel.disabled=false;save.textContent=editing?'บันทึกการแก้ไข':editingProgram?'บันทึกการแก้ไขโปรแกรม':'บันทึกโปรแกรม';}
  };
  await load();
  section.scrollIntoView({behavior:'smooth',block:'start'});
