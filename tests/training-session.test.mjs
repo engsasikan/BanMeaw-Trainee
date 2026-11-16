@@ -42,9 +42,12 @@ test('guided training saves each set, resumes, retries failures and handles supe
  fail=true;await submit();assert.equal(records.length,1);assert.ok(session.textContent.includes('บันทึกไม่สำเร็จ'));fail=false;
  await submit();assert.equal(records.length,2);assert.ok(session.textContent.includes('Squat'));
  assert.equal(rest().hidden,true);
- click('ออกจากโหมดฝึก');window.dispatchEvent(new CustomEvent('training-start'));click('ฝึกต่อ · ท่าที่ 1');assert.ok(session.textContent.includes('ทำเซ็ต 2 เสร็จแล้ว'));
+ click('หยุดชั่วคราว');click('✕ ออกจากโหมดฝึก');window.dispatchEvent(new CustomEvent('training-start'));click('ฝึกต่อ · ท่าที่ 1');assert.ok(session.textContent.includes('ทำเซ็ต 2 เสร็จแล้ว'));
  await submit();assert.equal(records.find(r=>r.exercise==='Squat').sessionComplete,true);await submit();assert.equal(records.find(r=>r.exercise==='Row').sessionComplete,true);
- click('จบการฝึกวันนี้ · ดูสรุป');assert.ok(session.textContent.includes('บันทึกครบ 2 / 2 ท่า'));assert.equal(writes,5);
+ // Pausing shows the menu; carrying on returns to the same exercise.
+ click('หยุดชั่วคราว');assert.match(session.textContent,/หยุดชั่วคราว/);assert.match(session.textContent,/จบการฝึก · ดูสรุป/);
+ click('▶ ฝึกต่อ');assert.ok(session.textContent.includes('Row'));
+ click('จบการฝึกวันนี้ · ดูสรุป');assert.ok(session.textContent.includes('ฝึกครบทุกท่าแล้ว'));assert.match(session.textContent,/2\/2ท่า/);assert.equal(writes,5);
  nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));assert.equal(session.hidden,true);assert.equal(nodes.get('workout-panel').classes.has('training-mode'),false);
 });
 test('training cannot start on a day other than today',async()=>{

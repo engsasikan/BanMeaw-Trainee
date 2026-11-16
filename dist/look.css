@@ -409,3 +409,42 @@ body.ts-open{overflow:hidden}
 .guided-training .ts-hold{width:100%;min-height:52px;margin:10px 0 0;border-radius:14px;border:1px solid #ff702866;background:#ff702814;color:#ffab79;font-weight:800;font-variant-numeric:tabular-nums}
 .guided-training .ts-hold.running{background:#2a1a10;border:2px solid var(--accent);color:#ffb07c;font-size:1.15rem}
 .ts-hold[hidden]{display:none}
+/* Pause menu */
+.ts-pause{display:grid;gap:12px;align-content:end;min-height:calc(100dvh - 40px);padding:24px 0 8px}
+.ts-pause .eyebrow{margin:0}
+.ts-pause-time{margin:0;font-size:3.4rem;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
+.ts-pause>.muted{margin:0 0 12px}
+.ts-pause-menu{display:grid;gap:10px}
+.guided-training .ts-pause-item{width:100%;min-height:56px;margin:0;border-radius:16px;border:1px solid var(--line-2);background:var(--card-2);color:var(--text);font-size:1rem;font-weight:700}
+.guided-training .ts-pause-item.good{color:var(--good)}
+.guided-training .ts-pause-item.danger{color:#ff8a8a}
+.ts-pause-note{margin:4px 0 8px;font-size:13px;text-align:center}
+.guided-training .ts-resume{width:100%;min-height:58px;margin:0;border-radius:16px;font-size:1.1rem;font-weight:800}
+.guided-training .ts-pause-button{font-size:14px;font-weight:800}
+/* Finish summary */
+.tss-head{position:relative;display:grid;justify-items:center;gap:4px;margin-top:max(12px,env(safe-area-inset-top));padding:28px 18px 22px;border-radius:24px;text-align:center;background:radial-gradient(circle at 50% 0,#ff702840,transparent 65%),var(--card);border:1px solid var(--line-2)}
+.tss-head.complete{background:radial-gradient(circle at 50% 0,#7fd6a040,transparent 65%),var(--card);border-color:#3f7a4f}
+.tss-badge{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:#ff702826;font-size:2.6rem}
+.tss-head.complete .tss-badge{background:#7fd6a026}
+.tss-kicker{margin:8px 0 0;font-weight:800;color:#ffab79}
+.tss-head.complete .tss-kicker{color:var(--good)}
+.tss-title{margin:0;font-size:1.25rem;line-height:1.35}
+.tss-time{margin:10px 0 0;font-size:3rem;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
+.tss-time-label{color:var(--soft);font-size:12px}
+.tss-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+.tss-stat{display:grid;gap:2px;padding:12px;border-radius:14px;background:var(--card-2);border:1px solid var(--line);text-align:center}
+.tss-stat b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.tss-stat small{color:var(--soft);font-size:11px}
+.tss-list{display:grid;gap:2px;padding:6px;border-radius:18px;background:var(--card-2);border:1px solid var(--line)}
+.tss-row{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px}
+.tss-row.done .tso-row-mark{background:var(--good);color:#0d1a12}
+.tss-message{margin:0;text-align:center;color:var(--good);font-size:14px}
+.tss-message:empty{display:none}
+.tss-actions{display:grid;gap:10px}
+.tss-actions button{width:100%;min-height:52px;margin:0;border-radius:16px;font-weight:800}
+.guided-training .tss-done{border:0;background:none;color:var(--soft);font-weight:700}
+/* Finished days in the week view */
+.training-week-day.done strong{background:#1f3a2a;color:var(--good)}
+.training-week-day.done[aria-pressed=true] strong{background:var(--good);color:#0d1a12}
+.training-week-cards .training-week-card.done{background:linear-gradient(160deg,#1c3326,#232826 75%)}
+.training-week-card.done small{color:var(--good)}

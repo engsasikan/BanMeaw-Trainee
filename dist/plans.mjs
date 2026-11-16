@@ -1,5 +1,6 @@
 import {planComparison} from './coach-ui.mjs?v=6';
 import {renderPrograms} from './team-program.mjs?v=7';
+import {comparePlan} from './progress.mjs?v=6';
 import {searchExercises,bindExercisePicker} from './exercise-picker.mjs?v=12';
 import {api} from './account.js?v=2';
 import {localDay} from './store.mjs?v=4';
@@ -458,7 +459,9 @@ function shiftDate(day,offset){
  date.setUTCDate(date.getUTCDate()+offset);
  return date.toISOString().slice(0,10);
 }
-function trainingWeek(root,days,day,plans,onSelectDay){
+// A plan is finished once every exercise in it has a saved result.
+export const planFinished=(plan,records)=>comparePlan(plan,records).every(row=>row.actual);
+function trainingWeek(root,days,day,plans,onSelectDay,records=[]){
  const week=el('section',undefined,'training-week');
  const header=el('div',undefined,'training-week-header');
  const arrow=(label,offset)=>{
@@ -480,8 +483,10 @@ function trainingWeek(root,days,day,plans,onSelectDay){
   button.type='button';button.setAttribute('aria-pressed',String(date===day));
   if(date===today)button.setAttribute('aria-current','date');
   button.setAttribute('aria-label',fullDate.format(new Date(date+'T12:00:00'))+(entries.length?', '+entries.length+' แผน':''));
-  button.append(el('span',weekLabels[index]),el('strong',number));
-  button.classList.toggle('has-plan',entries.length>0);
+  const finished=entries.length>0&&entries.every(plan=>planFinished(plan,records));
+  button.append(el('span',weekLabels[index]),el('strong',finished?'✓':number));
+  button.classList.toggle('has-plan',entries.length>0);button.classList.toggle('done',finished);
+  if(finished)button.setAttribute('aria-label',fullDate.format(new Date(date+'T12:00:00'))+', ฝึกครบแล้ว');
   button.onclick=()=>onSelectDay?.(date);
   strip.append(button);
   if(!entries.length)return;
@@ -493,7 +498,8 @@ function trainingWeek(root,days,day,plans,onSelectDay){
   for(const plan of entries){
    const card=el('button',undefined,'training-week-card');
    card.type='button';if(date===day)card.setAttribute('aria-current','true');
-   card.append(el('strong',plan.team_name),el('small',plan.exercises.length+' ท่า'),el('span','›','training-week-chevron'));
+   const complete=planFinished(plan,records);if(complete)card.classList.add('done');
+   card.append(el('strong',plan.team_name),el('small',(complete?'✓ ฝึกครบแล้ว · ':'')+plan.exercises.length+' ท่า'),el('span','›','training-week-chevron'));
    card.onclick=()=>{
     if(date===day){
      const detail=root.querySelector('.training-week-detail');
@@ -520,7 +526,7 @@ export async function showDailyPlans(root,day,{records=[],onStart,onSelectDay}={
  }
  const monday=shiftDate(day,-((new Date(day+'T12:00:00Z').getUTCDay()+6)%7));
  const days=weekLabels.map((_,index)=>shiftDate(monday,index));
- const renderWeek=plans=>trainingWeek(root,days,day,plans,onSelectDay);
+ const renderWeek=plans=>trainingWeek(root,days,day,plans,onSelectDay,records);
  if(root.dataset.day!==day||!root.firstChild){
   const loading=el('p','กำลังโหลดโปรแกรมฝึก…','muted');
   loading.setAttribute('role','status');

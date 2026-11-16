@@ -40,3 +40,23 @@ export function workoutBlocks(items){
  }
  return blocks;
 }
+// What a finished (or partly finished) workout added up to. entries: [{target, record}] where record is the
+// saved result for that exercise, if any. Volume is in kilograms; pounds are converted.
+export function workoutStats(entries){
+ const stats={exercises:entries.length,logged:0,sets:0,reps:0,holdSeconds:0,cardioMinutes:0,volumeKg:0};
+ for(const {target,record} of entries){
+  if(!record)continue;
+  stats.logged++;
+  if((record.trainingType??target.trainingType)==='cardio'){stats.cardioMinutes+=record.duration||0;continue;}
+  const logs=record.setLogs?.length?record.setLogs:[{weight:record.weight,weightUnit:record.weightUnit,reps:record.reps,seconds:record.seconds}];
+  for(const set of logs){
+   stats.sets++;
+   if(set.seconds!=null)stats.holdSeconds+=set.seconds;
+   else{stats.reps+=set.reps||0;if(set.weight)stats.volumeKg+=(set.weightUnit==='lb'?set.weight*0.45359237:set.weight)*(set.reps||0);}
+  }
+ }
+ stats.volumeKg=Math.round(stats.volumeKg);
+ return stats;
+}
+// A rough calorie figure for time spent training (about 5 kcal a minute for mixed gym work).
+export const estimateKcal=seconds=>Math.round(seconds/60*5);
