@@ -21,7 +21,11 @@ test('finish summary adds up sets, reps, holds, cardio and lifted kilograms',()=
   {target:{exercise:'Row'},record:null},
  ]);
  assert.deepEqual(stats,{exercises:4,logged:3,sets:4,reps:20,holdSeconds:75,cardioMinutes:15,volumeKg:245});
- assert.equal(estimateKcal(600),50);
+ assert.deepEqual(estimateKcal(600),{kcal:50,fromWeight:false},'no body weight: the rough figure');
+ // 60 kg, 40 minutes in the gym of which 20 are walking at 5 km/h on a 12% incline.
+ // Walking MET = (0.1×83.3 + 1.8×83.3×0.12 + 3.5)/3.5 ≈ 8.52 → 170 kcal; 20 min weights at MET 3.5 → 70 kcal.
+ assert.deepEqual(estimateKcal(2400,{weightKg:60,cardio:[{duration:20,speed:5,incline:12}]}),{kcal:240,fromWeight:true});
+ assert.deepEqual(estimateKcal(1800,{weightKg:80}),{kcal:140,fromWeight:true},'30 min of weights at MET 3.5');
 });
 test('standard warm-up and cool-down follow what the main work trains',async()=>{
  const {standardRoutine,workoutFocus}=await import('../dist/workout-overview.mjs');
@@ -32,4 +36,10 @@ test('standard warm-up and cool-down follow what the main work trains',async()=>
  assert.equal(routine.focus,'lower');
  assert.ok(routine.warmup.every(x=>x.phase==='warmup'&&x.standard&&x.seconds>0));
  assert.ok(routine.cooldown.every(x=>x.phase==='cooldown'&&x.standard));
+});
+test('treadmill METs follow the ACSM walking and running equations',async()=>{
+ const {cardioMet}=await import('../dist/workout-overview.mjs');
+ assert.equal(Math.round(cardioMet({speed:5,incline:0})*10)/10,3.4);
+ assert.equal(Math.round(cardioMet({speed:10,incline:0})*10)/10,10.5);
+ assert.equal(cardioMet({}),5,'no speed: moderate cardio');
 });

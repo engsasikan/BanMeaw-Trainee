@@ -6,7 +6,7 @@ import {api} from './account.js?v=5';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
 import {localDay} from './store.mjs?v=19';
 import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
-import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine} from './workout-overview.mjs?v=4';
+import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine} from './workout-overview.mjs?v=5';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
@@ -398,7 +398,11 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(stats.holdSeconds)grid.append(stat(clockText(stats.holdSeconds),'เวลาค้างท่า'));
   if(stats.cardioMinutes)grid.append(stat(String(Math.round(stats.cardioMinutes)),'นาทีคาร์ดิโอ'));
   if(stats.volumeKg)grid.append(stat(stats.volumeKg.toLocaleString('th-TH'),'kg รวมที่ยก'));
-  if(seconds>=60)grid.append(stat('~'+estimateKcal(seconds),'kcal (ประมาณ)'));
+  if(seconds>=60){
+   const cardio=all.map(record).filter(r=>r&&(r.trainingType==='cardio'));
+   const energy=estimateKcal(seconds,{cardio,weightKg:bodyWeight});
+   grid.append(stat('~'+energy.kcal,energy.fromWeight?'kcal · น้ำหนัก '+bodyWeight+' กก.':'kcal (ประมาณ · ใส่น้ำหนักในโปรไฟล์เพื่อให้แม่นขึ้น)'));
+  }
   const list=el('div',undefined,'tss-list');
   for(const item of all){
    const r=record(item),row=el('div',undefined,'tss-row'+(done(item)?' done':''));
@@ -419,6 +423,9 @@ export function initTrainingSession({getRecords,saveRecords}){
   },'quiet'),button('เสร็จ',leave,'tss-done'));
   session.append(head,grid,list,message,actions);
  }
+ // The latest weigh-in from the profile, for the calorie estimate.
+ let bodyWeight=null;
+ window.addEventListener('body-records',event=>{const latest=(event.detail??[]).filter(r=>r.weight>0).sort((a,b)=>b.day.localeCompare(a.day))[0];bodyWeight=latest?.weight??null;});
  window.addEventListener('training-plans',e=>{if(e.detail.day!==selected())return;plans=e.detail.plans;day=e.detail.day;});
  window.addEventListener('training-start',start);
  document.getElementById('day').addEventListener('change',()=>{stop();clearClocks();fullScreen(false);active=false;session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');plans=[];day='';});

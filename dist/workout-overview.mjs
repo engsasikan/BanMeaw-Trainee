@@ -62,8 +62,25 @@ export function workoutStats(entries){
  stats.volumeKg=Math.round(stats.volumeKg);
  return stats;
 }
-// A rough calorie figure for time spent training (about 5 kcal a minute for mixed gym work).
-export const estimateKcal=seconds=>Math.round(seconds/60*5);
+// Energy per minute is MET × body weight (kg) ÷ 60 (1 MET ≈ 1 kcal per kg per hour).
+// Treadmill walking and running use the ACSM equations, so speed and incline count; without a speed, cardio is
+// taken as moderate (MET 5). Gym time outside cardio, rests included, is resistance training at MET 3.5.
+export function cardioMet({speed,incline}={}){
+ if(!speed)return 5;
+ const metresPerMinute=speed*1000/60,grade=(incline||0)/100,running=speed>=8;
+ const oxygen=running?0.2*metresPerMinute+0.9*metresPerMinute*grade+3.5:0.1*metresPerMinute+1.8*metresPerMinute*grade+3.5;
+ return oxygen/3.5;
+}
+const STRENGTH_MET=3.5;
+// cardio: saved cardio results ({duration in minutes, speed, incline}). Without a body weight the old rough
+// figure (5 kcal a minute) is used and `fromWeight` is false, so the screen can say so.
+export function estimateKcal(seconds,{cardio=[],weightKg=null}={}){
+ if(!(weightKg>0))return {kcal:Math.round(seconds/60*5),fromWeight:false};
+ const cardioMinutes=cardio.reduce((total,r)=>total+(r.duration||0),0);
+ const cardioKcal=cardio.reduce((total,r)=>total+cardioMet(r)*weightKg*(r.duration||0)/60,0);
+ const strengthMinutes=Math.max(0,seconds/60-cardioMinutes);
+ return {kcal:Math.round(cardioKcal+STRENGTH_MET*weightKg*strengthMinutes/60),fromWeight:true};
+}
 // Standard warm-up and cool-down, used when the trainer's plan has none of its own. Picked by what the main work
 // trains most: legs, upper body, or a general mix. Every move is timed and has a demo picture in the library.
 const move=(exercise,seconds,phase)=>({exercise,sets:1,seconds,weight:null,rest_seconds:0,phase,standard:true});
