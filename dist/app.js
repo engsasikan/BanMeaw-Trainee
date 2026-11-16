@@ -6,7 +6,7 @@ import {attachWeightUnit,formatLoggedWeight,preferredWeightUnit} from './weight-
 import {attachEffortUnit,looksTimed,effortText,formatSeconds} from './effort.mjs?v=4';
 import {renderWorkoutGroups} from './workout-groups.mjs?v=2';
 import {initWorkoutPairs} from './workout-pairs.mjs?v=12';
-import {initTrainingSession} from './training-session.mjs?v=31';
+import {initTrainingSession} from './training-session.mjs?v=32';
 import {signInWithGoogle} from './google-signin.mjs?v=2';
 import {initDiaryTools} from './diary-tools.mjs?v=5';
 import {initNutrition} from './nutrition.mjs?v=1';

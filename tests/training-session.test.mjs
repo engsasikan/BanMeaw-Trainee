@@ -30,6 +30,10 @@ test('guided training saves each set, resumes, retries failures and handles supe
  const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&(x.textContent===label||x['aria-label']===label));assert.ok(b,label);return b.onclick({currentTarget:b});};
  // Starting shows the day's overview first: exercise count, Super set block, then the start button.
  assert.match(session.textContent,/Super set A · ทำต่อกัน 2 รอบ/);assert.match(session.textContent,/2 เซ็ต × 12 ครั้ง/);
+ // A plan without its own warm-up and cool-down gets the standard ones; switch them off for this test.
+ assert.match(session.textContent,/วอร์มอัพ · ชุดมาตรฐาน/);assert.match(session.textContent,/คูลดาวน์ · ชุดมาตรฐาน/);
+ const off=label=>{const input=flatten(session).find(x=>x.tagName==='input'&&x['aria-label']===label);input.checked=false;input.onchange();};
+ off('ปิดวอร์มอัพวันนี้');off('ปิดคูลดาวน์วันนี้');
  click('เริ่มฝึก');
  const submit=()=>flatten(session).find(x=>x.tagName==='form').onsubmit({preventDefault(){}});
  const unit=flatten(session).find(x=>x.tagName==='select'&&x['aria-label']==='หน่วยน้ำหนักที่ยก');unit.value='lb';unit.dispatchEvent(new Event('change'));
@@ -76,5 +80,23 @@ test('warm-up and cool-down show as parts of the overview, can be switched off, 
  // Moving on from main work shows the break screen before the cool-down.
  click('ข้ามท่านี้ →');assert.match(session.textContent,/ฝึกหลักเสร็จแล้ว ✓/);assert.match(session.textContent,/ได้เวลาคูลดาวน์แล้ว/);
  click('เริ่มคูลดาวน์ →');assert.match(session.textContent,/คูลดาวน์ · ท่าที่ 2 จาก 2/);
+ nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
+});
+test('standard warm-up runs as timed steps that are not saved, then the plan starts',async()=>{
+ const nodes=new Map(['dashboard-panel','today-card','workout-panel','day'].map(id=>[id,new Element('div')]));nodes.get('day').value=TODAY;
+ const doc=new EventTarget();doc.createElement=tag=>new Element(tag);doc.getElementById=id=>nodes.get(id);globalThis.document=doc;globalThis.window=new EventTarget();
+ const built=await build({entryPoints:['dist/training-session.mjs'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'test-adapters',setup(b){b.onResolve({filter:/dashboard\.mjs|account\.js|exercise-preview\.mjs/},args=>({path:args.path,namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export function switchView(){}; export async function api(){return {ok:true}}; export function createMuscleFocus(){return {el:document.createElement("section"),show(){}}};',loader:'js'}));}}]});
+ const {initTrainingSession}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text+'//standard').toString('base64'));
+ let writes=0;initTrainingSession({getRecords:()=>[],saveRecords:async()=>{writes++;return true;}});
+ const plan={id:'44444444-4444-4444-8444-444444444444',day:TODAY,exercises:[{exercise:'Squat',sets:2,reps:10},{exercise:'Lunge',sets:2,reps:10}]};
+ window.dispatchEvent(new CustomEvent('training-plans',{detail:{day:TODAY,plans:[plan]}}));window.dispatchEvent(new CustomEvent('training-start'));
+ const session=nodes.get('workout-panel').children[0];
+ const click=label=>{const b=flatten(session).find(x=>x.tagName==='button'&&(x.textContent===label||x['aria-label']===label));assert.ok(b,label);return b.onclick({currentTarget:b});};
+ // A leg day gets the leg warm-up.
+ assert.match(session.textContent,/วอร์มอัพ · ชุดมาตรฐาน/);assert.match(session.textContent,/Walking High Knees Lunge/);assert.match(session.textContent,/Calf Stretch/);
+ click('เริ่มฝึก');assert.match(session.textContent,/วอร์มอัพ · ท่าที่ 1 จาก 10/);assert.match(session.textContent,/ไม่ต้องบันทึกผล/);
+ for(let i=0;i<4;i++)click(i<3?'ข้ามท่านี้ →':'ข้ามท่านี้ →');
+ assert.match(session.textContent,/วอร์มอัพเสร็จแล้ว ✓/);click('เริ่มฝึกหลัก →');
+ assert.ok(session.textContent.includes('Squat'));assert.equal(writes,0);
  nodes.get('day').value=TOMORROW;nodes.get('day').dispatchEvent(new Event('change'));
 });

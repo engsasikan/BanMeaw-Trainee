@@ -474,3 +474,12 @@ body.ts-open{overflow:hidden}
 .ts-interlude-title{margin:0;font-size:2.2rem;line-height:1.2;color:#fff}
 .ts-interlude-next{margin:0;color:#ffffffd0;font-size:14px}
 .guided-training .ts-interlude-go{width:100%;max-width:320px;min-height:56px;margin-top:12px;border-radius:999px;border:0;background:#fff;color:#1b0f08;font-size:1.05rem;font-weight:800}
+/* Standard warm-up / cool-down step: one big countdown */
+.ts-std{display:grid;justify-items:center;gap:12px;padding:22px 18px;border-radius:22px;background:radial-gradient(circle at 50% 20%,#3a2215,#1c1714 70%);border:1px solid #ff702855;text-align:center}
+.ts-std-clock{margin:0;font-size:3.6rem;line-height:1;font-weight:800;color:#ffb07c;font-variant-numeric:tabular-nums}
+.ts-std.running .ts-std-clock{color:#fff}
+.ts-std.over{border-color:#3f7a4f;background:radial-gradient(circle at 50% 20%,#1f3326,#151a17 70%)}
+.ts-std.over .ts-std-clock{color:var(--good)}
+.guided-training .ts-std-go{width:100%;max-width:340px;min-height:56px;margin:0;border-radius:999px;font-size:1.05rem;font-weight:800}
+.ts-std .quiet{width:100%;max-width:340px;margin:0;border-radius:999px}
+.ts-std>.muted{margin:0;font-size:12px}

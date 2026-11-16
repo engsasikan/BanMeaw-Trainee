@@ -6,15 +6,15 @@ import {api} from './account.js?v=4';
 import {createMuscleFocus} from './exercise-preview.mjs?v=15';
 import {localDay} from './store.mjs?v=18';
 import {attachEffortUnit,looksTimed,effortText} from './effort.mjs?v=4';
-import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel} from './workout-overview.mjs?v=3';
+import {targetText,estimateMinutes,mainMuscles,workoutBlocks,workoutStats,estimateKcal,PHASES,phaseOf,phaseLabel,standardRoutine} from './workout-overview.mjs?v=4';
 const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 export function initTrainingSession({getRecords,saveRecords}){
  const session=el('section',undefined,'diary guided-training');session.hidden=true;document.getElementById('workout-panel').classList.remove('training-mode');document.getElementById('workout-panel').prepend(session);
  const focus=createMuscleFocus();
- let plans=[],activePlanId=null,day='',items=[],current=0,active=false,busy=false,deadline=null,restTotal=0,ticker=null,summary=false,overview=false,paused=false,interlude=null,pausedRest=null,clockTicker=null,holdTicker=null,media=null;
+ let plans=[],activePlanId=null,day='',items=[],current=0,active=false,busy=false,deadline=null,restTotal=0,ticker=null,summary=false,overview=false,paused=false,interlude=null,pausedRest=null,clockTicker=null,holdTicker=null,autoNext=null,media=null;
  // Full screen while training: the page behind does not scroll.
  const fullScreen=on=>{session.classList[on?'add':'remove']('ts-full');document.body?.classList[on?'add':'remove']('ts-open');};
- const clearClocks=()=>{clearInterval(clockTicker);clearInterval(holdTicker);clockTicker=holdTicker=null;};
+ const clearClocks=()=>{clearInterval(clockTicker);clearInterval(holdTicker);clearTimeout(autoNext);clockTicker=holdTicker=autoNext=null;};
  // The workout clock, kept for the browser tab: when it started, time spent paused, and whether it is
  // paused or finished now. Leaving and coming back keeps counting.
  const startKey=()=>'banmeaw-workout-start:'+day+':'+(activePlanId||'all'),clocks=new Map();
@@ -42,19 +42,34 @@ export function initTrainingSession({getRecords,saveRecords}){
  const setRest=(item,value)=>{const v=Math.min(600,Math.max(0,value));restMemo.set(restKey(item),v);try{v===planRest(item)?localStorage.removeItem(restKey(item)):localStorage.setItem(restKey(item),String(v));}catch{}return v;};
  const restText=v=>v===0?'ไม่พัก':v<60?v+' วิ':Math.floor(v/60)+':'+String(v%60).padStart(2,'0')+' นาที';
  const selected=()=>document.getElementById('day').value;
- const allRows=()=>plans.filter(plan=>!activePlanId||plan.id===activePlanId).flatMap(plan=>comparePlan(plan,getRecords()).map(r=>({...r,plan})));
+ const planRows=()=>plans.filter(plan=>!activePlanId||plan.id===activePlanId).flatMap(plan=>comparePlan(plan,getRecords()).map(r=>({...r,plan})));
+ // When the plan has no warm-up (or cool-down) of its own, a standard one is added around it. Standard moves
+ // are timed steps that are not saved as results; which ones are done is kept for this browser tab.
+ const allRows=()=>{
+  const real=planRows();if(!real.length)return real;
+  const standard=standardRoutine(real.map(x=>x.target)),plan=real[0].plan;
+  const extra=(phase,list)=>real.some(x=>phaseOf(x.target)===phase)?[]:list.map((target,i)=>({target,index:'std-'+phase+'-'+i,actual:null,plan,standard:true}));
+  return [...extra('warmup',standard.warmup),...real,...extra('cooldown',standard.cooldown)];
+ };
+ const doneKey=()=>startKey()+':standard',standardDone=new Map();
+ const finishedStandard=()=>{try{const saved=JSON.parse(sessionStorage.getItem(doneKey()));if(Array.isArray(saved))return new Set(saved);}catch{}return new Set(standardDone.get(doneKey())??[]);};
+ const markStandard=item=>{const set=finishedStandard();set.add(item.index);standardDone.set(doneKey(),[...set]);try{sessionStorage.setItem(doneKey(),JSON.stringify([...set]));}catch{}};
  // Warm-up and cool-down can be switched off for today from the overview; switched-off parts are left out.
  const skipKey=()=>startKey()+':skip',skips=new Map();
  const skipped=()=>{try{const saved=JSON.parse(sessionStorage.getItem(skipKey()));if(Array.isArray(saved))return new Set(saved);}catch{}return new Set(skips.get(skipKey())??[]);};
  const setSkipped=(phase,off)=>{const set=skipped();off?set.add(phase):set.delete(phase);skips.set(skipKey(),[...set]);try{sessionStorage.setItem(skipKey(),JSON.stringify([...set]));}catch{}};
  const rows=()=>{const off=skipped();return allRows().filter(x=>!off.has(phaseOf(x.target)));};
+ // Results and the summary are about the trainer's plan only.
+ const realRows=()=>rows().filter(x=>!x.standard);
+ // Where to carry on: the first step not done yet, but once plan work has results a standard warm-up is not repeated.
+ const nextTodo=list=>{const started=list.some(x=>!x.standard&&draft(x));return list.find(x=>!done(x)&&!(started&&x.standard&&phaseOf(x.target)==='warmup'));};
  const keyOf=x=>x.plan.id+':'+x.index;
  const draft=item=>getRecords().find(r=>r.day===day&&r.planId===item.plan.id&&r.planExerciseIndex===item.index);
- const done=item=>!!comparePlan(item.plan,getRecords())[item.index]?.actual;
+ const done=item=>item.standard?finishedStandard().has(item.index):!!comparePlan(item.plan,getRecords())[item.index]?.actual;
  function button(text,fn,cls='quiet'){const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;}
  function stop(){clearInterval(ticker);ticker=null;deadline=null;restTotal=0;}
  // Starting opens the day's overview first; the workout itself begins from its start button.
- function start(event){if(busy||!plans.length||day!==selected()||day!==localDay())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.findIndex(x=>!done(x)));summary=false;overview=true;active=true;session.hidden=false;fullScreen(true);document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
+ function start(event){if(busy||!plans.length||day!==selected()||day!==localDay())return;activePlanId=event.detail?.planId??null;items=rows();if(!items.length)return;stop();current=Math.max(0,items.indexOf(nextTodo(items)));summary=false;overview=true;active=true;session.hidden=false;fullScreen(true);document.getElementById('workout-panel').classList.add('training-mode');switchView('workout');render();session.scrollIntoView({behavior:'smooth',block:'start'});}
  function leave(){if(busy)return false;stop();clearClocks();active=false;session.hidden=true;fullScreen(false);document.getElementById('workout-panel').classList.remove('training-mode');return true;}
  function begin(key){if(busy)return;stop();items=rows();if(!items.length)return;current=Math.max(0,items.findIndex(x=>keyOf(x)===key));overview=false;summary=false;paused=false;pausedRest=null;interlude=null;resumeClock();render();session.scrollTo?.(0,0);}
  // Moving on: crossing from warm-up to main work (or main work to cool-down) shows a short break screen first.
@@ -63,7 +78,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(last)summary=true;
   else{const from=phaseOf(items[current].target);current++;if(phaseOf(items[current].target)!==from)interlude=from;}
   render();
-  if(last&&rows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));
+  if(last&&realRows().every(done))window.dispatchEvent(new CustomEvent('banmeaw-celebrate',{detail:{text:'ฝึกครบทุกท่าตามแผนแล้ว! 🔥'}}));
  }
  function renderInterlude(){
   const next=items[current].target,to=phaseOf(next);
@@ -108,7 +123,7 @@ export function initTrainingSession({getRecords,saveRecords}){
  function renderOverview(){
   items=rows();
   const all=allRows(),plan=all[0].plan,included=items,targets=included.map(x=>x.target),off=skipped();
-  const finished=included.filter(done).length,next=included.find(x=>!done(x));
+  const finished=included.filter(x=>!x.standard&&done(x)).length,next=nextTodo(included),planned=included.filter(x=>!x.standard).length;
   const head=el('header',undefined,'tso-head');
   const close=button('✕',leave,'ts-exit tso-close');close.setAttribute('aria-label','ออกจากโหมดฝึก');
   const date=new Date(day+'T12:00:00');
@@ -118,8 +133,8 @@ export function initTrainingSession({getRecords,saveRecords}){
   const muscles=mainMuscles(targets);
   stats.append(stat(String(included.length),'ท่า'),stat('~'+(targets.length?estimateMinutes(targets):0),'นาที'),...(muscles.length?[stat(muscles.join(' · '),'กล้ามเนื้อหลัก')]:[]));
   head.append(stats);
-  if(finished)head.append(el('p','ทำแล้ว '+finished+' / '+included.length+' ท่า','tso-progress'));
-  const go=button(!included.length?'เปิดอย่างน้อย 1 ช่วงเพื่อเริ่ม':!next?'ดูสรุปการฝึก':included.some(x=>draft(x))?'ฝึกต่อ · ท่าที่ '+(included.indexOf(next)+1):'เริ่มฝึก',()=>!included.length?null:!next?(overview=false,summary=true,render()):begin(keyOf(next)),'primary tso-start');
+  if(finished)head.append(el('p','ทำแล้ว '+finished+' / '+planned+' ท่าในแผน','tso-progress'));
+  const go=button(!included.length?'เปิดอย่างน้อย 1 ช่วงเพื่อเริ่ม':!next?'ดูสรุปการฝึก':included.some(x=>!x.standard&&draft(x))?'ฝึกต่อ · ท่าที่ '+(included.indexOf(next)+1):'เริ่มฝึก',()=>!included.length?null:!next?(overview=false,summary=true,render()):begin(keyOf(next)),'primary tso-start');
   go.disabled=!included.length;
   const bar=el('div',undefined,'tso-start-bar');bar.append(go);
   const list=el('div',undefined,'tso-list');
@@ -137,7 +152,8 @@ export function initTrainingSession({getRecords,saveRecords}){
    const part=el('section',undefined,'tso-phase '+phase+(off.has(phase)?' skipped':''));
    if(phased){
     const header=el('div',undefined,'tso-phase-head'),title=el('div');
-    title.append(el('strong',label),el('small','~'+estimateMinutes(mine.flatMap(block=>block.entries.map(({item})=>item.target)))+' นาที · '+mine.reduce((n,block)=>n+block.entries.length,0)+' ท่า'));
+    const standard=mine.every(block=>block.entries.every(({item})=>item.standard));
+    title.append(el('strong',label+(standard?' · ชุดมาตรฐาน':'')),el('small','~'+estimateMinutes(mine.flatMap(block=>block.entries.map(({item})=>item.target)))+' นาที · '+mine.reduce((n,block)=>n+block.entries.length,0)+' ท่า'));
     header.append(title);
     // Warm-up and cool-down can be switched off for today; main work cannot.
     if(phase!=='main'){
@@ -212,6 +228,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   hero.append(el('p',(phased?phaseLabel(phaseOf(target))+' · ':'')+'ท่าที่ '+(current+1)+' จาก '+items.length+' · '+(item.plan.team_name||'แผนจากเทรนเนอร์'),'ts-sub'),el('h2',target.exercise,'ts-name'));session.append(hero);
   // The exercise picture sits right under its name, as the main thing on screen.
   focus.show(target.exercise);session.append(focus.el);
+  if(item.standard){standardStep(item,last);return;}
   // 2. What the trainer asked for.
   const goal=el('div',undefined,'ts-goal'),chip=(label,value)=>{const c=el('span',undefined,'ts-chip');c.append(el('small',label),el('b',value));return c;};
   if(target.trainingType==='cardio'){
@@ -312,8 +329,28 @@ export function initTrainingSession({getRecords,saveRecords}){
   if(!last)nav.append(button(finished?'ท่าถัดไป →':'ข้ามท่านี้ →',next));
   session.append(nav,button('จบการฝึกวันนี้ · ดูสรุป',()=>{if(busy)return;stop();summary=true;render();},'ts-finish'));
  }
+ // A standard warm-up or cool-down move: a countdown, then on to the next move by itself.
+ function standardStep(item,last){
+  const total=item.target.seconds||30;let left=total;
+  const box=el('section',undefined,'ts-std'),clock=el('p',clockText(total),'ts-std-clock'),note=el('p','ชุดมาตรฐาน · ทำตามภาพ ไม่ต้องบันทึกผล','muted');
+  const go=button('▶ เริ่ม '+total+' วินาที',()=>{},'primary ts-std-go'),skip=button(last?'ข้าม · ดูสรุป':'ข้ามท่านี้ →',()=>advance(last),'quiet');
+  const finish=()=>{clearInterval(holdTicker);holdTicker=null;markStandard(item);clock.textContent='เสร็จ ✓';box.classList.add('over');navigator.vibrate?.([150,80,150]);
+   go.textContent=last?'ดูสรุป →':'ไปท่าถัดไป →';go.onclick=()=>advance(last);autoNext=setTimeout(()=>{if(active&&!paused&&items[current]===item)advance(last);},1500);};
+  go.onclick=()=>{
+   if(holdTicker){clearInterval(holdTicker);holdTicker=null;go.textContent='▶ ทำต่อ '+left+' วินาที';box.classList.remove('running');return;}
+   const end=Date.now()+left*1000;box.classList.add('running');go.textContent='Ⅱ หยุดตรงนี้';
+   const tick=()=>{left=Math.max(0,Math.ceil((end-Date.now())/1000));clock.textContent=clockText(left);if(!left)finish();};
+   holdTicker=setInterval(tick,250);tick();
+  };
+  if(done(item)){clock.textContent='เสร็จ ✓';box.classList.add('over');go.textContent=last?'ดูสรุป →':'ไปท่าถัดไป →';go.onclick=()=>advance(last);}
+  box.append(clock,go,skip,note);session.append(box);
+  upNext(last,()=>advance(last));
+  const nav=el('div',undefined,'training-actions');
+  nav.append(current>0?button('← ท่าก่อนหน้า',()=>{if(busy)return;stop();current--;render();}):el('span'));
+  session.append(nav);
+ }
  function renderSummary(){
-  const all=rows(),completed=all.filter(done),remaining=all.filter(x=>!done(x)),seconds=elapsedSeconds();
+  const all=realRows(),completed=all.filter(done),remaining=all.filter(x=>!done(x)),seconds=elapsedSeconds();
   const record=item=>draft(item)??item.actual;
   const stats=workoutStats(all.map(item=>({target:item.target,record:record(item)})));
   const complete=!remaining.length,date=new Date(day+'T12:00:00');
@@ -338,7 +375,7 @@ export function initTrainingSession({getRecords,saveRecords}){
   }
   const message=el('p',undefined,'tss-message');message.setAttribute('role','status');
   const actions=el('div',undefined,'tss-actions');
-  if(remaining.length)actions.append(button('กลับไปฝึกต่อ · เหลือ '+remaining.length+' ท่า',()=>{summary=false;resumeClock();current=all.findIndex(x=>!done(x));render();},'quiet'));
+  if(remaining.length)actions.append(button('กลับไปฝึกต่อ · เหลือ '+remaining.length+' ท่า',()=>{summary=false;resumeClock();current=Math.max(0,items.findIndex(x=>!x.standard&&!done(x)));render();},'quiet'));
   actions.append(button('ส่งผลให้เทรนเนอร์',async e=>{const b=e.currentTarget;b.disabled=true;try{await api('/api/reports',{method:'POST',body:JSON.stringify({day})});message.textContent='ส่งอาหารและผลการฝึกของวันที่เลือกให้ทีมแล้ว';window.dispatchEvent(new CustomEvent('training-report-sent'));}catch(error){message.textContent=error.message;}finally{b.disabled=false;}},'primary'));
   actions.append(button('แชร์ผลการฝึก',async()=>{
    const text=[(complete?'ฝึกครบแล้ว 💪 ':'ฝึกวันนี้ 💪 ')+new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(date),

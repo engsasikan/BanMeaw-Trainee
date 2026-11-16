@@ -64,3 +64,26 @@ export function workoutStats(entries){
 }
 // A rough calorie figure for time spent training (about 5 kcal a minute for mixed gym work).
 export const estimateKcal=seconds=>Math.round(seconds/60*5);
+// Standard warm-up and cool-down, used when the trainer's plan has none of its own. Picked by what the main work
+// trains most: legs, upper body, or a general mix. Every move is timed and has a demo picture in the library.
+const move=(exercise,seconds,phase)=>({exercise,sets:1,seconds,weight:null,rest_seconds:0,phase,standard:true});
+const WARMUP={
+ general:[['Jack Jump (กระโดดตบ)',45],['Inchworm (เดินมือ)',45],['World Greatest Stretch (ยืดทั้งตัว)',60],['Squat To Overhead Reach With Twist (สควอตบิดตัว)',45]],
+ lower:[['Jack Jump (กระโดดตบ)',45],['Walking High Knees Lunge (ยกเข่าสลับลันจ์)',45],['World Greatest Stretch (ยืดทั้งตัว)',60],['Squat To Overhead Reach With Twist (สควอตบิดตัว)',45]],
+ upper:[['Jack Jump (กระโดดตบ)',45],['Inchworm (เดินมือ)',45],['Dynamic Chest Stretch (เปิดอก)',45],['World Greatest Stretch (ยืดทั้งตัว)',60]],
+};
+const COOLDOWN={
+ general:[['Hamstring Stretch (ยืดต้นขาหลัง)',40],['Chest And Front Of Shoulder Stretch (ยืดอกและไหล่)',40],['Spine Twist (บิดหลัง)',40],['Neck Side Stretch (ยืดคอ)',30]],
+ lower:[['Hamstring Stretch (ยืดต้นขาหลัง)',40],['Intermediate Hip Flexor And Quad Stretch (ยืดสะโพกและต้นขาหน้า)',40],['Seated Glute Stretch (ยืดก้น)',40],['Calf Stretch With Hands Against Wall (ยืดน่อง)',30]],
+ upper:[['Chest And Front Of Shoulder Stretch (ยืดอกและไหล่)',40],['Kneeling Lat Stretch (ยืดปีกหลัง)',40],['Spine Twist (บิดหลัง)',40],['Neck Side Stretch (ยืดคอ)',30]],
+};
+const LOWER=new Set(['quad','glute','hamstring','calf','adductor','abductor']),UPPER=new Set(['pec','deltoid','lat','trap','biceps','triceps','flexor','rhomboid']);
+export function workoutFocus(targets){
+ let lower=0,upper=0;
+ for(const t of targets){if(t.trainingType==='cardio')continue;for(const m of musclesFor(t.exercise)?.primary??[]){if(LOWER.has(m))lower++;if(UPPER.has(m))upper++;}}
+ return lower>upper*1.5?'lower':upper>lower*1.5?'upper':'general';
+}
+export function standardRoutine(targets){
+ const focus=workoutFocus(targets.filter(t=>phaseOf(t)==='main'));
+ return {focus,warmup:WARMUP[focus].map(([name,s])=>move(name,s,'warmup')),cooldown:COOLDOWN[focus].map(([name,s])=>move(name,s,'cooldown'))};
+}

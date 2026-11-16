@@ -23,3 +23,13 @@ test('finish summary adds up sets, reps, holds, cardio and lifted kilograms',()=
  assert.deepEqual(stats,{exercises:4,logged:3,sets:4,reps:20,holdSeconds:75,cardioMinutes:15,volumeKg:245});
  assert.equal(estimateKcal(600),50);
 });
+test('standard warm-up and cool-down follow what the main work trains',async()=>{
+ const {standardRoutine,workoutFocus}=await import('../dist/workout-overview.mjs');
+ assert.equal(workoutFocus([{exercise:'Squat'},{exercise:'Lunge'}]),'lower');
+ assert.equal(workoutFocus([{exercise:'Bench Press'},{exercise:'Dumbbell Curl'}]),'upper');
+ assert.equal(workoutFocus([{trainingType:'cardio',exercise:'Walk',duration:20}]),'general');
+ const routine=standardRoutine([{exercise:'Squat'},{exercise:'Calf Stretch',phase:'cooldown'}]);
+ assert.equal(routine.focus,'lower');
+ assert.ok(routine.warmup.every(x=>x.phase==='warmup'&&x.standard&&x.seconds>0));
+ assert.ok(routine.cooldown.every(x=>x.phase==='cooldown'&&x.standard));
+});
