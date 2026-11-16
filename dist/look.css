@@ -511,3 +511,7 @@ body:has(#workout-panel:not([hidden])) .heading{flex-direction:row;align-items:c
 body:has(#workout-panel:not([hidden])) .heading h1{min-width:0}
 body:has(#workout-panel:not([hidden])) .heading h1{font-size:clamp(1.4rem,6.2vw,2.4rem);white-space:nowrap}
 body:has(#workout-panel:not([hidden])) #program-manage-open{white-space:nowrap;padding:6px 10px}
+/* Changes saved offline, waiting to be sent: shown above everything, including the workout screen */
+.sync-badge{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;z-index:400;transform:translateX(-50%);max-width:calc(100vw - 32px);min-height:36px;padding:6px 14px;border:1px solid #ff702866;border-radius:999px;background:#2b211bf2;color:#ffc39f;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px #0008;cursor:pointer}
+.sync-badge.offline{border-color:#ff6b6b66;background:#2b1b1bf2;color:#ffb0b0}
+.sync-badge[hidden]{display:none}

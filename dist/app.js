@@ -15,6 +15,7 @@ import {initProgress} from './coach-ui.mjs?v=6';
 import {initProfile} from './profile.mjs?v=4';
 import {showDailyPlans,trainerPlanner} from './plans.mjs?v=40';
 import {programEnding,endingNotice} from './team-program.mjs?v=9';
+import {createOutbox,isNetworkError} from './outbox.mjs?v=1';
 import {auth,api} from './account.js?v=5';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=19';
 import {attachExercisePicker} from './exercise-picker.mjs?v=13';
@@ -58,14 +59,63 @@ const diaryTools=initDiaryTools({getRecords:()=>records,getEditing:()=>workoutEd
 
 initCompactWorkout();
 
-async function loadRecords(){const result=await api('/api/entries');records=result.records;storageOK=true;render();}
+// Changes made without a connection wait in this browser and are sent when it comes back.
+let outbox=null,flushing=false;
+const outboxFor=()=>outbox??=profileId?createOutbox('banmeaw-outbox:'+profileId):null;
+const sendChange=op=>api('/api/entries/'+encodeURIComponent(op.id),op.type==='put'
+ ?{method:'PUT',headers:{'If-Match':String(op.revision)},body:JSON.stringify(op.row)}
+ :{method:'DELETE',headers:{'If-Match':String(op.revision)}});
+const syncBadge=node('button','','sync-badge');syncBadge.type='button';syncBadge.hidden=true;syncBadge.onclick=()=>flushOutbox();document.body.append(syncBadge);
+function showSync(){
+ const waiting=outbox?.size||0;syncBadge.hidden=!waiting;if(!waiting)return;
+ syncBadge.classList.toggle('offline',navigator.onLine===false);
+ syncBadge.textContent=flushing?'กำลังส่ง '+waiting+' รายการ…':(navigator.onLine===false?'📴 ออฟไลน์ · ':'⏳ ')+'รอส่ง '+waiting+' รายการ · แตะเพื่อส่ง';
+}
+async function flushOutbox(){
+ const box=outboxFor();if(!box?.size||flushing||saving)return;
+ flushing=saving=true;showSync();
+ try{
+  const result=await box.flush(sendChange);
+  if(result.sent||result.refused.length){
+   saving=false;await loadRecords();
+   // A change refused only because it already arrived (its reply was lost on the way back) is not a conflict.
+   const same=(a,b)=>JSON.stringify(validateRecords([a])[0])===JSON.stringify(validateRecords([b])[0]);
+   const conflicts=result.refused.filter(({op})=>{const now=records.find(r=>r.id===op.id&&!r._pending);return op.type==='put'?!(now&&same(now,op.row)):!!now;});
+   if(conflicts.length)tell(conflicts.length+' รายการที่บันทึกตอนออฟไลน์ส่งไม่ได้ เพราะข้อมูลเปลี่ยนจากอีกเครื่อง · '+conflicts[0].error.message);
+   else if(!box.size)tell('ส่งข้อมูลที่บันทึกตอนออฟไลน์ครบแล้ว');
+  }
+ }catch{}
+ finally{flushing=saving=false;showSync();}
+}
+window.addEventListener('online',()=>{showSync();flushOutbox();});window.addEventListener('offline',showSync);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)flushOutbox();});
+setInterval(()=>{if(outbox?.size)flushOutbox();},30000);
+async function loadRecords(){const result=await api('/api/entries');records=outboxFor()?.apply(result.records)??result.records;storageOK=true;render();showSync();}
 async function saveRecords(next,formId=null){
  if(!storageOK||saving){tell('กรุณารอให้โหลดหรือบันทึกข้อมูลเสร็จ');if(formId)diaryTools.setStatus(formId,'error','ยังบันทึกไม่ได้ กรุณารอให้โหลดหรือบันทึกข้อมูลเสร็จแล้วลองใหม่');return false;}
  saving=true;if(formId)diaryTools.setStatus(formId,'saving','กำลังบันทึก…');document.querySelectorAll('#meal-form button,#workout-form button,.entry-actions button,#import,#migrate-local').forEach(b=>b.disabled=true);
  try{
-  const valid=validateRecords(next),old=new Map(records.map(r=>[r.id,r]));
-  for(const row of valid){const previous=old.get(row.id);if(previous&&JSON.stringify(validateRecords([previous])[0])===JSON.stringify(row))continue;await api('/api/entries/'+encodeURIComponent(row.id),{method:'PUT',headers:{'If-Match':String(previous?._revision||0)},body:JSON.stringify(row)});}
-  for(const previous of records)if(!valid.some(r=>r.id===previous.id))await api('/api/entries/'+encodeURIComponent(previous.id),{method:'DELETE',headers:{'If-Match':String(previous._revision)}});
+  const valid=validateRecords(next),old=new Map(records.map(r=>[r.id,r])),changes=[];
+  for(const row of valid){const previous=old.get(row.id);if(previous&&JSON.stringify(validateRecords([previous])[0])===JSON.stringify(row))continue;changes.push({type:'put',id:row.id,row,revision:previous?._revision||0});}
+  for(const previous of records)if(!valid.some(r=>r.id===previous.id))changes.push({type:'delete',id:previous.id,revision:previous._revision||0});
+  // Without a connection, changes go to the outbox (behind anything already waiting, to keep their order).
+  const box=outboxFor();let queued=false;
+  for(const change of changes){
+   if(box&&(queued||box.size)){box.add(change);queued=true;continue;}
+   try{await sendChange(change);}catch(error){if(!box||!isNetworkError(error))throw error;box.add(change);queued=true;}
+  }
+  if(queued){
+   const waiting=new Set(box.list().map(op=>op.id));
+   records=valid.map(r=>({...r,...(old.get(r.id)?._revision!=null?{_revision:old.get(r.id)._revision}:{}),...(waiting.has(r.id)?{_pending:true}:{})}));
+   render();showSync();
+   const offline=navigator.onLine===false;
+   if(formId)diaryTools.setStatus(formId,'saved',offline?'บันทึกไว้ในเครื่องแล้ว · จะส่งเมื่อมีอินเทอร์เน็ต':'บันทึกไว้ในเครื่องแล้ว · กำลังส่ง');
+   tell(offline?'ไม่มีอินเทอร์เน็ต · บันทึกไว้ในเครื่องแล้ว จะส่งให้อัตโนมัติเมื่อกลับมาออนไลน์':'บันทึกไว้ในเครื่องแล้ว · กำลังส่งต่อให้');
+   // Back online with older changes still waiting: send them all now rather than at the next retry.
+   if(!offline)setTimeout(flushOutbox,0);
+   const added=valid.filter(r=>!old.has(r.id));if(added.length)window.dispatchEvent(new CustomEvent('diary-added',{detail:added}));
+   return true;
+  }
   await loadRecords();const added=valid.filter(r=>!old.has(r.id));if(added.length)window.dispatchEvent(new CustomEvent('diary-added',{detail:added}));return true;
  }catch(error){tell(error.message);try{await loadRecords();const actual=validateRecords(records),desired=validateRecords(next);if(JSON.stringify([...actual].sort((a,b)=>a.id.localeCompare(b.id)))===JSON.stringify([...desired].sort((a,b)=>a.id.localeCompare(b.id))))return true;}catch{}if(formId)diaryTools.setStatus(formId,'error','บันทึกไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ · '+error.message);return false;}
  finally{saving=false;document.querySelectorAll('#meal-form button,#workout-form button,.entry-actions button,#import,#migrate-local').forEach(b=>b.disabled=false);}
@@ -314,7 +364,7 @@ function clearInvite(){
  history.replaceState(history.state,'',url);
 }
 async function boot(){
- try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');profileId=me.id;showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,m=>initTeams(m,{copyWorkout:copyTeamWorkout,copyWorkouts:copyAllTeamWorkouts}),initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealthHistory]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;await joinPendingTeam();}
+ try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');profileId=me.id;if(outboxFor().size){records=outbox.apply(records);render();showSync();flushOutbox();}showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,m=>initTeams(m,{copyWorkout:copyTeamWorkout,copyWorkouts:copyAllTeamWorkouts}),initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealthHistory]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;await joinPendingTeam();}
  catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
 }
 initPasswordReset();
