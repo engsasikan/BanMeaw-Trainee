@@ -16,6 +16,7 @@ import {initProfile} from './profile.mjs?v=4';
 import {showDailyPlans,trainerPlanner} from './plans.mjs?v=40';
 import {programEnding,endingNotice} from './team-program.mjs?v=9';
 import {createOutbox,isNetworkError} from './outbox.mjs?v=1';
+import {planSnapshot,planChanges,changeSummary} from './plan-updates.mjs?v=1';
 import {auth,api} from './account.js?v=5';
 import {localDay,read,write,validateRecords,mergeRecords,mealForTime} from './store.mjs?v=19';
 import {attachExercisePicker} from './exercise-picker.mjs?v=13';
@@ -90,6 +91,33 @@ async function flushOutbox(){
 window.addEventListener('online',()=>{showSync();flushOutbox();});window.addEventListener('offline',showSync);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)flushOutbox();});
 setInterval(()=>{if(outbox?.size)flushOutbox();},30000);
+// A note at the top of the app when a trainer has added, changed or cancelled this member's upcoming plans
+// since they last looked, with a dot on the workout tab until they do.
+const planNotice=node('section',undefined,'plan-update-notice');planNotice.hidden=true;planNotice.setAttribute('role','status');
+document.querySelector('main')?.prepend(planNotice);
+let lastPlanCheck=0;
+const markWorkoutTab=on=>document.querySelectorAll('[data-view="workout"]').forEach(b=>b.classList.toggle('has-update',on));
+async function checkPlanUpdates(){
+ if(!profileId||Date.now()-lastPlanCheck<60000)return;lastPlanCheck=Date.now();
+ const today=localDay(),key='banmeaw-plan-seen:'+profileId;
+ try{
+  const {plans}=await api('/api/plans?range=upcoming&day='+today),current=planSnapshot(plans,profileId,today);
+  let previous=null;try{previous=JSON.parse(localStorage.getItem(key));}catch{}
+  const seen=()=>{try{localStorage.setItem(key,JSON.stringify(current));}catch{}planNotice.hidden=true;markWorkoutTab(false);};
+  const changes=planChanges(previous,current,today),total=changes.added.length+changes.changed.length+changes.removed.length;
+  if(!previous||!total){seen();return;}
+  const first=[...changes.added,...changes.changed].sort((a,b)=>a.day.localeCompare(b.day))[0];
+  const text=node('div',undefined,'plan-update-text');
+  text.append(node('strong','เทรนเนอร์อัปเดตแผนฝึกของคุณ'),...changeSummary(changes).map(line=>node('small',line)));
+  const actions=node('div',undefined,'plan-update-actions');
+  const look=node('button',first?'ดูแผน':'ดูโปรแกรมฝึก','primary');look.type='button';
+  look.onclick=()=>{seen();switchView('workout');showWorkoutSection('program');if(first)selectDay(first.day);else refreshDailyPlans();document.getElementById('workout-program')?.scrollIntoView({block:'start'});};
+  const ok=node('button','รับทราบ','quiet');ok.type='button';ok.onclick=seen;
+  actions.append(look,ok);
+  planNotice.replaceChildren(node('span','🔔','plan-update-icon'),text,actions);planNotice.hidden=false;markWorkoutTab(true);
+ }catch{lastPlanCheck=0;}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkPlanUpdates();});
 async function loadRecords(){const result=await api('/api/entries');records=outboxFor()?.apply(result.records)??result.records;storageOK=true;render();showSync();}
 async function saveRecords(next,formId=null){
  if(!storageOK||saving){tell('กรุณารอให้โหลดหรือบันทึกข้อมูลเสร็จ');if(formId)diaryTools.setStatus(formId,'error','ยังบันทึกไม่ได้ กรุณารอให้โหลดหรือบันทึกข้อมูลเสร็จแล้วลองใหม่');return false;}
@@ -364,7 +392,7 @@ function clearInvite(){
  history.replaceState(history.state,'',url);
 }
 async function boot(){
- try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');profileId=me.id;if(outboxFor().size){records=outbox.apply(records);render();showSync();flushOutbox();}showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,m=>initTeams(m,{copyWorkout:copyTeamWorkout,copyWorkouts:copyAllTeamWorkouts}),initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealthHistory]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;await joinPendingTeam();}
+ try{const config=await fetch('/api/config').then(r=>r.json());googleLoginReady=config.googleLoginReady===true;if(!config.ready)throw Error('ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองอีกครั้งภายหลัง');const session=await auth.getSession();if(session.error)throw Error(session.error.message);if(!session.data?.user){const oauthError=new URLSearchParams(location.search).get('reset')==='1'?null:new URLSearchParams(location.search).get('error');if(new URLSearchParams(location.search).get('google')==='success'){authMessage.textContent='Google ยืนยันแล้ว แต่เบราว์เซอร์ไม่ได้ส่งข้อมูลเข้าสู่ระบบกลับมา กรุณาเปิดเว็บใน Chrome หรือ Safari แล้วลองใหม่';return;}authMessage.textContent=oauthError?'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ('+oauthError+') กรุณาลองใหม่':'เข้าสู่ระบบเพื่อบันทึกข้อมูลและใช้ต่อจากเครื่องอื่น';return;}await loadRecords();const me=await api('/api/me');profileId=me.id;checkPlanUpdates();if(outboxFor().size){records=outbox.apply(records);render();showSync();flushOutbox();}showAccount(me);/* a page bug must not block sign-in */for(const init of [initProfile,m=>initTeams(m,{copyWorkout:copyTeamWorkout,copyWorkouts:copyAllTeamWorkouts}),initBody,m=>initToday(m,{weigh:quickWeigh}),initMotion,initHealthHistory]){try{init(me);}catch(error){console.error(error);}}window.dispatchEvent(new CustomEvent('diary-records',{detail:records}));document.getElementById('account-panel').hidden=true;document.body.classList.remove('auth-view');document.querySelector('main').hidden=false;document.querySelector('.side-nav').hidden=false;document.getElementById('migrate-local').hidden=!legacyRecords.length;await joinPendingTeam();}
  catch(error){authMessage.textContent=error.message||'โหลดบัญชีไม่สำเร็จ';}
 }
 initPasswordReset();

@@ -221,7 +221,7 @@ export async function readPlans(sql,me,day,days=0){
  const to=new Date(Date.parse(day+'T12:00:00Z')+days*864e5).toISOString().slice(0,10);
  await syncTeamPlans(sql,me,day,to);
  return sql`
-  SELECT p.id,p.day::text AS day,p.exercises,COALESCE(t.name,'โปรแกรมส่วนตัว') AS team_name
+  SELECT p.id,p.day::text AS day,p.exercises,COALESCE(t.name,'โปรแกรมส่วนตัว') AS team_name,p.created_by
   FROM training_plans p LEFT JOIN trainer_teams t ON t.id=p.team_id
   WHERE p.user_id=${me} AND p.day BETWEEN ${day}::date AND ${to}::date
    AND (p.team_id IS NULL OR t.owner_id=${me}

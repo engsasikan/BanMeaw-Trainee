@@ -515,3 +515,14 @@ body:has(#workout-panel:not([hidden])) #program-manage-open{white-space:nowrap;p
 .sync-badge{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;z-index:400;transform:translateX(-50%);max-width:calc(100vw - 32px);min-height:36px;padding:6px 14px;border:1px solid #ff702866;border-radius:999px;background:#2b211bf2;color:#ffc39f;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px #0008;cursor:pointer}
 .sync-badge.offline{border-color:#ff6b6b66;background:#2b1b1bf2;color:#ffb0b0}
 .sync-badge[hidden]{display:none}
+/* Trainer changed this member's plans: note at the top and a dot on the workout tab */
+.plan-update-notice{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:start;gap:8px 12px;margin:0 0 16px;padding:14px;border-radius:18px;background:linear-gradient(150deg,#1d2a3a,#171c22 70%);border:1px solid #5fb8f066}
+.plan-update-notice[hidden]{display:none}
+.plan-update-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#5fb8f02e;font-size:18px}
+.plan-update-text{display:grid;gap:2px;min-width:0}
+.plan-update-text strong{font-size:15px}
+.plan-update-text small{color:#bcd6ea;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.plan-update-actions{grid-column:1/-1;display:flex;gap:8px}
+.plan-update-actions button{flex:1;min-height:42px;margin:0;border-radius:12px;font-weight:800}
+[data-view="workout"].has-update{position:relative}
+[data-view="workout"].has-update::after{content:"";position:absolute;top:6px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 0 2px var(--ink)}

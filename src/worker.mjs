@@ -91,7 +91,8 @@ export async function handleApi(request, env) {
   if(url.pathname==='/api/plans'&&request.method==='GET'){
     const day=url.searchParams.get('day');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(day||'')||Number.isNaN(Date.parse(day+'T12:00:00Z'))||new Date(day+'T12:00:00Z').toISOString().slice(0,10)!==day)return json({error:'วันที่ไม่ถูกต้อง'},400);
-    const days=url.searchParams.get('range')==='week'?6:0;
+    // week: the day and the six after it; upcoming: four weeks from the day, used to spot plans a trainer changed.
+    const days={week:6,upcoming:27}[url.searchParams.get('range')]??0;
     return json({plans:await readPlans(sql,user.sub,day,days)});
   }
   if (url.pathname === '/api/teams' || url.pathname.startsWith('/api/teams/')) return handleTeams(request,sql,user);
